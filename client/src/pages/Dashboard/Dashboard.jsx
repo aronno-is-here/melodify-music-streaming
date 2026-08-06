@@ -305,6 +305,7 @@ export default function Dashboard() {
             value={Math.min(1000, Math.round(progress * 10))}
             onChange={handleSeek}
             aria-label="Seek bar"
+            style={{ '--fill': `${progress}%` }}
           />
           <div className="progress-time">
             <span>{formatTime(currentTime)}</span>
