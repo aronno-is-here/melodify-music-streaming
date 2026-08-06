@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shotto - Warfaze</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1DB954;
+            --primary-hover: #1ED760;
+            --background: #121212;
+            --card-bg: #181818;
+            --text-primary: #FFFFFF;
+            --text-secondary: #B3B3B3;
+            --text-tertiary: #727272;
+            --border: #282828;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Circular', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(to bottom, #3a3a3a 0%, #121212 20%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .back-button {
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            color: var(--text-primary);
+            cursor: pointer;
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .album-container {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+        
+        .album-art {
+            width: 240px;
+            height: 240px;
+            background: linear-gradient(135deg, #1DB954 0%, #0f5c2d 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+        
+        .album-art::before {
+            content: 'Warfaze';
+            font-size: 18px;
+            font-weight: bold;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+        }
+        
+        .album-art::after {
+            content: 'Shotto';
+            font-size: 24px;
+            font-weight: 700;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .album-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        
+        .album-type {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        
+        .album-title {
+            font-size: 72px;
+            font-weight: 900;
+            margin: 0 0 16px;
+            line-height: 1;
+            letter-spacing: -1.5px;
+        }
+        
+        .album-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin: 0 0 16px;
+        }
+        
+        .album-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .play-btn, .action-btn {
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            border-radius: 50%;
+        }
+        
+        .play-btn {
+            width: 56px;
+            height: 56px;
+            background-color: var(--primary);
+            color: #000;
+            font-size: 20px;
+        }
+        
+        .play-btn:hover {
+            transform: scale(1.05);
+            background-color: var(--primary-hover);
+        }
+        
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            background-color: transparent;
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        .action-btn:hover {
+            color: var(--text-primary);
+        }
+        
+        .action-btn.added {
+            color: var(--primary);
+        }
+        
+        .tracklist {
+            background-color: transparent;
+            border-radius: 8px;
+            padding: 20px 0;
+        }
+        
+        .track-header {
+            display: grid;
+            grid-template-columns: 50px 1fr 80px;
+            align-items: center;
+            padding: 0 16px 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        
+        .track-header div:nth-child(2) {
+            padding-left: 16px;
+        }
+        
+        .track-item {
+            display: grid;
+            grid-template-columns: 50px 1fr 80px;
+            align-items: center;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-radius: 4px;
+            position: relative;
+        }
+        
+        .track-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .track-number {
+            color: var(--text-secondary);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .track-item:hover .track-number {
+            color: transparent;
+        }
+        
+        .track-item:hover .track-number::after {
+            content: '▶';
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+        
+        .track-item.playing .track-number {
+            color: var(--primary);
+        }
+        
+        .track-info {
+            padding: 8px 16px;
+        }
+        
+        .track-title {
+            font-size: 16px;
+            margin: 0;
+            font-weight: 500;
+        }
+        
+        .track-artist {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 4px 0 0;
+        }
+        
+        .track-duration {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .track-item.playing .track-title {
+            color: var(--primary);
+        }
+        
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+            right: 0;
+            height: 2px;
+            background-color: var(--primary);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+        
+        .track-item.playing .progress-bar {
+            transform: scaleX(1);
+        }
+        
+        .footer-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to right, #2d5f3f, #181818);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+        
+        .now-playing {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            max-width: 30%;
+        }
+        
+        .now-playing-img {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #1DB954 0%, #0f5c2d 100%);
+            border-radius: 4px;
+            margin-right: 14px;
+        }
+        
+        .now-playing-info {
+            overflow: hidden;
+        }
+        
+        .now-playing-title {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .now-playing-artist {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .player-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            max-width: 40%;
+        }
+        
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .control-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .control-btn.play-pause {
+            width: 32px;
+            height: 32px;
+            background: var(--text-primary);
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .control-btn:hover {
+            color: var(--text-primary);
+        }
+        
+        .progress-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .progress-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            min-width: 40px;
+        }
+        
+        .progress-bar-full {
+            flex: 1;
+            height: 4px;
+            background: #535353;
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .progress-bar-current {
+            height: 100%;
+            background: var(--text-primary);
+            border-radius: 2px;
+            width: 30%;
+        }
+        
+        .progress-bar-current::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 12px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .progress-bar-full:hover .progress-bar-current::after {
+            opacity: 1;
+        }
+        
+        .volume-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            max-width: 30%;
+            justify-content: flex-end;
+        }
+        
+        .volume-icon {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        .volume-bar {
+            width: 100px;
+            height: 4px;
+            background: #535353;
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .volume-level {
+            height: 100%;
+            background: var(--text-primary);
+            border-radius: 2px;
+            width: 70%;
+        }
+        
+        @media (max-width: 768px) {
+            .album-container {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            
+            .album-art {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .album-title {
+                font-size: 48px;
+            }
+            
+            .album-actions {
+                justify-content: center;
+            }
+            
+            .track-header {
+                grid-template-columns: 40px 1fr 60px;
+                padding: 0 8px 12px;
+            }
+            
+            .track-item {
+                grid-template-columns: 40px 1fr 60px;
+                padding: 8px;
+            }
+            
+            .progress-bar {
+                left: 40px;
+            }
+            
+            .footer-player {
+                flex-wrap: wrap;
+                padding: 12px;
+            }
+            
+            .now-playing {
+                max-width: 100%;
+                order: 1;
+                margin-bottom: 12px;
+            }
+            
+            .player-controls {
+                max-width: 100%;
+                order: 3;
+            }
+            
+            .volume-controls {
+                max-width: 100%;
+                order: 2;
+                margin-bottom: 12px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-button">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span>Album</span>
+        </div>
+        
+        <div class="album-container">
+            <div class="album-art"></div>
+            <div class="album-info">
+                <div class="album-type">Album</div>
+                <h1 class="album-title">Shotto</h1>
+                <p class="album-subtitle">Warfaze • 2012 • 10 songs, 56 min 12 sec</p>
+                
+                <div class="album-actions">
+                    <button class="play-btn" id="playBtn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="action-btn" id="addBtn">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <button class="action-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="action-btn" id="menuBtn">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tracklist">
+            <div class="track-header">
+                <div>#</div>
+                <div>Title</div>
+                <div>Time</div>
+            </div>
+            
+            <div class="track-item" data-track="1">
+                <div class="track-number">1</div>
+                <div class="track-info">
+                    <div class="track-title">Agami</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">6:16</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="2">
+                <div class="track-number">2</div>
+                <div class="track-info">
+                    <div class="track-title">Je Din</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">5:18</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="3">
+                <div class="track-number">3</div>
+                <div class="track-info">
+                    <div class="track-title">Jonosrot</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">6:48</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="4">
+                <div class="track-number">4</div>
+                <div class="track-info">
+                    <div class="track-title">Na</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">4:50</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="5">
+                <div class="track-number">5</div>
+                <div class="track-info">
+                    <div class="track-title">Projnom 2012</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">7:11</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="6">
+                <div class="track-number">6</div>
+                <div class="track-info">
+                    <div class="track-title">Protikha</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">5:28</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="7">
+                <div class="track-number">7</div>
+                <div class="track-info">
+                    <div class="track-title">Ogo Bodhu Shuno</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">4:45</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="8">
+                <div class="track-number">8</div>
+                <div class="track-info">
+                    <div class="track-title">Moner Manush</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">5:55</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="9">
+                <div class="track-number">9</div>
+                <div class="track-info">
+                    <div class="track-title">Jibon Theke Bolchi</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">6:02</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="10">
+                <div class="track-number">10</div>
+                <div class="track-info">
+                    <div class="track-title">Shototto (Outro)</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">3:30</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer-player">
+        <div class="now-playing">
+            <div class="now-playing-img"></div>
+            <div class="now-playing-info">
+                <div class="now-playing-title">Not Playing</div>
+                <div class="now-playing-artist">Select a song to play</div>
+            </div>
+        </div>
+        
+        <div class="player-controls">
+            <div class="control-buttons">
+                <button class="control-btn">
+                    <i class="fas fa-random"></i>
+                </button>
+                <button class="control-btn">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button class="control-btn play-pause" id="footerPlayBtn">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="control-btn">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+                <button class="control-btn">
+                    <i class="fas fa-repeat"></i>
+                </button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-time">0:00</div>
+                <div class="progress-bar-full">
+                    <div class="progress-bar-current"></div>
+                </div>
+                <div class="progress-time">0:00</div>
+            </div>
+        </div>
+        
+        <div class="volume-controls">
+            <i class="fas fa-volume-up volume-icon"></i>
+            <div class="volume-bar">
+                <div class="volume-level"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const playBtn = document.getElementById('playBtn');
+            const footerPlayBtn = document.getElementById('footerPlayBtn');
+            const addBtn = document.getElementById('addBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const menuBtn = document.getElementById('menuBtn');
+            const trackItems = document.querySelectorAll('.track-item');
+            const nowPlayingTitle = document.querySelector('.now-playing-title');
+            const nowPlayingArtist = document.querySelector('.now-playing-artist');
+            const nowPlayingImg = document.querySelector('.now-playing-img');
+            
+            // State
+            let isPlaying = false;
+            let currentTrack = null;
+            let currentAudio = null;
+            
+            // Play/Pause button functionality
+            function togglePlay() {
+                isPlaying = !isPlaying;
+                
+                if (isPlaying) {
+                    playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    footerPlayBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    
+                    if (!currentTrack) {
+                        // If nothing is playing, start with first track
+                        playTrack(trackItems[0]);
+                    } else {
+                        // Resume current track
+                        currentAudio.play();
+                    }
+                } else {
+                    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    footerPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    
+                    if (currentAudio) {
+                        currentAudio.pause();
+                    }
+                }
+            }
+            
+            // Play a specific track
+            function playTrack(trackElement) {
+                // Reset previous track
+                if (currentTrack) {
+                    currentTrack.classList.remove('playing');
+                    currentAudio.pause();
+                    currentAudio.currentTime = 0;
+                }
+                
+                // Set new track
+                currentTrack = trackElement;
+                currentAudio = currentTrack.querySelector('audio');
+                
+                // Update UI
+                trackItems.forEach(item => item.classList.remove('playing'));
+                currentTrack.classList.add('playing');
+                
+                // Update now playing info
+                const trackTitle = currentTrack.querySelector('.track-title').textContent;
+                const trackArtist = currentTrack.querySelector('.track-artist').textContent;
+                
+                nowPlayingTitle.textContent = trackTitle;
+                nowPlayingArtist.textContent = trackArtist;
+                
+                // Play audio
+                currentAudio.play();
+                isPlaying = true;
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                footerPlayBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                
+                // Update progress bar as audio plays
+                currentAudio.addEventListener('timeupdate', function() {
+                    const progressPercent = (currentAudio.currentTime / currentAudio.duration) * 100;
+                    currentTrack.querySelector('.progress-bar').style.transform = `scaleX(${progressPercent / 100})`;
+                    
+                    // Update footer player progress
+                    document.querySelector('.progress-bar-current').style.width = `${progressPercent}%`;
+                    
+                    // Update time displays
+                    const currentMinutes = Math.floor(currentAudio.currentTime / 60);
+                    const currentSeconds = Math.floor(currentAudio.currentTime % 60);
+                    const totalMinutes = Math.floor(currentAudio.duration / 60);
+                    const totalSeconds = Math.floor(currentAudio.duration % 60);
+                    
+                    document.querySelector('.progress-time:first-child').textContent = 
+                        `${currentMinutes}:${currentSeconds < 10 ? '0' : ''}${currentSeconds}`;
+                    document.querySelector('.progress-time:last-child').textContent = 
+                        `${totalMinutes}:${totalSeconds < 10 ? '0' : ''}${totalSeconds}`;
+                });
+                
+                // When audio ends, play next track
+                currentAudio.addEventListener('ended', function() {
+                    const nextTrack = currentTrack.nextElementSibling;
+                    if (nextTrack && nextTrack.classList.contains('track-item')) {
+                        playTrack(nextTrack);
+                    } else {
+                        // If last track, stop playback
+                        isPlaying = false;
+                        playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                        footerPlayBtn.innerHTML = '<i class="fas fa-play"></i>';
+                        currentTrack.classList.remove('playing');
+                        currentTrack = null;
+                        currentAudio = null;
+                        
+                        // Reset now playing info
+                        nowPlayingTitle.textContent = 'Not Playing';
+                        nowPlayingArtist.textContent = 'Select a song to play';
+                    }
+                });
+            }
+            
+            // Event listeners
+            playBtn.addEventListener('click', togglePlay);
+            footerPlayBtn.addEventListener('click', togglePlay);
+            
+            addBtn.addEventListener('click', function() {
+                if (this.classList.contains('added')) {
+                    this.innerHTML = '<i class="far fa-heart"></i>';
+                    this.classList.remove('added');
+                } else {
+                    this.innerHTML = '<i class="fas fa-heart"></i>';
+                    this.classList.add('added');
+                }
+            });
+            
+            downloadBtn.addEventListener('click', function() {
+                alert('Downloading Shotto album...');
+            });
+            
+            menuBtn.addEventListener('click', function() {
+                alert('Menu options:\n\n• Add to Playlist\n• Share Album\n• Go to Artist');
+            });
+            
+            // Add click event to each track
+            trackItems.forEach(track => {
+                track.addEventListener('click', function() {
+                    playTrack(this);
+                });
+            });
+            
+            // Back button functionality
+            document.querySelector('.back-button').addEventListener('click', function() {
+                window.history.back();
+            });
+        });
+    </script>
+</body>
+</html>

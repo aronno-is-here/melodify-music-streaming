@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melodify - Log In</title>
+    <style>
+        :root {
+            --primary-black: #121212;
+            --secondary-black: #1E1E1E;
+            --accent-black: #2A2A2A;
+            --sky-blue: #00B4D8;
+            --light-blue: #90E0EF;
+            --white: #FFFFFF;
+            --gray: #B3B3B3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--primary-black);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--white);
+        }
+
+        .login-container {
+            text-align: center;
+            padding: 40px;
+            background-color: var(--secondary-black);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            font-size: 40px;
+            color: var(--sky-blue);
+            margin-bottom: 20px;
+        }
+
+        .logo span {
+            color: var(--white);
+        }
+
+        .login-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .social-login-btn {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .social-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background-color: var(--white);
+            color: var(--primary-black);
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .social-btn img {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+        }
+
+        .social-btn:hover {
+            background-color: var(--light-blue);
+        }
+
+        .google-btn { background-color: #fff; }
+        .facebook-btn { background-color: #fff; }
+        .apple-btn { background-color: #fff; }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: var(--gray);
+            padding-left: 10px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--gray);
+            border-radius: 20px;
+            background-color: var(--accent-black);
+            color: var(--white);
+            font-size: 14px;
+        }
+
+        .continue-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--sky-blue);
+            color: var(--primary-black);
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .continue-btn:hover {
+            background-color: var(--light-blue);
+        }
+
+        .signup-link {
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--gray);
+        }
+
+        .signup-link a {
+            color: var(--sky-blue);
+            text-decoration: none;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">MELOD<span>IFY</span></div>
+        <div class="login-title">Log in to Melodify</div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="text" id="email" name="email" placeholder="Enter your email or username">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="text" id="password" name="password" placeholder="Enter your password">
+        </div>
+        <button class="continue-btn">Continue</button>
+        <div class="signup-link">Don't have an account? <a href="signup_page.html">Sign up for Melodify</a></div>
+    </div>
+</body>
+</html>

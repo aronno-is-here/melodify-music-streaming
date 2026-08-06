@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melodify Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-black: #121212;
+            --secondary-black: #1e1e1e;
+            --accent-black: #2a2a2a;
+            --sky-blue: #00b4d8;
+            --light-blue: #90e0ef;
+            --white: #ffffff;
+            --gray: #b3b3b3;
+            --success: #4caf50;
+            --danger: #ff6b6b;
+        }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Roboto', sans-serif; 
+        }
+        body { 
+            background: var(--primary-black); 
+            color: var(--white); 
+        }
+        .header { 
+            background: var(--sky-blue); 
+            color: var(--white); 
+            padding: 15px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .logout-btn { 
+            background: var(--danger); 
+            color: var(--white); 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        .logout-btn:hover { 
+            background: #ff5252; 
+        }
+        .main { 
+            display: flex; 
+            height: calc(100vh - 70px); 
+        }
+        .sidebar { 
+            width: 280px; 
+            background: var(--secondary-black); 
+            padding: 25px 20px;
+            border-right: 1px solid var(--accent-black);
+        }
+        .sidebar h3 { 
+            margin-bottom: 20px; 
+            color: var(--sky-blue); 
+            font-size: 1.2rem;
+            font-weight: 700;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--sky-blue);
+        }
+        .sidebar ul { 
+            list-style: none; 
+        }
+        .sidebar li { 
+            margin: 8px 0; 
+        }
+        .sidebar a { 
+            color: var(--gray); 
+            text-decoration: none; 
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px; 
+            border-radius: 6px; 
+            transition: all 0.3s ease;
+            font-weight: 400;
+        }
+        .sidebar a i {
+            width: 20px;
+            text-align: center;
+        }
+        .sidebar a:hover, 
+        .sidebar a.active { 
+            background: var(--sky-blue); 
+            color: var(--white);
+            transform: translateX(5px);
+        }
+        .content { 
+            flex: 1; 
+            padding: 30px; 
+            overflow-y: auto;
+            background: var(--primary-black);
+        }
+        .card { 
+            background: var(--secondary-black); 
+            padding: 25px; 
+            margin-bottom: 25px; 
+            border-radius: 10px; 
+            border: 1px solid var(--accent-black);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .card h2 { 
+            color: var(--sky-blue); 
+            margin-bottom: 20px; 
+            font-size: 1.4rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, var(--accent-black), var(--secondary-black));
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 4px solid var(--sky-blue);
+            text-align: center;
+        }
+        .stat-card h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--light-blue);
+            margin-bottom: 8px;
+        }
+        .stat-card p {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px;
+            background: var(--accent-black);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td { 
+            padding: 15px 12px; 
+            text-align: left; 
+            border-bottom: 1px solid var(--secondary-black); 
+        }
+        th { 
+            background: var(--sky-blue); 
+            color: var(--primary-black);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        tr:hover {
+            background: rgba(0, 180, 216, 0.1);
+        }
+        .btn { 
+            background: var(--sky-blue); 
+            color: var(--white); 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 2px; 
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn:hover { 
+            background: var(--light-blue);
+            transform: translateY(-1px);
+        }
+        .btn-danger { 
+            background: var(--danger); 
+        }
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        .form-group label { 
+            display: block; 
+            margin-bottom: 8px; 
+            color: var(--light-blue);
+            font-weight: 500;
+        }
+        .form-group input, 
+        .form-group select, 
+        .form-group textarea { 
+            width: 100%; 
+            padding: 12px; 
+            background: var(--accent-black); 
+            border: 1px solid var(--gray); 
+            border-radius: 6px; 
+            color: var(--white);
+            font-size: 0.9rem;
+            transition: border 0.3s;
+        }
+        .form-group input:focus, 
+        .form-group select:focus, 
+        .form-group textarea:focus {
+            border-color: var(--sky-blue);
+            outline: none;
+        }
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background: var(--accent-black);
+            border: 1px solid var(--gray);
+            color: var(--white);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .search-box:focus {
+            border-color: var(--sky-blue);
+            outline: none;
+        }
+        .message { 
+            padding: 15px; 
+            margin-bottom: 20px; 
+            border-radius: 6px; 
+            font-weight: 500;
+        }
+        .success { 
+            background: var(--success); 
+            color: var(--white); 
+        }
+        .error { 
+            background: var(--danger); 
+            color: var(--white); 
+        }
+        .chart-container {
+            background: var(--accent-black);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) { 
+            .main { 
+                flex-direction: column; 
+            }
+            .sidebar { 
+                width: 100%;
+                padding: 15px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-headphones"></i> Melodify Admin Panel</h1>
+        <div>
+            <button class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </div>
+    <div class="main">
+        <nav class="sidebar">
+            <h3><i class="fas fa-bars"></i> Navigation</h3>
+            <ul>
+                <li><a href="#dashboard" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li><a href="#users"><i class="fas fa-users"></i> User Management</a></li>
+                <li><a href="#music"><i class="fas fa-music"></i> Music Catalog</a></li>
+                <li><a href="#moderation"><i class="fas fa-shield-alt"></i> Content Moderation</a></li>
+                <li><a href="#analytics"><i class="fas fa-chart-line"></i> Analytics</a></li>
+                <li><a href="#subscriptions"><i class="fas fa-credit-card"></i> Subscriptions</a></li>
+                <li><a href="#settings"><i class="fas fa-cog"></i> System Settings</a></li>
+            </ul>
+        </nav>
+        <main class="content">
+            <!-- Success Message -->
+            <div class="message success">
+                <i class="fas fa-check-circle"></i> Song added successfully!
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="card">
+                <h2><i class="fas fa-tachometer-alt"></i> Dashboard Overview</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>12,847</h3>
+                        <p>Total Users</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>8,432</h3>
+                        <p>Total Songs</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>3,241</h3>
+                        <p>Daily Plays</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>$4,287</h3>
+                        <p>Monthly Revenue</p>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="userGrowthChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- User Management Section -->
+            <div id="users" class="card" style="display: none;">
+                <h2><i class="fas fa-users"></i> User Management</h2>
+                <input type="text" class="search-box" placeholder="Search users by name or email...">
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Subscription</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>001</td>
+                            <td>John Doe</td>
+                            <td>john@example.com</td>
+                            <td>Premium</td>
+                            <td>Active</td>
+                            <td>
+                                <button class="btn" onclick="editUser(1)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn btn-danger" onclick="banUser(1)"><i class="fas fa-ban"></i> Ban</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>002</td>
+                            <td>Jane Smith</td>
+                            <td>jane@example.com</td>
+                            <td>Free</td>
+                            <td>Active</td>
+                            <td>
+                                <button class="btn" onclick="editUser(2)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn btn-danger" onclick="banUser(2)"><i class="fas fa-ban"></i> Ban</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>003</td>
+                            <td>Mike Johnson</td>
+                            <td>mike@example.com</td>
+                            <td>Premium</td>
+                            <td>Suspended</td>
+                            <td>
+                                <button class="btn" onclick="editUser(3)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn" onclick="unbanUser(3)"><i class="fas fa-check"></i> Unban</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Music Catalog Section -->
+            <div id="music" class="card" style="display: none;">
+                <h2><i class="fas fa-music"></i> Music Catalog</h2>
+                
+                <form>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" placeholder="Enter song title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Artist</label>
+                            <input type="text" placeholder="Enter artist name" required>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label>Genre</label>
+                            <select required>
+                                <option value="">Select Genre</option>
+                                <option value="Pop">Pop</option>
+                                <option value="Rock">Rock</option>
+                                <option value="Hip Hop">Hip Hop</option>
+                                <option value="Electronic">Electronic</option>
+                                <option value="Bengali">Bengali</option>
+                                <option value="Hindi">Hindi</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration</label>
+                            <input type="text" placeholder="3:45" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Release Date</label>
+                            <input type="date" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Poster URL</label>
+                        <input type="text" placeholder="https://example.com/poster.jpg" required>
+                    </div>
+                    <div class="form-group">
+                        <label>File Path</label>
+                        <input type="text" placeholder="/music/song.mp3" required>
+                    </div>
+                    
+                    <button type="submit" class="btn" style="padding: 12px 30px;">
+                        <i class="fas fa-plus"></i> Add Song
+                    </button>
+                </form>
+
+                <table style="margin-top: 30px;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Artist</th>
+                            <th>Genre</th>
+                            <th>Duration</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>101</td>
+                            <td>Summer Vibes</td>
+                            <td>DJ Cool</td>
+                            <td>Electronic</td>
+                            <td>3:45</td>
+                            <td>
+                                <button class="btn" onclick="editSong(101)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn btn-danger" onclick="deleteSong(101)"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>102</td>
+                            <td>Moonlight</td>
+                            <td>Sarah Melody</td>
+                            <td>Pop</td>
+                            <td>4:20</td>
+                            <td>
+                                <button class="btn" onclick="editSong(102)"><i class="fas fa-edit"></i> Edit</button>
+                                <button class="btn btn-danger" onclick="deleteSong(102)"><i class="fas fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Content Moderation Section -->
+            <div id="moderation" class="card" style="display: none;">
+                <h2><i class="fas fa-shield-alt"></i> Content Moderation</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>User</th>
+                            <th>Content ID</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>201</td>
+                            <td>Song</td>
+                            <td>user@example.com</td>
+                            <td>101</td>
+                            <td>Copyright issue</td>
+                            <td>Pending</td>
+                            <td>
+                                <button class="btn" onclick="resolveReport(201)"><i class="fas fa-check"></i> Resolve</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>202</td>
+                            <td>User</td>
+                            <td>spammer@example.com</td>
+                            <td>N/A</td>
+                            <td>Spam behavior</td>
+                            <td>Investigating</td>
+                            <td>
+                                <button class="btn" onclick="resolveReport(202)"><i class="fas fa-check"></i> Resolve</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Analytics Section -->
+            <div id="analytics" class="card" style="display: none;">
+                <h2><i class="fas fa-chart-line"></i> Analytics Dashboard</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>64%</h3>
+                        <p>User Retention</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>2.3M</h3>
+                        <p>Total Plays</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>87%</h3>
+                        <p>Premium Ratio</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>4.8</h3>
+                        <p>Avg Rating</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="chart-container">
+                        <canvas id="playsChart" width="400" height="300"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="genreChart" width="400" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subscription Management Section -->
+            <div id="subscriptions" class="card" style="display: none;">
+                <h2><i class="fas fa-credit-card"></i> Subscription Management</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>User Email</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>End Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>001</td>
+                            <td>john@example.com</td>
+                            <td>Premium</td>
+                            <td>Active</td>
+                            <td>2024-12-31</td>
+                            <td>
+                                <button class="btn" onclick="extendSubscription(1)"><i class="fas fa-calendar-plus"></i> Extend</button>
+                                <button class="btn btn-danger" onclick="cancelSubscription(1)"><i class="fas fa-times"></i> Cancel</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>002</td>
+                            <td>jane@example.com</td>
+                            <td>Free</td>
+                            <td>Active</td>
+                            <td>-</td>
+                            <td>
+                                <button class="btn" onclick="upgradeSubscription(2)"><i class="fas fa-arrow-up"></i> Upgrade</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- System Settings Section -->
+            <div id="settings" class="card" style="display: none;">
+                <h2><i class="fas fa-cog"></i> System Settings</h2>
+                <form>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label>Default Theme</label>
+                            <select>
+                                <option value="dark">Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Max Downloads per User</label>
+                            <input type="number" value="5" min="1" max="100">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label>Auto-backup Frequency</label>
+                            <select>
+                                <option value="daily">Daily</option>
+                                <option value="weekly" selected>Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Session Timeout (minutes)</label>
+                            <input type="number" value="30" min="5" max="240">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Admin Notification Email</label>
+                        <input type="email" value="admin@melodify.com">
+                    </div>
+                    
+                    <button type="submit" class="btn" style="padding: 12px 30px;">
+                        <i class="fas fa-save"></i> Save Settings
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Navigation script
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.card').forEach(card => card.style.display = 'none');
+                const targetId = link.getAttribute('href').substring(1);
+                document.getElementById(targetId).style.display = 'block';
+                document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+
+        // Initialize charts
+        document.addEventListener('DOMContentLoaded', function() {
+            // User Growth Chart
+            const userCtx = document.getElementById('userGrowthChart').getContext('2d');
+            new Chart(userCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'User Growth',
+                        data: [8500, 9200, 10100, 11200, 12000, 12847],
+                        borderColor: '#00b4d8',
+                        backgroundColor: 'rgba(0, 180, 216, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'User Growth Over Time',
+                            color: '#fff'
+                        },
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#fff' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#fff' }
+                        }
+                    }
+                }
+            });
+
+            // Plays Chart
+            const playsCtx = document.getElementById('playsChart').getContext('2d');
+            new Chart(playsCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Daily Plays',
+                        data: [2800, 3100, 2900, 3300, 4100, 5200, 4800],
+                        backgroundColor: '#90e0ef',
+                        borderColor: '#00b4d8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Plays This Week',
+                            color: '#fff'
+                        },
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#fff' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#fff' }
+                        }
+                    }
+                }
+            });
+
+            // Genre Chart
+            const genreCtx = document.getElementById('genreChart').getContext('2d');
+            new Chart(genreCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pop', 'Rock', 'Hip Hop', 'Electronic', 'Bengali', 'Hindi'],
+                    datasets: [{
+                        data: [25, 15, 20, 18, 12, 10],
+                        backgroundColor: [
+                            '#00b4d8', '#90e0ef', '#0077b6', '#0096c7', '#48cae4', '#ade8f4'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Music by Genre',
+                            color: '#fff'
+                        },
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    }
+                }
+            });
+        });
+
+        // Demo functions for actions
+        function editUser(id) { 
+            alert('Editing user ' + id); 
+            // In real implementation, this would open a modal or redirect to edit page
+        }
+        function banUser(id) { 
+            if (confirm('Are you sure you want to ban this user?')) {
+                alert('User ' + id + ' has been banned');
+                // API call to ban user
+            }
+        }
+        function unbanUser(id) { 
+            alert('User ' + id + ' has been unbanned');
+            // API call to unban user
+        }
+        function editSong(id) { 
+            alert('Editing song ' + id); 
+        }
+        function deleteSong(id) { 
+            if (confirm('Are you sure you want to delete this song?')) {
+                alert('Song ' + id + ' has been deleted');
+            }
+        }
+        function resolveReport(id) { 
+            alert('Report ' + id + ' has been resolved');
+        }
+        function extendSubscription(id) { 
+            alert('Subscription ' + id + ' has been extended');
+        }
+        function cancelSubscription(id) { 
+            if (confirm('Cancel this subscription?')) {
+                alert('Subscription ' + id + ' has been canceled');
+            }
+        }
+        function upgradeSubscription(id) { 
+            alert('Upgrading subscription for user ' + id);
+        }
+
+        // User search functionality
+        document.querySelector('.search-box')?.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#users tbody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+
+        // Form submission handlers
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                alert('Form submitted successfully!');
+                // In real implementation, this would send data to server
+            });
+        });
+    </script>
+</body>
+</html>

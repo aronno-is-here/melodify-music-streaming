@@ -1,0 +1,2440 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Independent Scroll Grids</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Merienda:wght@300..900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary-black: #121212;
+        --secondary-black: #1e1e1e;
+        --accent-black: #2a2a2a;
+        --sky-blue: #00b4d8;
+        --light-blue: #90e0ef;
+        --white: #ffffff;
+        --gray: #b3b3b3;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      html,
+      body {
+        overflow: hidden;
+        height: 100%;
+      }
+
+      .logo {
+        font-size: 50px;
+        font-weight: bold;
+        color: var(--sky-blue);
+      }
+
+      .logo span {
+        color: var(--white);
+      }
+
+      header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        background-color: black;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        transition-duration: 1s;
+      }
+
+      header:hover {
+        box-shadow: 0 10px 10px rgba(7, 134, 238, 0.2);
+      }
+
+      main {
+        margin-top: 60px;
+        height: calc(100vh - 60px);
+        display: grid;
+        grid-template-columns: 25% 50% 25%;
+        gap: 15px;
+        padding: 20px;
+        background-color: black;
+        transition: grid-template-columns 0.3s ease;
+      }
+
+      main.collapsed {
+        grid-template-columns: 2.5% 72.5% 25%;
+      }
+
+      .scroll-grid {
+        background-color: #121212;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-left: -15px;
+        margin-right: 15px;
+        padding: 15px;
+        overflow-y: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        scrollbar-width: none;
+      }
+
+      .scroll-grid:hover {
+        overflow-y: auto;
+        scrollbar-width: thin;
+      }
+
+      .scroll-grid:nth-child(1)::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .scroll-grid:nth-child(1)::-webkit-scrollbar-thumb {
+        background-color: var(--sky-blue);
+        border-radius: 4px;
+      }
+
+      .scroll-grid:nth-child(1):hover {
+        scrollbar-color: var(--sky-blue) #121212;
+      }
+
+      .scroll-grid:nth-child(2)::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .scroll-grid:nth-child(2)::-webkit-scrollbar-thumb {
+        background-color: var(--sky-blue);
+        border-radius: 4px;
+      }
+
+      .scroll-grid:nth-child(2):hover {
+        scrollbar-color: var(--sky-blue) #121212;
+      }
+
+      .scroll-grid:nth-child(3)::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .scroll-grid:nth-child(3)::-webkit-scrollbar-thumb {
+        background-color: var(--sky-blue);
+        border-radius: 4px;
+      }
+
+      .scroll-grid:nth-child(3):hover {
+        scrollbar-color: var(--sky-blue) #121212;
+      }
+
+      .scroll-grid:nth-child(3)::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      main.collapsed .scroll-grid:nth-child(1) .library-search,
+      main.collapsed .scroll-grid:nth-child(1) .playlist,
+      main.collapsed .scroll-grid:nth-child(1) .content-block,
+      main.collapsed .scroll-grid:nth-child(1) h2 span,
+      main.collapsed .scroll-grid:nth-child(1) .create-btn {
+        display: none;
+      }
+
+      .scroll-grid h2 {
+        font-size: 40px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--white);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .scroll-grid #recommend-heading,
+      .scroll-grid #recent-heading {
+        font-size: 40px;
+        font-family: "Roboto", sans-serif;
+        color: var(--white);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .scroll-grid #right-heading {
+        font-size: 40px;
+        color: var(--white);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .scroll-grid:nth-child(1) h2 {
+        font-size: 24px;
+        justify-content: space-between;
+      }
+
+      .create-btn {
+        background: var(--primary-black);
+        border: 1px solid var(--sky-blue);
+        color: var(--sky-blue);
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+
+      .create-btn:hover {
+        background: var(--sky-blue);
+        color: var(--white);
+      }
+
+      .library-search {
+        display: flex;
+        align-items: center;
+        background-color: var(--primary-black);
+        border: 2px solid var(--sky-blue);
+        border-radius: 25px;
+        padding: 8px 12px;
+        margin: 10px 0;
+        width: 100%;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .library-search:hover,
+      .library-search:has(input:focus) {
+        border-color: var(--light-blue);
+        box-shadow: 0 0 8px var(--light-blue);
+      }
+
+      .library-search i {
+        color: var(--sky-blue);
+        font-size: 16px;
+        margin: 0 8px;
+        transition: color 0.3s ease, transform 0.3s ease;
+      }
+
+      .library-search i:hover {
+        color: var(--light-blue);
+        transform: scale(1.1);
+      }
+
+      .library-search input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--white);
+        font-size: 14px;
+      }
+
+      .library-search input::placeholder {
+        color: var(--gray);
+      }
+
+      .song-list {
+        position: absolute;
+      }
+
+      .playlist {
+        display: flex;
+        align-items: center;
+        margin-top: 15px;
+        margin-bottom: 10px;
+        gap: 10px;
+        position: relative;
+      }
+
+      .playlist-poster {
+        width: 65px;
+        height: 65px;
+        object-fit: cover;
+        border-radius: 4px;
+        transition: opacity 0.3s ease;
+      }
+
+      .playlist:hover .playlist-poster {
+        opacity: 0.6;
+      }
+
+      .playlist-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .playlist-title {
+        color: var(--white);
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      .playlist-meta {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 15px;
+        color: var(--gray);
+      }
+
+      .playlist-meta i {
+        color: var(--sky-blue);
+        font-size: 15px;
+      }
+
+      .song-count {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        color: var(--white);
+        border-radius: 50%;
+        font-size: 15px;
+        margin-left: 5px;
+      }
+
+      .poster-wrapper {
+        position: relative;
+        width: 65px;
+        height: 65px;
+      }
+
+      .playlist .play-button {
+        position: absolute;
+        bottom: 18px;
+        right: 16px;
+        width: 30px;
+        height: 30px;
+        background-color: var(--accent-black);
+        color: var(--white);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transform: scale(0.8);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        cursor: pointer;
+      }
+
+      .playlist:hover .play-button {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .playlist .play-button i {
+        font-size: 15px;
+      }
+
+      .toggle-btn {
+        background: none;
+        border: none;
+        color: var(--sky-blue);
+        cursor: pointer;
+        font-size: 20px;
+        padding: 5px;
+        margin-left: -16px;
+        transition: transform 0.3s ease;
+      }
+
+      main.collapsed .toggle-btn {
+        transform: rotate(180deg);
+      }
+
+      .content-block {
+        background-color: #121212;
+        color: var(--sky-blue);
+        font-size: 20px;
+        padding: 20px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+      }
+
+      .recommend-container {
+        width: 100%;
+        margin-top: 20px;
+        background: var(--primary-black);
+        padding: 20px 0;
+        position: relative;
+      }
+
+      .recommend-list {
+        display: flex;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        gap: 15px;
+      }
+
+      .recommend-list::-webkit-scrollbar {
+        display: none;
+      }
+
+      .recommend-button {
+        width: 100%;
+        text-align: center;
+        margin-top: 20px;
+        z-index: 10;
+      }
+
+      .recommend-button button {
+        width: 40px;
+        height: 35px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        margin: 0 5px;
+        border: 1px solid var(--gray);
+        background: var(--primary-black);
+        color: var(--sky-blue);
+        transition: 1s;
+      }
+
+      .recommend-button button:hover {
+        background: var(--sky-blue);
+        color: var(--white);
+      }
+
+      .recent-container {
+        width: 100%;
+        margin-top: 20px;
+        background: var(--primary-black);
+        padding: 20px 0;
+        position: relative;
+      }
+
+      .recent-list {
+        display: flex;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        gap: 15px;
+      }
+
+      .recent-list::-webkit-scrollbar {
+        display: none;
+      }
+
+      .recent-button {
+        width: 100%;
+        text-align: center;
+        margin-top: 20px;
+        z-index: 10;
+      }
+
+      .recent-button button {
+        width: 40px;
+        height: 35px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        margin: 0 5px;
+        border: 1px solid var(--gray);
+        background: var(--primary-black);
+        color: var(--sky-blue);
+        transition: 1s;
+      }
+
+      .recent-button button:hover {
+        background: var(--sky-blue);
+        color: var(--white);
+      }
+
+      .recommend-list .item,
+      .recent-list .item {
+        flex: 0 0 150px;
+        height: 180px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+      }
+
+      .song-poster {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        transition: opacity 0.3s ease;
+      }
+
+      .item:hover .song-poster,
+      .song-item:hover .song-poster {
+        opacity: 0.6;
+      }
+
+      .item .play-button {
+        position: absolute;
+        bottom: 35px;
+        right: 5px;
+        width: 40px;
+        height: 40px;
+        background-color: var(--sky-blue);
+        color: var(--white);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transform: scale(0.8);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        cursor: pointer;
+      }
+
+      .song-item .play-button {
+        position: absolute;
+        bottom: 50px;
+        right: 15px;
+        width: 40px;
+        height: 40px;
+        background-color: var(--sky-blue);
+        color: var(--white);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transform: scale(0.8);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        cursor: pointer;
+      }
+
+      .item:hover .play-button,
+      .song-item:hover .play-button {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      .item .play-button i,
+      .song-item .play-button i {
+        font-size: 18px;
+      }
+
+      .song-name {
+        color: var(--white);
+        font-size: 14px;
+        margin-top: -8px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 150px;
+      }
+
+      .search-container {
+        width: 100%;
+        margin-top: 20px;
+        background: var(--primary-black);
+      }
+
+      .search-bar {
+        display: flex;
+        align-items: center;
+        background-color: var(--primary-black);
+        border: 2px solid var(--sky-blue);
+        border-radius: 25px;
+        padding: 10px 15px;
+        margin: 0 10px;
+        width: calc(100% - 20px);
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .search-bar:hover,
+      .search-bar:has(input:focus) {
+        border-color: var(--light-blue);
+        box-shadow: 0 0 8px var(--light-blue);
+      }
+
+      .search-bar i {
+        color: var(--sky-blue);
+        font-size: 20px;
+        margin: 0 10px;
+        transition: color 0.3s ease, transform 0.3s ease;
+      }
+
+      .search-bar i:hover {
+        color: var(--light-blue);
+        transform: scale(1.1);
+      }
+
+      .search-bar input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--white);
+        font-size: 16px;
+        margin-top: -3px;
+      }
+
+      .search-bar input::placeholder {
+        color: var(--gray);
+      }
+
+      .songs-container {
+        width: 100%;
+        margin-top: 20px;
+        background: var(--primary-black);
+        padding: 20px 0;
+        border-radius: 8px;
+      }
+
+      .songs-container h2 {
+        font-size: 40px;
+        font-family: "Roboto", sans-serif;
+        color: var(--white);
+        margin-bottom: 20px;
+        padding-left: 10px;
+      }
+
+      .songs-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 50px;
+      }
+
+      .song-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+      }
+
+      .song-info {
+        text-align: center;
+        margin-top: 5px;
+      }
+
+      .artist-name {
+        color: var(--gray);
+        font-size: 12px;
+      }
+
+      .now-playing-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .now-playing-header h2 {
+        font-size: 24px;
+        color: var(--white);
+        font-family: "Roboto", sans-serif;
+      }
+
+      .menu-btn {
+        background: none;
+        border: none;
+        color: var(--sky-blue);
+        font-size: 20px;
+        cursor: pointer;
+        transition: color 0.3s ease, transform 0.3s ease;
+      }
+
+      .menu-btn:hover,
+      .menu-btn:focus {
+        color: var(--light-blue);
+        transform: scale(1.1);
+      }
+
+      .menu-btn:focus {
+        outline: 2px solid var(--sky-blue);
+        outline-offset: 2px;
+      }
+
+      .song-poster {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+
+      .song-details {
+        color: var(--white);
+        margin-bottom: 15px;
+      }
+
+      .song-details h3 {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .song-details p {
+        font-size: 14px;
+        color: var(--gray);
+        margin: 2px 0;
+      }
+
+      .progress-container {
+        width: 100%;
+        height: 6px;
+        background: var(--secondary-black);
+        border-radius: 3px;
+        margin-bottom: 15px;
+        position: relative;
+      }
+
+      .progress-bar {
+        width: 0%;
+        height: 100%;
+        background: var(--sky-blue);
+        border-radius: 3px;
+        transition: width 0.1s linear;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        width: 380px;
+      }
+
+      .control-btn {
+        background: var(--accent-black);
+        border: none;
+        color: var(--sky-blue);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+      }
+
+      .control-btn:hover,
+      .control-btn:focus {
+        background: var(--sky-blue);
+        color: var(--white);
+        transform: scale(1.1);
+      }
+
+      .control-btn:focus {
+        outline: 2px solid var(--light-blue);
+        outline-offset: 2px;
+      }
+
+      .control-btn.active {
+        color: var(--light-blue);
+      }
+
+      .control-btn i {
+        font-size: 18px;
+      }
+
+      .play-btn {
+        width: 50px;
+        height: 50px;
+      }
+
+      .play-btn i {
+        font-size: 22px;
+      }
+
+      .volume-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .volume-btn {
+        background: none;
+        border: none;
+        color: var(--sky-blue);
+        font-size: 18px;
+        cursor: pointer;
+        transition: color 0.3s ease, transform 0.3s ease;
+      }
+
+      .volume-btn:hover,
+      .volume-btn:focus {
+        color: var(--light-blue);
+        transform: scale(1.1);
+      }
+
+      .volume-btn:focus {
+        outline: 2px solid var(--sky-blue);
+        outline-offset: 2px;
+      }
+
+      .volume-slider {
+        width: 100%;
+        height: 6px;
+        background: var(--secondary-black);
+        border-radius: 3px;
+        outline: none;
+      }
+
+      .volume-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 12px;
+        height: 12px;
+        background: var(--sky-blue);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .volume-slider::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        background: var(--sky-blue);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .popup {
+        display: none;
+        position: fixed;
+        top: 25%;
+        left: 92%;
+        transform: translate(-50%, -50%);
+        background: var(--secondary-black);
+        padding: 10px;
+        border-radius: 8px 0 8px 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        color: var(--white);
+        width: 200px;
+        max-width: 90%;
+      }
+
+      .popup.active {
+        display: block;
+      }
+
+      .popup h3 {
+        font-size: 22px;
+        margin-bottom: 10px;
+      }
+
+      .popup ul {
+        list-style: none;
+      }
+
+      .popup li {
+        padding: 10px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      .popup li:hover {
+        background: var(--accent-black);
+      }
+
+      .popup .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        color: var(--sky-blue);
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .popup .close-btn:hover,
+      .popup .close-btn:focus {
+        color: var(--light-blue);
+      }
+
+      .popup .close-btn:focus {
+        outline: 2px solid var(--sky-blue);
+        outline-offset: 2px;
+      }
+
+      .profile-container {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        z-index: 101;
+      }
+
+      .profile-btn {
+        background: none;
+        border: none;
+        color: var(--sky-blue);
+        font-size: 20px;
+        cursor: pointer;
+        transition: color 0.3s ease, transform 0.3s ease;
+      }
+
+      .profile-btn:hover,
+      .profile-btn:focus {
+        color: var(--light-blue);
+        transform: scale(1.1);
+      }
+
+      .profile-btn:focus {
+        outline: 2px solid var(--sky-blue);
+        outline-offset: 2px;
+      }
+
+      .profile-menu {
+        display: none;
+        position: absolute;
+        top: 30px;
+        right: 0;
+        background: var(--secondary-black);
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        color: var(--white);
+        width: 150px;
+      }
+
+      .profile-menu.active {
+        display: block;
+      }
+
+      .profile-menu ul {
+        list-style: none;
+      }
+
+      .profile-menu li {
+        padding: 10px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      .profile-menu li:hover {
+        background: var(--accent-black);
+      }
+
+      @media (max-width: 768px) {
+        .poster-wrapper {
+          width: 40px;
+          height: 40px;
+        }
+
+        main {
+          grid-template-columns: 1fr;
+          padding: 10px;
+        }
+
+        .scroll-grid {
+          margin-bottom: 15px;
+          margin-right: 0;
+        }
+
+        main.collapsed {
+          grid-template-columns: 1fr;
+        }
+
+        main.collapsed .scroll-grid:nth-child(1) {
+          width: 100%;
+          min-width: 50px;
+        }
+
+        .recommend-list .item,
+        .recent-list .item {
+          flex: 0 0 120px;
+          height: 150px;
+        }
+
+        .song-poster {
+          width: 120px;
+          height: 120px;
+        }
+
+        .item .play-button,
+        .song-item .play-button {
+          width: 35px;
+          height: 35px;
+          bottom: 35px;
+          right: 5px;
+        }
+
+        .item .play-button i,
+        .song-item .play-button i {
+          font-size: 16px;
+        }
+
+        .playlist .play-button {
+          width: 25px;
+          height: 25px;
+          bottom: 5px;
+          right: 5px;
+        }
+
+        .playlist .play-button i {
+          font-size: 12px;
+        }
+
+        .search-bar {
+          padding: 8px 12px;
+          margin: 0 5px;
+        }
+
+        .search-bar i {
+          font-size: 16px;
+          margin: 0 8px;
+        }
+
+        .search-bar input {
+          font-size: 14px;
+        }
+
+        .recommend-button button,
+        .recent-button button {
+          width: 35px;
+          height: 30px;
+        }
+
+        .scroll-grid:nth-child(1) h2 {
+          font-size: 20px;
+        }
+
+        .create-btn {
+          padding: 4px 8px;
+          font-size: 12px;
+        }
+
+        .library-search {
+          padding: 6px 10px;
+        }
+
+        .library-search i {
+          font-size: 14px;
+          margin: 0 6px;
+        }
+
+        .library-search input {
+          font-size: 12px;
+        }
+
+        .playlist-poster {
+          width: 40px;
+          height: 40px;
+        }
+
+        .playlist-title {
+          font-size: 14px;
+        }
+
+        .playlist-meta {
+          font-size: 10px;
+        }
+
+        .playlist-meta i {
+          font-size: 10px;
+        }
+
+        .song-count {
+          width: 14px;
+          height: 14px;
+          font-size: 8px;
+        }
+
+        .songs-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 50px;
+        }
+
+        .songs-container h2 {
+          font-size: 20px;
+          padding-left: 10px;
+        }
+
+        .song-item .song-poster {
+          width: 120px;
+          height: 120px;
+        }
+
+        .song-item .song-name {
+          width: 120px;
+          font-size: 12px;
+        }
+
+        .song-item .artist-name {
+          width: 120px;
+          font-size: 10px;
+        }
+
+        .scroll-grid {
+          padding: 10px;
+        }
+
+        .now-playing-header h2 {
+          font-size: 20px;
+        }
+
+        .song-details h3 {
+          font-size: 16px;
+        }
+
+        .song-details p {
+          font-size: 12px;
+        }
+
+        .control-btn {
+          width: 35px;
+          height: 35px;
+        }
+
+        .control-btn i {
+          font-size: 16px;
+        }
+
+        .play-btn {
+          width: 45px;
+          height: 45px;
+        }
+
+        .play-btn i {
+          font-size: 20px;
+        }
+
+        .volume-btn {
+          font-size: 16px;
+        }
+
+        .popup {
+          width: 80%;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">MELOD<span>IFY</span></div>
+    </header>
+    <div class="profile-container">
+      <button class="profile-btn" aria-label="Open profile menu">
+        <i class="fa-solid fa-user"></i>
+      </button>
+      <div class="profile-menu" id="profile-menu">
+        <ul>
+          <li>View Profile</li>
+          <li>Logout</li>
+        </ul>
+      </div>
+    </div>
+    <main id="mainContainer">
+      <div class="scroll-grid">
+        <h2 id="grid1_heading">
+          <button class="toggle-btn">◀</button>
+          <span class="grid-title">Library</span>
+          <button class="create-btn">Create</button>
+        </h2>
+        <div class="library-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search in Library" />
+        </div>
+        <div class="playlist">
+          <div class="poster-wrapper">
+            <img
+              class="playlist-poster"
+              src="https://picsum.photos/65/65?random=17"
+              alt="Playlist 1 Poster"
+            />
+            <div class="play-button" data-state="play">
+              <i class="fa-solid fa-play"></i>
+            </div>
+          </div>
+
+          <div class="playlist-info">
+            <div class="playlist-title">Liked Songs</div>
+            <div class="playlist-meta">
+              <i class="fa-solid fa-thumbtack"></i>
+              Playlist
+              <span class="song-count">12</span>
+            </div>
+          </div>
+        </div>
+        <div class="playlist">
+          <div class="poster-wrapper">
+            <img
+              class="playlist-poster"
+              src="https://picsum.photos/65/65?random=18"
+              alt="Playlist 2 Poster"
+            />
+            <div class="play-button" data-state="play">
+              <i class="fa-solid fa-play"></i>
+            </div>
+          </div>
+          <div class="playlist-info">
+            <div class="playlist-title">My Playlist #1</div>
+            <div class="playlist-meta">
+              Playlist
+              <span class="song-count">25</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-grid">
+        <div class="recent-container">
+          <h2 id="recent-heading">Recently Played</h2>
+          <div class="recent-list">
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=7"
+                alt="Recently Played 1 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 1</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=8"
+                alt="Recently Played 2 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 2</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=9"
+                alt="Recently Played 3 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 3</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=10"
+                alt="Recently Played 4 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 4</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=11"
+                alt="Recently Played 5 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 5</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=12"
+                alt="Recently Played 6 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 6</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=13"
+                alt="Recently Played 7 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 7</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=14"
+                alt="Recently Played 8 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 8</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=15"
+                alt="Recently Played 9 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 9</div>
+            </div>
+            <div class="item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=16"
+                alt="Recently Played 10 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-name">Recently Played 10</div>
+            </div>
+          </div>
+          <div class="recent-button">
+            <button class="prev-recent">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <button class="next-recent">
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="search-container">
+          <div class="search-bar">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input
+              type="text"
+              placeholder="Search by songs' or artists' name"
+            />
+            <i class="fa-solid fa-face-smile"></i>
+          </div>
+        </div>
+        <div class="songs-container">
+          <h2>Songs</h2>
+          <div class="songs-grid">
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=19"
+                alt="Song 1 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 1</div>
+                <div class="artist-name">Artist 1</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=20"
+                alt="Song 2 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 2</div>
+                <div class="artist-name">Artist 2</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=21"
+                alt="Song 3 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title-3</div>
+                <div class="artist-name">Artist 3</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=22"
+                alt="Song 4 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 4</div>
+                <div class="artist-name">Artist 4</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=23"
+                alt="Song 5 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 5</div>
+                <div class="artist-name">Artist 5</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=24"
+                alt="Song 6 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 6</div>
+                <div class="artist-name">Artist 6</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=25"
+                alt="Song 7 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 7</div>
+                <div class="artist-name">Artist 7</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=26"
+                alt="Song 8 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 8</div>
+                <div class="artist-name">Artist 8</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=27"
+                alt="Song 9 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 9</div>
+                <div class="artist-name">Artist 9</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=28"
+                alt="Song 10 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 10</div>
+                <div class="artist-name">Artist 10</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=29"
+                alt="Song 11 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 11</div>
+                <div class="artist-name">Artist 11</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=30"
+                alt="Song 12 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 12</div>
+                <div class="artist-name">Artist 12</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=31"
+                alt="Song 13 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 13</div>
+                <div class="artist-name">Artist 13</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=32"
+                alt="Song 14 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 14</div>
+                <div class="artist-name">Artist 14</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=33"
+                alt="Song 15 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 15</div>
+                <div class="artist-name">Artist 15</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=34"
+                alt="Song 16 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 16</div>
+                <div class="artist-name">Artist 16</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=35"
+                alt="Song 17 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 17</div>
+                <div class="artist-name">Artist 17</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=36"
+                alt="Song 18 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 18</div>
+                <div class="artist-name">Artist 18</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=37"
+                alt="Song 19 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 19</div>
+                <div class="artist-name">Artist 19</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=38"
+                alt="Song 20 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 20</div>
+                <div class="artist-name">Artist 20</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=39"
+                alt="Song 21 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 21</div>
+                <div class="artist-name">Artist 21</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=40"
+                alt="Song 22 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 22</div>
+                <div class="artist-name">Artist 22</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=41"
+                alt="Song 23 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 23</div>
+                <div class="artist-name">Artist 23</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=42"
+                alt="Song 24 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 24</div>
+                <div class="artist-name">Artist 24</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=43"
+                alt="Song 25 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 25</div>
+                <div class="artist-name">Artist 25</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=44"
+                alt="Song 26 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 26</div>
+                <div class="artist-name">Artist 26</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=45"
+                alt="Song 27 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 27</div>
+                <div class="artist-name">Artist 27</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=46"
+                alt="Song 28 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 28</div>
+                <div class="artist-name">Artist 28</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=47"
+                alt="Song 29 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 29</div>
+                <div class="artist-name">Artist 29</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=48"
+                alt="Song 30 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 30</div>
+                <div class="artist-name">Artist 30</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=49"
+                alt="Song 31 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 31</div>
+                <div class="artist-name">Artist 31</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=50"
+                alt="Song 32 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 32</div>
+                <div class="artist-name">Artist 32</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=51"
+                alt="Song 33 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 33</div>
+                <div class="artist-name">Artist 33</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=52"
+                alt="Song 34 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 34</div>
+                <div class="artist-name">Artist 34</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=53"
+                alt="Song 35 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 35</div>
+                <div class="artist-name">Artist 35</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=54"
+                alt="Song 36 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 36</div>
+                <div class="artist-name">Artist 36</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=55"
+                alt="Song 37 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 37</div>
+                <div class="artist-name">Artist 37</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=56"
+                alt="Song 38 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 38</div>
+                <div class="artist-name">Artist 38</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=57"
+                alt="Song 39 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 39</div>
+                <div class="artist-name">Artist 39</div>
+              </div>
+            </div>
+            <div class="song-item">
+              <img
+                class="song-poster"
+                src="https://picsum.photos/150/150?random=58"
+                alt="Song 40 Poster"
+              />
+              <div class="play-button" data-state="play">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="song-info">
+                <div class="song-name">Song Title 40</div>
+                <div class="artist-name">Artist 40</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scroll-grid">
+        <div class="now-playing-header">
+          <h2 id="right-heading">Pop</h2>
+          <button class="menu-btn" aria-label="Open song options menu">
+            <i class="fa-solid fa-ellipsis-h"></i>
+          </button>
+        </div>
+        <img
+          class="song-poster"
+          src="https://picsum.photos/300/300?random=1"
+          alt="Now Playing Song Poster"
+        />
+        <div class="song-details">
+          <h3>Song Title</h3>
+          <p>Artist: Artist Name</p>
+          <p>Genre: Pop</p>
+          <p>Duration: 3:45</p>
+          <p>Release Date: January 1, 2023</p>
+        </div>
+        <div class="progress-container">
+          <div class="progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="controls">
+          <button
+            class="control-btn shuffle-btn"
+            aria-label="Toggle shuffle"
+            data-shuffle="off"
+          >
+            <i class="fa-solid fa-shuffle"></i>
+          </button>
+          <button class="control-btn prev-btn" aria-label="Previous song">
+            <i class="fa-solid fa-backward"></i>
+          </button>
+          <button
+            class="control-btn play-btn"
+            aria-label="Play song"
+            data-state="play"
+          >
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button class="control-btn next-btn" aria-label="Next song">
+            <i class="fa-solid fa-forward"></i>
+          </button>
+          <button
+            class="control-btn repeat-btn"
+            aria-label="Toggle repeat"
+            data-repeat="off"
+          >
+            <i class="fa-solid fa-repeat"></i>
+          </button>
+          <div class="volume-container">
+            <button
+              class="volume-btn"
+              aria-label="Toggle mute"
+              data-muted="false"
+            >
+              <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <input
+              type="range"
+              class="volume-slider"
+              min="0"
+              max="100"
+              value="50"
+              aria-label="Volume control"
+            />
+          </div>
+        </div>
+        <div class="popup" id="song-options-popup">
+          <ul>
+            <li>Add to Playlist</li>
+            <li>Add to Favorite</li>
+            <li>Download</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // Toggle collapse for the left grid
+        function toggleCollapse() {
+          const main = document.querySelector("#mainContainer");
+          main.classList.toggle("collapsed");
+        }
+        const toggleBtn = document.querySelector(".toggle-btn");
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", toggleCollapse);
+        }
+
+        // Scroll controls for recommendation list
+        const nextRecommend = document.querySelector(".next-recommend");
+        const prevRecommend = document.querySelector(".prev-recommend");
+        const recommendList = document.querySelector(".recommend-list");
+        if (nextRecommend && recommendList) {
+          nextRecommend.addEventListener("click", function () {
+            const itemWidth = window.innerWidth < 768 ? 120 + 15 : 150 + 15;
+            const maxScroll =
+              recommendList.scrollWidth - recommendList.clientWidth;
+            if (recommendList.scrollLeft >= maxScroll - 1) {
+              recommendList.scrollLeft = 0; // Loop to start
+            } else {
+              recommendList.scrollLeft += itemWidth;
+            }
+          });
+        }
+        if (prevRecommend && recommendList) {
+          prevRecommend.addEventListener("click", function () {
+            const itemWidth = window.innerWidth < 768 ? 120 + 15 : 150 + 15;
+            if (recommendList.scrollLeft <= 0) {
+              recommendList.scrollLeft = recommendList.scrollWidth; // Loop to end
+            } else {
+              recommendList.scrollLeft -= itemWidth;
+            }
+          });
+        }
+
+        // Scroll controls for recent list
+        const nextRecent = document.querySelector(".next-recent");
+        const prevRecent = document.querySelector(".prev-recent");
+        const recentList = document.querySelector(".recent-list");
+        if (nextRecent && recentList) {
+          nextRecent.addEventListener("click", function () {
+            const itemWidth = window.innerWidth < 768 ? 120 + 15 : 150 + 15;
+            const maxScroll = recentList.scrollWidth - recentList.clientWidth;
+            if (recentList.scrollLeft >= maxScroll - 1) {
+              recentList.scrollLeft = 0; // Loop to start
+            } else {
+              recentList.scrollLeft += itemWidth;
+            }
+          });
+        }
+        if (prevRecent && recentList) {
+          prevRecent.addEventListener("click", function () {
+            const itemWidth = window.innerWidth < 768 ? 120 + 15 : 150 + 15;
+            if (recentList.scrollLeft <= 0) {
+              recentList.scrollLeft = recentList.scrollWidth; // Loop to end
+            } else {
+              recentList.scrollLeft -= itemWidth;
+            }
+          });
+        }
+
+        // Play button toggle for playlists and songs
+        const playButtons = document.querySelectorAll(".play-button");
+        playButtons.forEach((button) => {
+          button.addEventListener("click", function () {
+            const icon = this.querySelector("i");
+            if (this.dataset.state === "play") {
+              icon.classList.remove("fa-play");
+              icon.classList.add("fa-pause");
+              this.dataset.state = "pause";
+            } else {
+              icon.classList.remove("fa-pause");
+              icon.classList.add("fa-play");
+              this.dataset.state = "play";
+            }
+          });
+        });
+
+        // Menu button and popup toggle for right grid
+        const menuBtn = document.querySelector(".menu-btn");
+        const popup = document.querySelector("#song-options-popup");
+        if (menuBtn && popup) {
+          menuBtn.addEventListener("click", () => {
+            popup.classList.toggle("active");
+          });
+        }
+
+        // Close popup when clicking outside
+        document.addEventListener("click", (e) => {
+          if (
+            menuBtn &&
+            popup &&
+            !menuBtn.contains(e.target) &&
+            !popup.contains(e.target)
+          ) {
+            popup.classList.remove("active");
+          }
+        });
+
+        // Close popup on Escape key
+        document.addEventListener("keydown", (e) => {
+          if (
+            e.key === "Escape" &&
+            popup &&
+            popup.classList.contains("active")
+          ) {
+            popup.classList.remove("active");
+          }
+        });
+
+        // Playback controls for right grid
+        const playBtn = document.querySelector(".play-btn");
+        const progressBar = document.querySelector(".progress-bar");
+        let isPlaying = false;
+        let progress = 0;
+
+        if (playBtn && progressBar) {
+          playBtn.addEventListener("click", () => {
+            isPlaying = !isPlaying;
+            const icon = playBtn.querySelector("i");
+            if (isPlaying) {
+              icon.classList.remove("fa-play");
+              icon.classList.add("fa-pause");
+              playBtn.setAttribute("aria-label", "Pause song");
+              progress = 0;
+              const updateProgress = () => {
+                if (progress < 100) {
+                  progress += 0.1;
+                  progressBar.style.width = `${progress}%`;
+                  requestAnimationFrame(updateProgress);
+                } else {
+                  isPlaying = false;
+                  icon.classList.remove("fa-pause");
+                  icon.classList.add("fa-play");
+                  playBtn.setAttribute("aria-label", "Play song");
+                }
+              };
+              requestAnimationFrame(updateProgress);
+            } else {
+              icon.classList.remove("fa-pause");
+              icon.classList.add("fa-play");
+              playBtn.setAttribute("aria-label", "Play song");
+            }
+          });
+        }
+
+        // Shuffle button
+        const shuffleBtn = document.querySelector(".shuffle-btn");
+        if (shuffleBtn) {
+          shuffleBtn.addEventListener("click", () => {
+            const isShuffled = shuffleBtn.dataset.shuffle === "off";
+            shuffleBtn.dataset.shuffle = isShuffled ? "on" : "off";
+            shuffleBtn.classList.toggle("active", isShuffled);
+            console.log(`Shuffle ${isShuffled ? "enabled" : "disabled"}`);
+          });
+        }
+
+        // Repeat button
+        const repeatBtn = document.querySelector(".repeat-btn");
+        if (repeatBtn) {
+          repeatBtn.addEventListener("click", () => {
+            const isRepeated = repeatBtn.dataset.repeat === "off";
+            repeatBtn.dataset.repeat = isRepeated ? "on" : "off";
+            repeatBtn.classList.toggle("active", isRepeated);
+            console.log(`Repeat ${isRepeated ? "enabled" : "disabled"}`);
+          });
+        }
+
+        // Previous song button
+        const prevBtn = document.querySelector(".prev-btn");
+        if (prevBtn) {
+          prevBtn.addEventListener("click", () => {
+            console.log("Previous song");
+            progressBar.style.width = "0%";
+            isPlaying = false;
+            playBtn.querySelector("i").classList.remove("fa-pause");
+            playBtn.querySelector("i").classList.add("fa-play");
+            playBtn.setAttribute("aria-label", "Play song");
+          });
+        }
+
+        // Next song button
+        const nextBtn = document.querySelector(".next-btn");
+        if (nextBtn) {
+          nextBtn.addEventListener("click", () => {
+            console.log("Next song");
+            progressBar.style.width = "0%";
+            isPlaying = false;
+            playBtn.querySelector("i").classList.remove("fa-pause");
+            playBtn.querySelector("i").classList.add("fa-play");
+            playBtn.setAttribute("aria-label", "Play song");
+          });
+        }
+
+        // Volume control
+        const volumeBtn = document.querySelector(".volume-btn");
+        const volumeSlider = document.querySelector(".volume-slider");
+        if (volumeSlider) {
+          volumeSlider.style.setProperty("--volume", `${volumeSlider.value}%`);
+        }
+
+        if (volumeBtn && volumeSlider) {
+          volumeBtn.addEventListener("click", () => {
+            const isMuted = volumeBtn.dataset.muted === "false";
+            volumeBtn.dataset.muted = isMuted ? "true" : "false";
+            volumeBtn.dataset.volume = isMuted ? volumeSlider.value : "0";
+            volumeSlider.value = isMuted ? 0 : volumeBtn.dataset.volume;
+            volumeSlider.style.setProperty(
+              "--volume",
+              `${volumeSlider.value}%`
+            );
+            volumeBtn
+              .querySelector("i")
+              .classList.toggle("fa-volume-high", !isMuted);
+            volumeBtn
+              .querySelector("i")
+              .classList.toggle("fa-volume-mute", isMuted);
+            console.log(`Volume ${isMuted ? "muted" : "unmuted"}`);
+          });
+
+          volumeSlider.addEventListener("input", () => {
+            const volume = volumeSlider.value;
+            volumeSlider.style.setProperty("--volume", `${volume}%`);
+            volumeBtn.dataset.muted = volume === "0" ? "true" : "false";
+            volumeBtn
+              .querySelector("i")
+              .classList.toggle("fa-volume-high", volume !== "0");
+            volumeBtn
+              .querySelector("i")
+              .classList.toggle("fa-volume-mute", volume === "0");
+            console.log(`Volume set to ${volume}%`);
+          });
+        }
+
+        // Function to create and show the playlist creation popup
+        function showCreatePlaylistPopup() {
+          console.log("Create button clicked"); // Debug log to confirm click
+
+          // Count existing playlists to determine the new playlist number
+          const playlists = document.querySelectorAll(".playlist");
+          const playlistNumber = playlists.length + 1;
+
+          // Create popup container with a unique class
+          const popup = document.createElement("div");
+          popup.className = "create-playlist-popup";
+          popup.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--secondary-black);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 10000;
+            width: 780px;
+            height: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: var(--white);
+            display: block;
+        `;
+
+          // Get songs from the songs-grid
+          const songItems = document.querySelectorAll(".songs-grid .song-item");
+          let songListHTML = "";
+          if (songItems.length === 0) {
+            console.warn("No songs found in .songs-grid");
+            songListHTML =
+              '<p style="color: var(--gray);">No songs available</p>';
+          } else {
+            songItems.forEach((item) => {
+              const songName = item.querySelector(".song-name").textContent;
+              const artistName = item.querySelector(".artist-name").textContent;
+              songListHTML += `
+                    <div class="song-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--accent-black);">
+                        <span>${songName} - ${artistName}</span>
+                        <button class="add-btn" style="padding: 5px 10px; background: var(--sky-blue); color: var(--white); border: none; border-radius: 4px; cursor: pointer;">Add</button>
+                    </div>
+                `;
+            });
+          }
+
+          // Create popup content
+          popup.innerHTML = `
+            <div class="popup-header" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-family: 'Roboto', sans-serif;">My Playlist #${playlistNumber}</h3>
+                <button class="close-btn" style="background: none; border: none; font-size: 16px; cursor: pointer; color: var(--sky-blue);">✕</button>
+            </div>
+            <div class="search-bar" style="margin-bottom: 15px; display: flex; align-items: center; background: var(--primary-black); border: 2px solid var(--sky-blue); border-radius: 25px; padding: 8px 12px;">
+                <i class="fa-solid fa-magnifying-glass" style="margin-right: 8px; color: var(--sky-blue);"></i>
+                <input type="text" placeholder="Search for songs" style="flex: 1; background: transparent; border: none; outline: none; color: var(--white); font-size: 14px;">
+            </div>
+            <div class="song-list" style="display: flex; flex-direction: column; gap: 20px; margin-top: 50px">
+                ${songListHTML}
+            </div>
+            <div class="popup-footer" style="margin-top: 15px; text-align: right;">
+                <button class="save-btn" style="padding: 8px 16px; background: var(--sky-blue); color: var(--white); border: none; border-radius: 4px; cursor: pointer;">Save Playlist</button>
+            </div>
+        `;
+
+          // Create overlay
+          const overlay = document.createElement("div");
+          overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+        `;
+
+          // Store selected songs
+          const selectedSongs = [];
+
+          // Add event listeners
+          popup.querySelector(".close-btn").addEventListener("click", () => {
+            console.log("Close button clicked");
+            popup.remove();
+            overlay.remove();
+          });
+
+          popup.querySelectorAll(".add-btn").forEach((button) => {
+            button.addEventListener("click", (e) => {
+              const song =
+                e.target.parentElement.querySelector("span").textContent;
+              if (!selectedSongs.includes(song)) {
+                selectedSongs.push(song);
+                e.target.textContent = "Added";
+                e.target.disabled = true;
+                e.target.style.background = "var(--gray)";
+                console.log(`Added song: ${song}`);
+              }
+            });
+          });
+
+          popup.querySelector(".save-btn").addEventListener("click", () => {
+            if (selectedSongs.length > 0) {
+              // Create new playlist element
+              const library = document.querySelector(
+                ".scroll-grid:nth-child(1)"
+              );
+              const newPlaylist = document.createElement("div");
+              newPlaylist.className = "playlist";
+              newPlaylist.innerHTML = `
+                    <div class="poster-wrapper">
+                        <img class="playlist-poster" src="https://picsum.photos/65/65?random=${
+                          playlistNumber + 18
+                        }" alt="Playlist ${playlistNumber} Poster" />
+                        <div class="play-button" data-state="play">
+                            <i class="fa-solid fa-play"></i>
+                        </div>
+                    </div>
+                    <div class="playlist-info">
+                        <div class="playlist-title">My Playlist #${playlistNumber}</div>
+                        <div class="playlist-meta">
+                            Playlist
+                            <span class="song-count">${
+                              selectedSongs.length
+                            }</span>
+                        </div>
+                    </div>
+                `;
+              library.appendChild(newPlaylist);
+              console.log(
+                `Playlist created: My Playlist #${playlistNumber} with ${selectedSongs.length} songs`
+              );
+              popup.remove();
+              overlay.remove();
+            } else {
+              alert("Please add at least one song to the playlist.");
+            }
+          });
+
+          popup.querySelector("input").addEventListener("input", (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const songItems = popup.querySelectorAll(".song-item");
+            songItems.forEach((item) => {
+              const songName = item
+                .querySelector("span")
+                .textContent.toLowerCase();
+              item.style.display = songName.includes(searchTerm)
+                ? "flex"
+                : "none";
+            });
+          });
+
+          // Close popup on Escape key
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && document.body.contains(popup)) {
+              console.log("Escape key pressed");
+              popup.remove();
+              overlay.remove();
+            }
+          });
+
+          // Append popup and overlay to body
+          document.body.appendChild(overlay);
+          document.body.appendChild(popup);
+          console.log("Popup and overlay appended to body");
+        }
+
+        // Add event listener to create button
+        const createBtn = document.querySelector(".create-btn");
+        if (!createBtn) {
+          console.error("Create button not found");
+        } else {
+          createBtn.addEventListener("click", showCreatePlaylistPopup);
+        }
+
+        // Profile menu handling
+        const profileBtn = document.querySelector(".profile-btn");
+        const profileMenu = document.querySelector("#profile-menu");
+
+        if (profileBtn && profileMenu) {
+          profileBtn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Prevent click from bubbling to document
+            profileMenu.classList.toggle("active");
+          });
+
+          // Close menu when clicking outside
+          document.addEventListener("click", (e) => {
+            if (
+              !profileBtn.contains(e.target) &&
+              !profileMenu.contains(e.target)
+            ) {
+              profileMenu.classList.remove("active");
+            }
+          });
+
+          // Close menu on Escape key
+          document.addEventListener("keydown", (e) => {
+            if (
+              e.key === "Escape" &&
+              profileMenu.classList.contains("active")
+            ) {
+              profileMenu.classList.remove("active");
+            }
+          });
+
+          // Handle profile menu actions
+          profileMenu.querySelectorAll("li").forEach((item) => {
+            item.addEventListener("click", () => {
+              if (item.textContent === "View Profile") {
+                console.log("Navigating to profile page");
+                window.location.href = "profile.php";
+              } else if (item.textContent === "Logout") {
+                console.log("User logged out");
+                window.location.href = "logout.php";
+              }
+              profileMenu.classList.remove("active");
+            });
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

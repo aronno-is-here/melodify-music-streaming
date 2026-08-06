@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melodify Premium Subscription</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* Reset and base styles */
+        :root {
+            --primary: #1DB954;
+            --primary-dark: #1AA34A;
+            --primary-light: #2EDC6C;
+            --secondary: #7A3FF8;
+            --accent-1: #FF6B81;
+            --accent-2: #A66CFF;
+            --accent-3: #D4A017;
+            --background: #000000;
+            --surface: #121212;
+            --card-bg: #1A1A1A;
+            --text-primary: #FFFFFF;
+            --text-secondary: #B3B3B3;
+            --text-tertiary: #727272;
+            --border: #282828;
+            --gradient-start: #2941AB;
+            --gradient-end: #511281;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            border-bottom: 1px solid transparent;
+        }
+
+        header.sticky {
+            background-color: rgba(0, 0, 0, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
+        .logo:hover {
+            color: var(--primary);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        nav ul li {
+            margin-left: 16px;
+        }
+
+        nav ul li a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        nav ul li a:hover {
+            color: var(--primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-btn {
+            background: var(--primary);
+            color: #000 !important;
+            font-weight: 700 !important;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-light) !important;
+            transform: translateY(-2px);
+        }
+
+        .divider {
+            height: 20px;
+            width: 1px;
+            background-color: var(--border);
+            margin: 0 8px;
+        }
+
+        /* Hero section */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            position: relative;
+            overflow: hidden;
+            padding: 0 32px;
+            margin-top: 80px;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 70% 20%, rgba(255,255,255,0.1) 0%, transparent 30%),
+                        radial-gradient(circle at 30% 80%, rgba(29, 185, 84, 0.1) 0%, transparent 30%);
+            z-index: 1;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 900px;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .offer-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            color: var(--text-primary);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .offer-title {
+            font-size: 56px;
+            font-weight: 900;
+            margin-bottom: 16px;
+            line-height: 1.2;
+            background: linear-gradient(to right, #fff, var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .offer-subtitle {
+            font-size: 20px;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 16px 40px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform: scale(1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-light);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(29, 185, 84, 0.4);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-primary);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255,255,255,0.1);
+            border-color: var(--text-primary);
+            transform: translateY(-3px) scale(1.05);
+        }
+
+        .terms {
+            font-size: 12px;
+            opacity: 0.7;
+            max-width: 500px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Abstract shapes */
+        .floating-elements {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .floating-element {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.5;
+            filter: blur(40px);
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .element-1 {
+            width: 300px;
+            height: 300px;
+            background: var(--primary);
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .element-2 {
+            width: 200px;
+            height: 200px;
+            background: var(--secondary);
+            top: 60%;
+            right: 15%;
+            animation-delay: 1s;
+        }
+
+        .element-3 {
+            width: 150px;
+            height: 150px;
+            background: var(--accent-1);
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 2s;
+        }
+
+        /* Experience section */
+        .experience {
+            padding: 100px 32px;
+            text-align: center;
+            background-color: var(--background);
+            position: relative;
+        }
+
+        .experience::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(29, 185, 84, 0.03) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .section-tag {
+            display: inline-block;
+            color: var(--primary);
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .experience-title {
+            font-size: 42px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(to right, #fff, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .experience-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 60px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .comparison-table {
+            max-width: 900px;
+            margin: 0 auto;
+            border-collapse: collapse;
+            width: 100%;
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .comparison-table th {
+            text-align: left;
+            padding: 24px;
+            font-size: 18px;
+            font-weight: 800;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .comparison-table th:first-child {
+            border-top-left-radius: 16px;
+        }
+
+        .comparison-table th:last-child {
+            border-top-right-radius: 16px;
+        }
+
+        .comparison-table td {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+            text-align: left;
+            transition: background-color 0.3s ease;
+        }
+
+        .comparison-table td:first-child {
+            width: 60%;
+            font-weight: 600;
+        }
+
+        .comparison-table .check {
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .comparison-table .dash {
+            color: var(--text-secondary);
+            opacity: 0.3;
+            font-size: 24px;
+        }
+
+        .comparison-table tr:hover td {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        /* Plans Section */
+        .plans {
+            padding: 100px 32px;
+            background-color: var(--background);
+            text-align: center;
+            position: relative;
+        }
+
+        .plans::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 80% 20%, rgba(122, 63, 248, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .plans-header {
+            margin-bottom: 60px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .payment-options {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .payment-options img {
+            height: 24px;
+            width: auto;
+            filter: brightness(0) invert(1);
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .payment-options img:hover {
+            opacity: 1;
+        }
+
+        .more-payment-options {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .more-payment-options:hover {
+            opacity: 1;
+            color: var(--primary);
+        }
+
+        .plans-title {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            color: var(--text-primary);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto 60px;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .feature-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--primary);
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+            color: var(--primary);
+        }
+
+        .feature-text {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .plans-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .plan-card {
+            background: linear-gradient(145deg, var(--card-bg), #151515);
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: left;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .plan-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+        }
+
+        .plan-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .plan-card.popular {
+            border: 1px solid var(--primary);
+            transform: scale(1.03);
+        }
+
+        .plan-card.popular::after {
+            content: 'MOST POPULAR';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: var(--primary);
+            color: #000;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 5px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .plan-icon {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .plan-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .plan-price {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--text-primary);
+        }
+
+        .price-amount {
+            font-size: 32px;
+            color: var(--primary);
+            font-weight: 800;
+        }
+
+        .plan-details {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+
+        .plan-details li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .plan-details li::before {
+            content: "✓";
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .plan-btn {
+            display: block;
+            width: 100%;
+            text-align: center;
+            padding: 16px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-individual {
+            background: var(--primary);
+            color: #000;
+        }
+
+        .btn-individual:hover {
+            background: var(--primary-light);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(29, 185, 84, 0.4);
+        }
+
+        .btn-student {
+            background: var(--accent-2);
+            color: #fff;
+        }
+
+        .btn-student:hover {
+            background: #B281FF;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(166, 108, 255, 0.4);
+        }
+
+        .btn-duo {
+            background: var(--accent-3);
+            color: #fff;
+        }
+
+        .btn-duo:hover {
+            background: #E4B231;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(212, 160, 23, 0.4);
+        }
+
+        .plan-terms {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+
+        /* Testimonials Section */
+        .testimonials {
+            padding: 100px 32px;
+            background-color: var(--background);
+            text-align: center;
+            position: relative;
+        }
+
+        .testimonials::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(255, 107, 129, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .testimonials-title {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 60px;
+            color: var(--text-primary);
+        }
+
+        .testimonials-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .testimonial-card {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: left;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .testimonial-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .testimonial-card::before {
+            content: '"';
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 60px;
+            color: var(--primary);
+            opacity: 0.2;
+            font-family: serif;
+        }
+
+        .testimonial-text {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.7;
+            font-style: italic;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .author-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        .author-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .author-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .author-location {
+            font-size: 14px;
+            color: var(--text-tertiary);
+        }
+
+        /* FAQ Section */
+        .faq {
+            padding: 100px 32px;
+            background-color: var(--surface);
+            text-align: center;
+        }
+
+        .faq-title {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 60px;
+            color: var(--text-primary);
+        }
+
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--card-bg);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .faq-question {
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .faq-question:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .faq-question i {
+            transition: transform 0.3s ease;
+        }
+
+        .faq-answer {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+        }
+
+        .faq-item.active .faq-answer {
+            padding: 20px;
+            max-height: 300px;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--surface);
+            padding: 80px 32px 40px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 40px;
+            text-align: left;
+        }
+
+        .footer-column h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: var(--text-primary);
+        }
+
+        .footer-column ul {
+            list-style: none;
+        }
+
+        .footer-column ul li {
+            margin-bottom: 12px;
+        }
+
+        .footer-column ul li a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .footer-column ul li a:hover {
+            color: var(--primary);
+            transform: translateX(5px);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .social-links a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-links a:hover {
+            background: var(--primary);
+            color: #000;
+            transform: translateY(-3px);
+        }
+
+        .footer-bottom {
+            margin-top: 60px;
+            font-size: 14px;
+            color: var(--text-tertiary);
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            .offer-title {
+                font-size: 42px;
+            }
+            
+            .experience-title, .plans-title, .testimonials-title, .faq-title {
+                font-size: 32px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 16px;
+            }
+            
+            nav ul {
+                display: none;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .offer-title {
+                font-size: 32px;
+            }
+            
+            .offer-subtitle {
+                font-size: 18px;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .experience, .plans, .testimonials, .faq {
+                padding: 60px 16px;
+            }
+            
+            .comparison-table {
+                font-size: 14px;
+            }
+            
+            .comparison-table th, .comparison-table td {
+                padding: 12px 16px;
+            }
+            
+            .plans-cards, .testimonials-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .plan-card.popular {
+                transform: scale(1);
+            }
+            
+            .footer-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 30px;
+            }
+            
+            .social-links {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .offer-title {
+                font-size: 28px;
+            }
+            
+            .experience-title, .plans-title, .testimonials-title, .faq-title {
+                font-size: 28px;
+            }
+            
+            .plan-card {
+                padding: 30px 20px;
+            }
+            
+            .testimonial-card {
+                padding: 20px;
+            }
+        }
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            nav ul {
+                position: fixed;
+                top: 0;
+                right: -100%;
+                width: 70%;
+                height: 100vh;
+                background: var(--surface);
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                transition: right 0.3s ease;
+                z-index: 1000;
+                box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+            }
+            
+            nav ul.active {
+                right: 0;
+            }
+            
+            nav ul li {
+                margin: 15px 0;
+            }
+            
+            .divider {
+                height: 1px;
+                width: 80%;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="#" class="logo">Melodify<span>+</span></a>
+        <nav>
+            <ul>
+                <li><a href="#">Premium</a></li>
+                <li><a href="#">Support</a></li>
+                <li><a href="#">Download</a></li>
+                <li class="divider"></li>
+                <li><a href="#">Sign up</a></li>
+                <li><a href="#" class="nav-btn">Log in</a></li>
+            </ul>
+        </nav>
+        <button class="mobile-menu-btn">
+            <i class="fas fa-bars"></i>
+        </button>
+    </header>
+
+    <section class="hero">
+        <div class="floating-elements">
+            <div class="floating-element element-1"></div>
+            <div class="floating-element element-2"></div>
+            <div class="floating-element element-3"></div>
+        </div>
+        <div class="hero-content">
+            <div class="offer-tag">Limited Time Offer</div>
+            <h1 class="offer-title">BDT 0.00 for 3 months of Premium</h1>
+            <p class="offer-subtitle">Enjoy ad-free music listening, offline playback, and more. Cancel anytime.</p>
+            <div class="buttons">
+                <a href="#" class="btn btn-primary"><i class="fas fa-crown"></i> Try 3 months for BDT 0</a>
+                <a href="#" class="btn btn-secondary">View all plans</a>
+            </div>
+            <p class="terms">Premium Individual only. BDT 0 for 3 months, then BDT 219 per month after. Offer available if you haven't tried Premium before. Terms apply. Offer ends 22 September 2025.</p>
+        </div>
+    </section>
+
+    <section class="experience">
+        <span class="section-tag">Why Go Premium</span>
+        <h2 class="experience-title">Experience the difference</h2>
+        <p class="experience-subtitle">Go Premium and enjoy full control of your listening. Cancel anytime.</p>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>What you'll get</th>
+                    <th>Free plan</th>
+                    <th>Premium plans</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Ad-free music listening</td>
+                    <td class="dash">-</td>
+                    <td class="check">✔</td>
+                </tr>
+                <tr>
+                    <td>Download to listen offline</td>
+                    <td class="dash">-</td>
+                    <td class="check">✔</td>
+                </tr>
+                <tr>
+                    <td>Play songs in any order</td>
+                    <td class="dash">-</td>
+                    <td class="check">✔</td>
+                </tr>
+                <tr>
+                    <td>High audio quality</td>
+                    <td class="dash">-</td>
+                    <td class="check">✔</td>
+                </tr>
+                <tr>
+                    <td>Listen with friends in real time</td>
+                    <td class="dash">-</td>
+                    <td class="check">✔</td>
+                </tr>
+                <tr>
+                    <td>Organise listening queue</td>
+                    <td class="dash">-</td>
+                    <td class="check">✔</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="plans">
+        <div class="plans-header">
+            <div class="payment-options">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo.svg" alt="American Express">
+                <a href="#" class="more-payment-options">+2 more <i class="fas fa-chevron-right"></i></a>
+            </div>
+            <h2 class="plans-title">Pick your Premium</h2>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-music"></i></div>
+                    <p class="feature-text">Ad-free music</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-download"></i></div>
+                    <p class="feature-text">Download songs</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-headphones"></i></div>
+                    <p class="feature-text">High quality audio</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-infinity"></i></div>
+                    <p class="feature-text">Unlimited skips</p>
+                </div>
+            </div>
+        </div>
+        <div class="plans-cards">
+            <div class="plan-card popular">
+                <div class="plan-icon"><i class="fas fa-user"></i></div>
+                <h3 class="plan-title">Premium Individual</h3>
+                <p class="plan-price"><span class="price-amount">BDT 0</span> for 3 months<br>BDT 219/month after</p>
+                <ul class="plan-details">
+                    <li>1 Premium account</li>
+                    <li>Cancel anytime</li>
+                    <li>Subscribe or one-time payment</li>
+                    <li>Access to all features</li>
+                </ul>
+                <a href="#" class="plan-btn btn-individual">Try 3 months for BDT 0</a>
+                <p class="plan-terms">BDT 0 for 3 months, then BDT 219 per month after. Offer available only if you haven't tried Premium before. Terms apply. Offer ends 22 September 2025.</p>
+            </div>
+            <div class="plan-card">
+                <div class="plan-icon"><i class="fas fa-graduation-cap"></i></div>
+                <h3 class="plan-title">Premium Student</h3>
+                <p class="plan-price"><span class="price-amount">BDT 0</span> for 1 month<br>BDT 109/month after</p>
+                <ul class="plan-details">
+                    <li>1 verified Premium account</li>
+                    <li>Discount for eligible students</li>
+                    <li>Cancel anytime</li>
+                    <li>All Premium features included</li>
+                </ul>
+                <a href="#" class="plan-btn btn-student">Try 1 month for BDT 0</a>
+                <p class="plan-terms">BDT 0 for 1 month, then BDT 109 per month after. Offer available only to students at an accredited higher education institution and if you haven't tried Premium before. Terms apply.</p>
+            </div>
+            <div class="plan-card">
+                <div class="plan-icon"><i class="fas fa-users"></i></div>
+                <h3 class="plan-title">Duo</h3>
+                <p class="plan-price"><span class="price-amount">BDT 299</span>/month</p>
+                <ul class="plan-details">
+                    <li>2 Premium accounts</li>
+                    <li>Cancel anytime</li>
+                    <li>Subscribe or one-time payment</li>
+                    <li>For couples living together</li>
+                </ul>
+                <a href="#" class="plan-btn btn-duo">Get Premium Duo</a>
+                <p class="plan-terms">For couples who reside at the same address. Terms apply.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="testimonials">
+        <h2 class="testimonials-title">What Our Users Say</h2>
+        <div class="testimonials-cards">
+            <div class="testimonial-card">
+                <p class="testimonial-text">"Melodify Premium transformed my music experience! No ads and offline listening are a game-changer for my daily commute. The sound quality is incredible!"</p>
+                <div class="testimonial-author">
+                    <div class="author-avatar">AK</div>
+                    <div class="author-info">
+                        <div class="author-name">Ayesha Khan</div>
+                        <div class="author-location">Dhaka, Bangladesh</div>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p class="testimonial-text">"As a student, the discount makes Premium affordable, and the quality is unbeatable. I can now study with my favorite music without interruptions."</p>
+                <div class="testimonial-author">
+                    <div class="author-avatar">RS</div>
+                    <div class="author-info">
+                        <div class="author-name">Rahul Sharma</div>
+                        <div class="author-location">Chittagong, Bangladesh</div>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p class="testimonial-text">"Duo plan is perfect for me and my partner—great value for two accounts! We both enjoy unlimited access to millions of songs without breaking the bank."</p>
+                <div class="testimonial-author">
+                    <div class="author-avatar">PP</div>
+                    <div class="author-info">
+                        <div class="author-name">Priya Patel</div>
+                        <div class="author-location">Sylhet, Bangladesh</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="faq">
+        <h2 class="faq-title">Frequently Asked Questions</h2>
+        <div class="faq-container">
+            <div class="faq-item">
+                <div class="faq-question">
+                    How does the free trial work?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    New subscribers get a 3-month free trial of Melodify Premium Individual. You'll need to provide payment details to start your trial. After 3 months, your subscription will automatically continue at the standard monthly price unless you cancel.
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    How do I cancel my subscription?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    You can cancel your subscription at any time through your account settings. If you cancel during your free trial, you won't be charged. After the trial, you'll continue to have access to Premium until the end of your billing period.
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    What payment methods are accepted?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    We accept all major credit cards, debit cards, and PayPal. In some regions, you can also pay through mobile payment systems and bank transfers.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-column">
+                <h3>Company</h3>
+                <ul>
+                    <li><a href="#">About</a></li>
+                    <li><a href="#">Jobs</a></li>
+                    <li><a href="#">Press</a></li>
+                    <li><a href="#">News</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Communities</h3>
+                <ul>
+                    <li><a href="#">For Artists</a></li>
+                    <li><a href="#">Developers</a></li>
+                    <li><a href="#">Advertising</a></li>
+                    <li><a href="#">Investors</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Useful Links</h3>
+                <ul>
+                    <li><a href="#">Support</a></li>
+                    <li><a href="#">Web Player</a></li>
+                    <li><a href="#">Free Mobile App</a></li>
+                    <li><a href="#">Terms & Conditions</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Follow Us</h3>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-youtube"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Melodify. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Sticky header effect
+        const header = document.querySelector('header');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                header.classList.add('sticky');
+            } else {
+                header.classList.remove('sticky');
+            }
+        });
+
+        // Mobile menu toggle
+        const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+        const navMenu = document.querySelector('nav ul');
+        
+        mobileMenuBtn.addEventListener('click', () => {
+            navMenu.classList.toggle('active');
+            mobileMenuBtn.innerHTML = navMenu.classList.contains('active') ? 
+                '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+        });
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    
+                    // Close mobile menu if open
+                    navMenu.classList.remove('active');
+                    mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
+                }
+            });
+        });
+
+        // Button click feedback
+        document.querySelectorAll('.btn, .plan-btn').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.style.transform = 'scale(0.95)';
+            });
+            button.addEventListener('mouseup', () => {
+                button.style.transform = '';
+            });
+            button.addEventListener('mouseleave', () => {
+                button.style.transform = '';
+            });
+        });
+
+        // FAQ accordion functionality
+        const faqItems = document.querySelectorAll('.faq-item');
+        
+        faqItems.forEach(item => {
+            const question = item.querySelector('.faq-question');
+            question.addEventListener('click', () => {
+                // Close all other items
+                faqItems.forEach(otherItem => {
+                    if (otherItem !== item) {
+                        otherItem.classList.remove('active');
+                    }
+                });
+                
+                // Toggle current item
+                item.classList.toggle('active');
+            });
+        });
+
+        // Animate elements on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animation = 'fadeInUp 0.8s ease-out forwards';
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        // Observe elements for animation
+        document.querySelectorAll('.plan-card, .testimonial-card, .feature-item').forEach(el => {
+            el.style.opacity = '0';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>

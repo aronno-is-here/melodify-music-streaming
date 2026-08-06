@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Karaoke Voice Recorder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        header {
+            background: #5c6bc0;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+        }
+
+        .left-panel {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+        }
+
+        .right-panel {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            border-left: 1px solid #eee;
+        }
+
+        .section-title {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #5c6bc0;
+            color: #5c6bc0;
+        }
+
+        .track-selector {
+            margin-bottom: 20px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .record-btn {
+            background: #ff5252;
+            color: white;
+        }
+
+        .record-btn:hover {
+            background: #ff0000;
+        }
+
+        .stop-btn {
+            background: #4caf50;
+            color: white;
+        }
+
+        .stop-btn:hover {
+            background: #388e3c;
+        }
+
+        .play-btn {
+            background: #2196f3;
+            color: white;
+        }
+
+        .play-btn:hover {
+            background: #1976d2;
+        }
+
+        .save-btn {
+            background: #ff9800;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background: #f57c00;
+        }
+
+        .visualization {
+            height: 150px;
+            background: #1a237e;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #visualizer {
+            width: 100%;
+            height: 100%;
+        }
+
+        .lyrics-container {
+            background: #f5f5f5;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            height: 150px;
+            overflow-y: auto;
+        }
+
+        .lyric-line {
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+
+        .lyric-line.active {
+            background-color: #5c6bc0;
+            color: white;
+        }
+
+        .editor-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .editor-btn {
+            background: #9c27b0;
+            color: white;
+        }
+
+        .editor-btn:hover {
+            background: #7b1fa2;
+        }
+
+        .volume-control {
+            margin: 20px 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .recordings-list {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .recording-item {
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recording-item button {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #777;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .right-panel {
+                border-left: none;
+                border-top: 1px solid #eee;
+            }
+        }
+
+        .effect-control {
+            margin: 10px 0;
+        }
+
+        .time-display {
+            text-align: center;
+            font-size: 1.2rem;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Real-Time Karaoke Voice Recorder</h1>
+            <p class="subtitle">Sing along with real-time effects and visualization</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="left-panel">
+                <h2 class="section-title">Recording Studio</h2>
+                
+                <div class="track-selector">
+                    <label for="karaoke-tracks">Select Karaoke Track:</label>
+                    <select id="karaoke-tracks">
+                        <option value="none">No Background Music</option>
+                        <option value="pop">Pop Ballad (80 BPM)</option>
+                        <option value="rock">Rock Anthem (120 BPM)</option>
+                        <option value="jazz">Jazz Standard (100 BPM)</option>
+                    </select>
+                </div>
+                
+                <div class="time-display">
+                    <span id="time-elapsed">00:00</span> / <span id="time-total">00:00</span>
+                </div>
+                
+                <div class="visualization">
+                    <canvas id="visualizer"></canvas>
+                </div>
+                
+                <div class="lyrics-container">
+                    <div class="lyric-line">Welcome to Karaoke Recorder!</div>
+                    <div class="lyric-line">Select a track and press record to start</div>
+                    <div class="lyric-line">You'll see lyrics here as you sing</div>
+                    <div class="lyric-line">Have fun and enjoy!</div>
+                </div>
+                
+                <div class="controls">
+                    <button id="recordBtn" class="record-btn">Start Recording</button>
+                    <button id="stopBtn" class="stop-btn" disabled>Stop Recording</button>
+                    <button id="playBtn" class="play-btn" disabled>Play Recording</button>
+                    <button id="saveBtn" class="save-btn" disabled>Save Recording</button>
+                </div>
+                
+                <div class="volume-control">
+                    <label for="volume">Microphone Volume:</label>
+                    <input type="range" id="volume" min="0" max="100" value="80">
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <h2 class="section-title">Real-Time Audio Editor</h2>
+                
+                <div class="effect-control">
+                    <label for="reverb">Reverb:</label>
+                    <input type="range" id="reverb" min="0" max="100" value="0">
+                </div>
+                
+                <div class="effect-control">
+                    <label for="delay">Echo/Delay:</label>
+                    <input type="range" id="delay" min="0" max="100" value="0">
+                </div>
+                
+                <div class="effect-control">
+                    <label for="pitch">Pitch Correction:</label>
+                    <input type="range" id="pitch" min="0" max="100" value="50">
+                </div>
+                
+                <div class="editor-controls">
+                    <button class="editor-btn" id="trimBtn">Trim</button>
+                    <button class="editor-btn" id="fadeInBtn">Fade In</button>
+                    <button class="editor-btn" id="fadeOutBtn">Fade Out</button>
+                    <button class="editor-btn" id="normalizeBtn">Normalize</button>
+                </div>
+                
+                <div class="volume-control">
+                    <label for="playback-volume">Playback Volume:</label>
+                    <input type="range" id="playback-volume" min="0" max="100" value="100">
+                </div>
+                
+                <div class="volume-control">
+                    <label for="music-volume">Music Volume:</label>
+                    <input type="range" id="music-volume" min="0" max="100" value="70">
+                </div>
+                
+                <h3 class="section-title">Your Recordings</h3>
+                <div class="recordings-list" id="recordingsList">
+                    <div class="recording-item">
+                        <span>Sample Recording 1</span>
+                        <div>
+                            <button class="play-btn">Play</button>
+                            <button class="editor-btn">Edit</button>
+                        </div>
+                    </div>
+                    <div class="recording-item">
+                        <span>Sample Recording 2</span>
+                        <div>
+                            <button class="play-btn">Play</button>
+                            <button class="editor-btn">Edit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Real-Time Karaoke Voice Recorder & Editor | Created with Web Audio API</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const recordBtn = document.getElementById('recordBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const playBtn = document.getElementById('playBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const volumeSlider = document.getElementById('volume');
+            const playbackVolume = document.getElementById('playback-volume');
+            const musicVolume = document.getElementById('music-volume');
+            const visualizer = document.getElementById('visualizer');
+            const timeElapsed = document.getElementById('time-elapsed');
+            const timeTotal = document.getElementById('time-total');
+            const lyricsContainer = document.querySelector('.lyrics-container');
+
+            // Audio context and variables
+            let audioContext;
+            let analyser;
+            let microphone;
+            let recorder;
+            let audioChunks = [];
+            let isRecording = false;
+            let startTime;
+            let elapsedTimeInterval;
+            let canvasContext = visualizer.getContext('2d');
+
+            // Set canvas dimensions
+            visualizer.width = visualizer.offsetWidth;
+            visualizer.height = visualizer.offsetHeight;
+
+            // Initialize audio context on user interaction
+            function initAudio() {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 2048;
+                    
+                    // Set up visualizer
+                    setupVisualizer();
+                }
+            }
+
+            // Set up audio visualizer
+            function setupVisualizer() {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                
+                function draw() {
+                    requestAnimationFrame(draw);
+                    
+                    analyser.getByteTimeDomainData(dataArray);
+                    
+                    canvasContext.fillStyle = '#1a237e';
+                    canvasContext.fillRect(0, 0, visualizer.width, visualizer.height);
+                    
+                    canvasContext.lineWidth = 2;
+                    canvasContext.strokeStyle = '#00ffff';
+                    canvasContext.beginPath();
+                    
+                    const sliceWidth = visualizer.width / bufferLength;
+                    let x = 0;
+                    
+                    for(let i = 0; i < bufferLength; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = v * visualizer.height / 2;
+                        
+                        if(i === 0) {
+                            canvasContext.moveTo(x, y);
+                        } else {
+                            canvasContext.lineTo(x, y);
+                        }
+                        
+                        x += sliceWidth;
+                    }
+                    
+                    canvasContext.lineTo(visualizer.width, visualizer.height / 2);
+                    canvasContext.stroke();
+                }
+                
+                draw();
+            }
+
+            // Update time display
+            function updateTimeDisplay() {
+                if (isRecording) {
+                    const elapsed = Date.now() - startTime;
+                    const seconds = Math.floor(elapsed / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    timeElapsed.textContent = `${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+                }
+            }
+
+            // Start recording
+            async function startRecording() {
+                try {
+                    initAudio();
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            sampleRate: 44100,
+                        }
+                    });
+                    
+                    microphone = audioContext.createMediaStreamSource(stream);
+                    microphone.connect(analyser);
+                    
+                    recorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    recorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    recorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        
+                        // Enable play and save buttons
+                        playBtn.disabled = false;
+                        saveBtn.disabled = false;
+                        
+                        // Set up play button
+                        playBtn.onclick = () => {
+                            const audio = new Audio(audioUrl);
+                            audio.play();
+                        };
+                    };
+                    
+                    recorder.start();
+                    isRecording = true;
+                    startTime = Date.now();
+                    
+                    // Update time display every second
+                    elapsedTimeInterval = setInterval(updateTimeDisplay, 1000);
+                    
+                    // Update UI
+                    recordBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    
+                    // Simulate lyrics display
+                    simulateLyrics();
+                    
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    alert('Could not access your microphone. Please check permissions.');
+                }
+            }
+
+            // Stop recording
+            function stopRecording() {
+                if (recorder && isRecording) {
+                    recorder.stop();
+                    isRecording = false;
+                    clearInterval(elapsedTimeInterval);
+                    
+                    // Disconnect microphone
+                    if (microphone) {
+                        microphone.disconnect();
+                    }
+                    
+                    // Update UI
+                    recordBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    
+                    // Stop lyrics simulation
+                    clearInterval(lyricsInterval);
+                }
+            }
+
+            // Save recording to server
+            function saveRecording() {
+                const recordingName = prompt('Enter a name for your recording:');
+                if (recordingName) {
+                    // Convert audio chunks to blob
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    
+                    // Create form data to send to server
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, `${recordingName}.wav`);
+                    formData.append('name', recordingName);
+                    
+                    // Send to server
+                    fetch('/api/recordings', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Add to recordings list
+                            const recordingsList = document.getElementById('recordingsList');
+                            const newRecording = document.createElement('div');
+                            newRecording.className = 'recording-item';
+                            newRecording.innerHTML = `
+                                <span>${recordingName}</span>
+                                <div>
+                                    <button class="play-btn">Play</button>
+                                    <button class="editor-btn">Edit</button>
+                                </div>
+                            `;
+                            recordingsList.prepend(newRecording);
+                            alert('Recording saved successfully!');
+                        } else {
+                            alert('Error saving recording: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error saving recording');
+                    });
+                }
+            }
+
+            // Simulate lyrics display
+            let lyricsInterval;
+            function simulateLyrics() {
+                const lyrics = [
+                    "This is the first line of the song",
+                    "Now we're at the second line",
+                    "Here comes the chorus part",
+                    "Sing it loud and clear!",
+                    "This is the final part of the song"
+                ];
+                
+                let currentLine = 0;
+                
+                // Clear existing lyrics
+                lyricsContainer.innerHTML = '';
+                
+                // Add lyrics lines
+                lyrics.forEach(line => {
+                    const div = document.createElement('div');
+                    div.className = 'lyric-line';
+                    div.textContent = line;
+                    lyricsContainer.appendChild(div);
+                });
+                
+                // Highlight current line
+                lyricsInterval = setInterval(() => {
+                    const lines = document.querySelectorAll('.lyric-line');
+                    
+                    // Remove active class from all lines
+                    lines.forEach(line => line.classList.remove('active'));
+                    
+                    // Add active class to current line
+                    if (currentLine < lines.length) {
+                        lines[currentLine].classList.add('active');
+                        // Scroll to keep active line visible
+                        lines[currentLine].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        currentLine++;
+                    } else {
+                        clearInterval(lyricsInterval);
+                    }
+                }, 3000);
+            }
+
+            // Event listeners
+            recordBtn.addEventListener('click', startRecording);
+            stopBtn.addEventListener('click', stopRecording);
+            saveBtn.addEventListener('click', saveRecording);
+            
+            // Volume control
+            volumeSlider.addEventListener('input', function() {
+                console.log(`Microphone volume set to: ${volumeSlider.value}%`);
+            });
+            
+            playbackVolume.addEventListener('input', function() {
+                console.log(`Playback volume set to: ${playbackVolume.value}%`);
+            });
+            
+            musicVolume.addEventListener('input', function() {
+                console.log(`Music volume set to: ${musicVolume.value}%`);
+            });
+            
+            // Effect controls
+            document.getElementById('reverb').addEventListener('input', function() {
+                console.log(`Reverb set to: ${this.value}%`);
+            });
+            
+            document.getElementById('delay').addEventListener('input', function() {
+                console.log(`Delay set to: ${this.value}%`);
+            });
+            
+            document.getElementById('pitch').addEventListener('input', function() {
+                console.log(`Pitch correction set to: ${this.value}%`);
+            });
+            
+            // Editor buttons
+            document.getElementById('trimBtn').addEventListener('click', function() {
+                console.log('Trim button clicked');
+            });
+            
+            document.getElementById('fadeInBtn').addEventListener('click', function() {
+                console.log('Fade In button clicked');
+            });
+            
+            document.getElementById('fadeOutBtn').addEventListener('click', function() {
+                console.log('Fade Out button clicked');
+            });
+            
+            document.getElementById('normalizeBtn').addEventListener('click', function() {
+                console.log('Normalize button clicked');
+            });
+            
+            // Initialize time display
+            timeElapsed.textContent = '00:00';
+            timeTotal.textContent = '00:00';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+CREATE TABLE User
+(
+  User_id INT NOT NULL,
+  Full_Name INT NOT NULL,
+  Gender INT NOT NULL,
+  Country INT NOT NULL,
+  Email_Address INT NOT NULL,
+  Password INT NOT NULL,
+  PRIMARY KEY (User_id)
+);
+
+CREATE TABLE Song
+(
+  Song_id INT NOT NULL,
+  Title INT NOT NULL,
+  Duration INT NOT NULL,
+  Release_date INT NOT NULL,
+  Artist_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  PRIMARY KEY (Song_id),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name)
+);
+
+CREATE TABLE Artist
+(
+  Artist_id INT NOT NULL,
+  Artist_Name INT NOT NULL,
+  Bio INT NOT NULL,
+  Country INT NOT NULL,
+  Song_id INT NOT NULL,
+  PRIMARY KEY (Artist_id),
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id)
+);
+
+CREATE TABLE Genre
+(
+  Genre_name INT NOT NULL,
+  Song_id INT NOT NULL,
+  Artist_id INT NOT NULL,
+  PRIMARY KEY (Genre_name),
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE Bengali_songs
+(
+   INT NOT NULL,
+  Song_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  Artist_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE Hindi_songs
+(
+  Song_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  Artist_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE English_songs
+(
+  Song_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  Artist_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE Playlists
+(
+  Playlists__id INT NOT NULL,
+  User_id INT NOT NULL,
+  Playlist_id INT NOT NULL,
+  PRIMARY KEY (Playlists__id),
+  FOREIGN KEY (User_id) REFERENCES User(User_id),
+  FOREIGN KEY (Playlist_id) REFERENCES Playlist_song(Playlist_song_id)
+CREATE TABLE User
+(
+  User_id INT NOT NULL,
+  Full_Name INT NOT NULL,
+  Gender INT NOT NULL,
+  Country INT NOT NULL,
+  Email_Address INT NOT NULL,
+  Password INT NOT NULL,
+  PRIMARY KEY (User_id)
+);
+
+CREATE TABLE Song
+(
+  Song_id INT NOT NULL,
+  Title INT NOT NULL,
+  Duration INT NOT NULL,
+  Release_date INT NOT NULL,
+  Artist_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  PRIMARY KEY (Song_id),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name)
+);
+
+CREATE TABLE Artist
+(
+  Artist_id INT NOT NULL,
+  Artist_Name INT NOT NULL,
+  Bio INT NOT NULL,
+  Country INT NOT NULL,
+  Song_id INT NOT NULL,
+  PRIMARY KEY (Artist_id),
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id)
+);
+
+CREATE TABLE Genre
+(
+  Genre_name INT NOT NULL,
+  Song_id INT NOT NULL,
+  Artist_id INT NOT NULL,
+  PRIMARY KEY (Genre_name),
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE Bengali_songs
+(
+   INT NOT NULL,
+  Song_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  Artist_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE Hindi_songs
+(
+  Song_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  Artist_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE English_songs
+(
+  Song_id INT NOT NULL,
+  Genre_name INT NOT NULL,
+  Artist_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id),
+  FOREIGN KEY (Genre_name) REFERENCES Genre(Genre_name),
+  FOREIGN KEY (Artist_id) REFERENCES Artist(Artist_id)
+);
+
+CREATE TABLE Playlists
+(
+  Playlists__id INT NOT NULL,
+  User_id INT NOT NULL,
+  Playlist_id INT NOT NULL,
+  PRIMARY KEY (Playlists__id),
+  FOREIGN KEY (User_id) REFERENCES User(User_id),
+  FOREIGN KEY (Playlist_id) REFERENCES Playlist_song(Playlist_song_id)
+);
+
+CREATE TABLE Playlist_song
+(
+  Playlist_song_id INT NOT NULL,
+  Name INT NOT NULL,
+  Creation_date INT NOT NULL,
+  Song_id INT NOT NULL,
+  PRIMARY KEY (Playlist_song_id),
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id)
+);
+
+CREATE TABLE Favourite
+(
+  User_id INT NOT NULL,
+  Song_id INT NOT NULL,
+  FOREIGN KEY (User_id) REFERENCES User(User_id),
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id)
+);
+
+CREATE TABLE Chord
+(
+  Song_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id)
+);
+
+CREATE TABLE karaoke
+(
+  Song_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id)
+);
+
+CREATE TABLE Lyrics
+(
+  Song_id INT NOT NULL,
+  FOREIGN KEY (Song_id) REFERENCES Song(Song_id)
+);

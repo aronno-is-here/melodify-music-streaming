@@ -1,0 +1,15 @@
+# Large media files (231 MB of MP3s) — not tracked
+songs/
+
+# Karaoke app
+karaoke-app/server/uploads/
+karaoke-app/node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# PHP / server
+config.php
+.env
