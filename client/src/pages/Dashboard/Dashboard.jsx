@@ -150,8 +150,7 @@ export default function Dashboard() {
   const handleSeek = (e) => {
     const audio = audioRef.current;
     if (!audio || !audio.duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const ratio = Number(e.target.value) / 1000;
     audio.currentTime = ratio * audio.duration;
     setProgress(ratio * 100);
     setCurrentTime(audio.currentTime);
@@ -297,9 +296,16 @@ export default function Dashboard() {
               </>
             )}
           </div>
-          <div className="progress-container" aria-label="Seek bar" onClick={handleSeek}>
-            <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-          </div>
+          <input
+            type="range"
+            className="progress-slider"
+            min="0"
+            max="1000"
+            step="1"
+            value={Math.min(1000, Math.round(progress * 10))}
+            onChange={handleSeek}
+            aria-label="Seek bar"
+          />
           <div className="progress-time">
             <span>{formatTime(currentTime)}</span>
             <span>{currentSong ? currentSong.duration : formatTime(duration)}</span>
