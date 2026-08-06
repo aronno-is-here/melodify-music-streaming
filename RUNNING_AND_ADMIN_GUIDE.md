@@ -110,14 +110,20 @@ npm run seed
 
 1. Make sure all 3 services are running (see section 1).
 2. Go to **http://localhost:5173/admin**.
-3. Log in with the admin credentials:
+3. Log in with the admin credentials from your `server/.env` file.
 
-| Field    | Value               |
-| -------- | ------------------- |
-| Email    | `admin@melodify.com` |
-| Password | `admin123`          |
+**Where do the credentials come from?**
 
-> These are the default credentials created by `server/seed.js`. They can be changed via the `ADMIN_EMAIL` / `ADMIN_PASSWORD` environment variables **before** running the seed.
+The admin password is **never hardcoded** in the codebase (so it is not exposed in the GitHub repo). It is stored in `server/.env` (a gitignored local file):
+
+```env
+ADMIN_EMAIL=admin@melodify.com
+ADMIN_PASSWORD=your-strong-password
+```
+
+- When you run `npm run seed` in `server/`, the admin user is created with the email/password from `.env`.
+- If `ADMIN_PASSWORD` is missing from `.env`, the seed generates a **random password** and prints it to the console once (save it immediately — it is not shown again).
+- To change the password: update `ADMIN_PASSWORD` in `server/.env`, then either re-seed (deletes the admin user first) or update the password directly in the database (see below).
 
 **Login rules:**
 
@@ -178,22 +184,24 @@ Table of subscriptions (User Email, Status, End Date, Amount). Shows payment rec
 
 ### Resetting or changing the admin password
 
-1. Stop the API server.
-2. Delete the admin user from the database, then reseed:
+The password comes from `ADMIN_PASSWORD` in `server/.env`. To change it:
+
+1. Update `ADMIN_PASSWORD` in `server/.env`.
+2. Apply it to the existing admin user (either route):
 
 ```powershell
 # option A — drop the whole database and reseed (also resets songs/reports)
-mongosh --eval "db.getSiblingDB('melodify').dropDatabase()"   # or use MongoDB Compass
+mongosh --eval "db.getSiblingDB('melodify_db').dropDatabase()"   # or use MongoDB Compass
 cd "D:\Aronno\Works\Melodify - Music Streaming Website\server"
 npm run seed
 
-# option B — keep all data, only remove the admin, then reseed (seed skips existing admin)
-mongosh --eval "db.getSiblingDB('melodify').users.deleteOne({ email: 'admin@melodify.com' })"
+# option B — keep all data, only re-hash the admin password (run in server/):
+node -e "const b=require('bcryptjs'),m=require('mongoose'),d=require('dotenv').config();m.connect(process.env.MONGO_URI).then(async()=>{await m.connection.db.collection('users').updateOne({email:'admin@melodify.com'},{$set:{password:b.hashSync(process.env.ADMIN_PASSWORD,10)}});console.log('admin password updated');process.exit(0)});"
 cd "D:\Aronno\Works\Melodify - Music Streaming Website\server"
 npm run seed
 ```
 
-3. Restart the API and log in with the (new) credentials.
+3. Restart the API and log in with the new credentials.
 
 ---
 

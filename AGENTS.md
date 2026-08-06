@@ -21,6 +21,7 @@
 - [x] `2026-08-06` Fix homepage cut-off bug — Dashboard's global `html, body { overflow: hidden; height: 100% }` + Login/Signup/Admin `body { display:flex }` leaked onto all pages (all CSS loads globally); scoped with `body:has()` selectors (Dashboard: `main#mainContainer`, Login: `.login-container`, Admin: `.admin-login-page`), Signup wrapped in `.signup-page` div — superseded by per-page CSS isolation below
 - [x] `2026-08-06` Restore exact original design on all pages — all page CSS loaded globally so later pages (Admin.css `.btn`, Dashboard.css `header`/`.logo`, Login/Signup/Profile `.logo`) overrode Home.css (logo/buttons wrong). Replaced static `import './X.css'` with per-page isolation: `import cssRaw from './X.css?raw'` + `useLayoutEffect` injecting `<style data-page-css="X">` into `<head>`, removed on unmount (`Home`, `Login`, `Signup`, `Dashboard`, `Profile`, `Admin`). Reverted the `body:has()` workarounds back to original `html, body` / `body` text. Admin body rule (flex-centering from `admin_login.html`) split so the panel uses normal flow via existing `.admin-login-page`. Aligned Dashboard.css to legacy `user_dashboard.html`. Verified headless via Edge: each route loads ONLY its own page CSS (`/` Home, `/login` Login, `/signup` Signup, `/dashboard` Dashboard, `/profile` Profile, `/admin` Admin); homepage buttons are black text on sky-blue with `padding 8px 20px`/`12px 30px`, header logo 28px left, auth links right, html scrollHeight 3131/overflow visible
 - [x] `2026-08-06` Create `RUNNING_AND_ADMIN_GUIDE.md` — standalone doc covering manual run steps (MongoDB → API → frontend → browser, ports, first-time setup, troubleshooting) and full Admin Panel management (credentials, all 7 sections, resetting admin password)
+- [x] `2026-08-06` Remove admin credentials from the GitHub repo — seed.js had hardcoded fallback `admin123` and README/guide/AGENTS.md documented it. Now: `ADMIN_PASSWORD` comes from gitignored `server/.env`; if missing, seed generates a random password printed once. Rotated the local admin password + JWT_SECRET in `.env` and re-hashed the admin user in MongoDB; verified `admin123` no longer works and the new password logs in. Docs updated (README, guide, AGENTS.md) with env-based instructions
 
 ## How to Run the Website (step by step)
 
@@ -65,7 +66,7 @@ npm run dev
 ### Step 4 — Open the website
 
 - Browse to **http://localhost:5173**
-- Admin login: `admin@melodify.com` / `admin123` → visit http://localhost:5173/admin
+- Admin login: email + password come from `server/.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`, never hardcoded in the repo) → visit http://localhost:5173/admin
 - Normal users: sign up at http://localhost:5173/signup
 - Static pages: http://localhost:5173/playlist/, http://localhost:5173/song-details/, http://localhost:5173/premium/
 - Karaoke app: open `karaoke-app/` separately (served from its own folder)

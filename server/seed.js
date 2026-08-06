@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import Song from './models/Song.js';
@@ -8,6 +9,11 @@ import Report from './models/Report.js';
 import Subscription from './models/Subscription.js';
 
 dotenv.config();
+
+function generateRandomPassword() {
+  const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$';
+  return Array.from(crypto.randomBytes(18)).map((b) => chars[b % chars.length]).join('');
+}
 
 const songs = [
   { title: 'Amar Dehokhan', artist: 'Odd Signature', genre: 'Melodious', file_path: 'assets/songs/bengali/amar_dehokhan.mp3', poster_url: 'assets/posters/Amar_Dehokhan_Poster.jpg', duration: '3:15', release_date: '2023-02-01' },
@@ -34,7 +40,7 @@ async function seed() {
   console.log(`Seeded ${songs.length} songs`);
 
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@melodify.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminPassword = process.env.ADMIN_PASSWORD || generateRandomPassword();
   if (!(await User.findOne({ email: adminEmail }))) {
     await User.create({
       email: adminEmail,
@@ -46,6 +52,14 @@ async function seed() {
       role: 'admin',
     });
     console.log(`Created admin user ${adminEmail}`);
+    if (!process.env.ADMIN_PASSWORD) {
+      console.log('==============================================================');
+      console.log('  No ADMIN_PASSWORD was set in server/.env');
+      console.log(`  A random password was generated for ${adminEmail}:`);
+      console.log(`    ${adminPassword}`);
+      console.log('  Save it somewhere safe (it is only printed this one time).');
+      console.log('==============================================================');
+    }
   }
 
   await Report.deleteMany({});

@@ -123,14 +123,18 @@ npm start          # http://localhost:3000
 
 ---
 
-## 🔑 Demo Admin Credentials
+## 🔑 Admin Credentials
 
-| Field    | Value                |
-|----------|----------------------|
-| Email    | `admin@melodify.com` |
-| Password | `admin123`           |
+The admin password is **never hardcoded** in the codebase. Set it in `server/.env` (gitignored):
 
-Access the admin panel at `/admin`.
+```env
+ADMIN_EMAIL=admin@melodify.com
+ADMIN_PASSWORD=your-strong-password
+```
+
+- If `ADMIN_PASSWORD` is missing when seeding, a random password is generated and printed to the console once.
+- Then run `npm run seed` in `server/` to create the admin user, and access the panel at `/admin`.
+- See [`RUNNING_AND_ADMIN_GUIDE.md`](./RUNNING_AND_ADMIN_GUIDE.md) for the full admin guide.
 
 ---
 
