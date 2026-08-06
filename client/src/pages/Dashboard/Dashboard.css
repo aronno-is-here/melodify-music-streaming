@@ -243,6 +243,48 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   border-radius: 8px;
 }
 
+.songs-container h2,
+.recent-container h2 {
+  font-size: 22px;
+  font-family: "Roboto", sans-serif;
+  color: var(--white);
+  margin-bottom: 10px;
+}
+
+.recent-container {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.recent-grid {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sky-blue) #121212;
+}
+
+.recent-grid::-webkit-scrollbar {
+  height: 8px;
+}
+
+.recent-grid::-webkit-scrollbar-thumb {
+  background-color: var(--sky-blue);
+  border-radius: 4px;
+}
+
+.recent-item {
+  flex: 0 0 auto;
+  width: 150px;
+}
+
+.recent-empty {
+  color: var(--gray);
+  font-size: 14px;
+  font-style: italic;
+}
+
 .songs-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -355,6 +397,11 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   border-radius: 3px;
   margin-bottom: 15px;
   position: relative;
+  cursor: pointer;
+}
+
+.progress-container:hover {
+  background: var(--accent-black);
 }
 
 .progress-bar {
@@ -363,6 +410,15 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   background: var(--sky-blue);
   border-radius: 3px;
   transition: width 0.1s linear;
+}
+
+.progress-time {
+  display: flex;
+  justify-content: space-between;
+  color: var(--gray);
+  font-size: 12px;
+  font-family: "Roboto", sans-serif;
+  margin: -8px 0 10px;
 }
 
 .controls {
@@ -642,6 +698,10 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   .song-poster {
     width: 120px;
     height: 120px;
+  }
+
+  .recent-item {
+    width: 120px;
   }
 
   .song-item .play-button {

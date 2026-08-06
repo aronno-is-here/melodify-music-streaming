@@ -10,7 +10,8 @@ A full-featured music streaming web application with user authentication, a song
 - **Multi-step sign-up flow** — email → password → profile details (name, DOB, gender, country)
 - **Login / Logout** with JWT authentication and bcrypt password hashing
 - **Song library** — search by song title or artist, browse a poster grid
-- **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, progress bar
+- **Recently Played** — horizontal slider of your latest 20 played songs (per-user history)
+- **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels
 - **Now Playing panel** — song title, artist, genre, duration, release date
 - **Upload songs** — any user can add songs with MP3/WAV audio + JPG/PNG poster via a modal form
 - **Profile page** — view/edit personal info, change password

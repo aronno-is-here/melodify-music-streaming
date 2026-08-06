@@ -19,6 +19,7 @@ export default function Dashboard() {
 
   const [songs, setSongs] = useState([]);
   const [filteredSongs, setFilteredSongs] = useState([]);
+  const [history, setHistory] = useState([]);
   const [currentSongIndex, setCurrentSongIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [shuffle, setShuffle] = useState(false);
@@ -26,6 +27,8 @@ export default function Dashboard() {
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(50);
   const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [search, setSearch] = useState('');
   const [librarySearch, setLibrarySearch] = useState('');
   const [collapsed, setCollapsed] = useState(false);
@@ -45,8 +48,14 @@ export default function Dashboard() {
     }
   };
 
+  const fetchHistory = async () => {
+    const data = await api.get('/api/history');
+    if (data.success) setHistory(data.history);
+  };
+
   useEffect(() => {
     fetchSongs();
+    fetchHistory();
   }, []);
 
   useEffect(() => {
@@ -64,11 +73,19 @@ export default function Dashboard() {
     setFilteredSongs(list);
   }, [search, songs]);
 
+  const recordPlay = (song) => {
+    if (!song?._id) return;
+    api.post('/api/history', { songId: song._id }).then(() => {
+      setHistory((prev) => [song, ...prev.filter((s) => s._id !== song._id)].slice(0, 20));
+    });
+  };
+
   const playSong = (song) => {
     const audio = audioRef.current;
     audio.src = song.file_path;
     audio.play();
     setIsPlaying(true);
+    recordPlay(song);
   };
 
   const handleSongClick = (index) => {
@@ -79,6 +96,12 @@ export default function Dashboard() {
       setCurrentSongIndex(index);
       playSong(filteredSongs[index]);
     }
+  };
+
+  const playFromSong = (song) => {
+    const idx = filteredSongs.findIndex((s) => s._id === song._id);
+    if (idx >= 0) setCurrentSongIndex(idx);
+    playSong(song);
   };
 
   const togglePlay = () => {
@@ -122,6 +145,23 @@ export default function Dashboard() {
       audio.volume = 0;
       setMuted(true);
     }
+  };
+
+  const handleSeek = (e) => {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * audio.duration;
+    setProgress(ratio * 100);
+    setCurrentTime(audio.currentTime);
+  };
+
+  const formatTime = (secs) => {
+    if (!isFinite(secs)) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleUpload = async (e) => {
@@ -182,6 +222,27 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="scroll-grid">
+          <div className="recent-container">
+            <h2>Recently Played</h2>
+            {history.length === 0 ? (
+              <p className="recent-empty">No songs played yet</p>
+            ) : (
+              <div className="recent-grid">
+                {history.map((song, index) => (
+                  <div className="song-item recent-item" key={song._id || index}>
+                    <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
+                    <div className="play-button" onClick={() => playFromSong(song)}>
+                      <i className="fa-solid fa-play"></i>
+                    </div>
+                    <div className="song-info">
+                      <div className="song-name">{song.title}</div>
+                      <div className="artist-name">{song.artist}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="search-container">
             <div className="search-bar">
               <i className="fa-solid fa-magnifying-glass"></i>
@@ -190,7 +251,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="songs-container">
-            <h2>Songs</h2>
+            <h2>Recommended Songs</h2>
             <div className="songs-grid">
               {filteredSongs.map((song, index) => (
                 <div className="song-item" key={song._id || index}>
@@ -236,8 +297,12 @@ export default function Dashboard() {
               </>
             )}
           </div>
-          <div className="progress-container">
+          <div className="progress-container" aria-label="Seek bar" onClick={handleSeek}>
             <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+          </div>
+          <div className="progress-time">
+            <span>{formatTime(currentTime)}</span>
+            <span>{currentSong ? currentSong.duration : formatTime(duration)}</span>
           </div>
           <div className="controls">
             <button className={`control-btn shuffle-btn${shuffle ? ' active' : ''}`} aria-label="Toggle shuffle" data-shuffle={shuffle ? 'on' : 'off'} onClick={() => setShuffle(!shuffle)}>
@@ -266,8 +331,10 @@ export default function Dashboard() {
             id="audio-player"
             ref={audioRef}
             onTimeUpdate={(e) => {
+              setCurrentTime(e.target.currentTime);
               if (e.target.duration) setProgress((e.target.currentTime / e.target.duration) * 100);
             }}
+            onLoadedMetadata={(e) => setDuration(e.target.duration)}
             onEnded={() => {
               if (repeat) {
                 playSong(filteredSongs[currentSongIndex]);
