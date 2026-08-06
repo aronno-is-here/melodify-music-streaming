@@ -407,24 +407,9 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
 .progress-bar {
   width: 0%;
   height: 100%;
-  background: linear-gradient(90deg, var(--sky-blue), var(--light-blue));
+  background-color: var(--sky-blue);
   border-radius: 4px;
-  position: relative;
   transition: width 0.1s linear;
-}
-
-.progress-bar::after {
-  content: '';
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
-  background: var(--white);
-  border: 3px solid var(--sky-blue);
-  border-radius: 50%;
-  box-shadow: 0 0 8px rgba(0, 180, 216, 0.6);
 }
 
 .progress-time {
