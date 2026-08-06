@@ -65,7 +65,7 @@ export default function Signup() {
   };
 
   return (
-    <>
+    <div className="signup-page">
       {step === 1 && (
         <div className="signup-container">
           <div className="logo">
@@ -235,6 +235,6 @@ export default function Signup() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

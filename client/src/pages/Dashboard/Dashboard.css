@@ -15,7 +15,7 @@
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-html, body {
+body:has(main#mainContainer) {
   overflow: hidden;
   height: 100%;
 }

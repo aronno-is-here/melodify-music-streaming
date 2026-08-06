@@ -17,6 +17,62 @@
 - [x] `2026-08-06` Split `karaoke-app/public/index.html` into `index.html` + `style.css` + `script.js` (byte-identical CSS/JS)
 - [x] `2026-08-06` Commit MERN migration to git (`a5ba9d8`) — all updated files, archives, and docs
 - [x] `2026-08-06` Rename leftover `legacy/Abon`, `legacy/Choa`, `legacy/Jannat` folders → `legacy/Playlist`, `legacy/SongDetails`, `legacy/Premium` (old page archives, best-matching names)
+- [x] `2026-08-06` Add step-by-step "How to Run the Website" section to AGENTS.md (MongoDB → API → frontend → browser)
+- [x] `2026-08-06` Fix homepage cut-off bug — Dashboard's global `html, body { overflow: hidden; height: 100% }` + Login/Signup/Admin `body { display:flex }` leaked onto all pages (all CSS loads globally); scoped with `body:has()` selectors (Dashboard: `main#mainContainer`, Login: `.login-container`, Admin: `.admin-login-page`), Signup wrapped in `.signup-page` div
+
+## How to Run the Website (step by step)
+
+Run all three services in this order (3 terminals). The Vite frontend proxies `/api` and `/assets` to `localhost:5000`.
+
+### Step 1 — Start MongoDB (database)
+
+```powershell
+& "G:\MongoDB\bin\mongod.exe" --dbpath "G:\MongoDB\data" --logpath "G:\MongoDB\log\mongod.log" --logappend
+```
+
+- Runs on `localhost:27017`. Leave this window open.
+- If MongoDB is not installed yet, extract `E:\Downloads\mongodb-windows-x86_64-8.0.4.zip` to `G:\MongoDB` and create the `data` and `log` folders.
+- To reset/reseed the DB with the 14 songs + admin user:
+
+```powershell
+# in the server/ folder
+npm run seed
+```
+
+### Step 2 — Start the API backend (Express)
+
+```powershell
+cd "D:\Aronno\Works\Melodify - Music Streaming Website\server"
+npm install    # first time only
+npm run dev
+```
+
+- Runs on `http://localhost:5000`. Leave this window open.
+- Verify: open `http://localhost:5000/api/health` → should return `{"status":"ok"}`.
+
+### Step 3 — Start the frontend (React + Vite)
+
+```powershell
+cd "D:\Aronno\Works\Melodify - Music Streaming Website\client"
+npm install    # first time only
+npm run dev
+```
+
+- Runs on `http://localhost:5173`. Leave this window open.
+
+### Step 4 — Open the website
+
+- Browse to **http://localhost:5173**
+- Admin login: `admin@melodify.com` / `admin123` → visit http://localhost:5173/admin
+- Normal users: sign up at http://localhost:5173/signup
+- Static pages: http://localhost:5173/playlist/, http://localhost:5173/song-details/, http://localhost:5173/premium/
+- Karaoke app: open `karaoke-app/` separately (served from its own folder)
+
+### Notes
+
+- If a port is already in use, check `Get-NetTCPConnection -LocalPort <port> -State Listen` and kill the old process first.
+- Server logs: `server/server.log`; Vite logs: `client/vite.log`.
+- Media lives in `assets/posters/` and `assets/songs/` (MP3s are gitignored — do not delete).
 
 ## To-Do Tracking
 
