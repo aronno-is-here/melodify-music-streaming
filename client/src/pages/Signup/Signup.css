@@ -15,7 +15,7 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-body:has(.signup-page) {
+body {
   background-color: var(--primary-black);
   display: flex;
   justify-content: center;

@@ -1,7 +1,15 @@
+import { useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
-import './Home.css';
+import cssRaw from './Home.css?raw';
 
 export default function Home() {
+  useLayoutEffect(() => {
+    const style = document.createElement('style');
+    style.setAttribute('data-page-css', 'Home');
+    style.textContent = cssRaw;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
   return (
     <>
       {/* Header */}

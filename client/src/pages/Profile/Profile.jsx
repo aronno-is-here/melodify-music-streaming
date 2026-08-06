@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
-import './Profile.css';
+import cssRaw from './Profile.css?raw';
 
 export default function Profile() {
+  useLayoutEffect(() => {
+    const style = document.createElement('style');
+    style.setAttribute('data-page-css', 'Profile');
+    style.textContent = cssRaw;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);

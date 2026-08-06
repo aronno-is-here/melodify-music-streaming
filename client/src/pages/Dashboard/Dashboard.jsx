@@ -1,12 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
-import './Dashboard.css';
+import cssRaw from './Dashboard.css?raw';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
 
 export default function Dashboard() {
+  useLayoutEffect(() => {
+    const style = document.createElement('style');
+    style.setAttribute('data-page-css', 'Dashboard');
+    style.textContent = cssRaw;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 

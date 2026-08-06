@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
-import './Login.css';
+import cssRaw from './Login.css?raw';
 
 export default function Login() {
+  useLayoutEffect(() => {
+    const style = document.createElement('style');
+    style.setAttribute('data-page-css', 'Login');
+    style.textContent = cssRaw;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');

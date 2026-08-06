@@ -1,11 +1,7 @@
-body:has(.admin-login-page) {
+body {
   background: #121212;
   color: #fff;
   font-family: 'Segoe UI', sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
   margin: 0;
 }
 

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
-import './Signup.css';
+import cssRaw from './Signup.css?raw';
 
 const Days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -13,6 +13,13 @@ const isLeapYear = (year) => {
 };
 
 export default function Signup() {
+  useLayoutEffect(() => {
+    const style = document.createElement('style');
+    style.setAttribute('data-page-css', 'Signup');
+    style.textContent = cssRaw;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -65,7 +72,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="signup-page">
+    <>
       {step === 1 && (
         <div className="signup-container">
           <div className="logo">
@@ -235,6 +242,6 @@ export default function Signup() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

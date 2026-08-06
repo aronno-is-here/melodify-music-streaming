@@ -1,11 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
-import './Admin.css';
+import cssRaw from './Admin.css?raw';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'moderation', 'analytics', 'subscriptions', 'settings'];
 
 export default function Admin() {
+  useLayoutEffect(() => {
+    const style = document.createElement('style');
+    style.setAttribute('data-page-css', 'Admin');
+    style.textContent = cssRaw;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
   const { user, login, logout } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
