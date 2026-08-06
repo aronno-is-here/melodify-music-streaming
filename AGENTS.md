@@ -16,6 +16,7 @@
 - [x] `2026-08-06` Update README.md to match the new MERN structure
 - [x] `2026-08-06` Split `karaoke-app/public/index.html` into `index.html` + `style.css` + `script.js` (byte-identical CSS/JS)
 - [x] `2026-08-06` Commit MERN migration to git (`a5ba9d8`) — all updated files, archives, and docs
+- [x] `2026-08-06` Rename leftover `legacy/Abon`, `legacy/Choa`, `legacy/Jannat` folders → `legacy/Playlist`, `legacy/SongDetails`, `legacy/Premium` (old page archives, best-matching names)
 
 ## To-Do Tracking
 
