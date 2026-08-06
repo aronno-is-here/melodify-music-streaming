@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melodify - My Playlist #1</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="cover-image">MEL</div>
+            <div class="playlist-info">
+                <div class="playlist-type">Public Playlist</div>
+                <h1 class="playlist-title">My Playlist #1</h1>
+                <div class="playlist-owner">SD Abon</div>
+                <div class="playlist-stats">
+                    <span class="stat-item">12 songs</span>
+                    <span class="stat-item">•</span>
+                    <span class="stat-item">48 min 15 sec</span>
+                </div>
+                <div class="controls-top">
+                    <button class="play-btn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <div class="icon-btn menu-btn">
+                        <i class="fas fa-ellipsis-h"></i>
+                        <div class="menu-options">
+                            <div class="menu-option">
+                                <i class="fas fa-edit"></i>
+                                <span>Edit details</span>
+                            </div>
+                            <div class="menu-option">
+                                <i class="fas fa-share-alt"></i>
+                                <span>Share</span>
+                            </div>
+                            <div class="menu-option delete">
+                                <i class="fas fa-trash-alt"></i>
+                                <span>Delete playlist</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="song-table">
+            <div class="table-header">
+                <div>#</div>
+                <div>Title</div>
+                <div>Album</div>
+                <div>Date added</div>
+                <div>⏱</div>
+            </div>
+            
+            <div class="song-row" data-song="1">
+                <div class="song-number">1</div>
+                <div class="song-title-artist">
+                    <img class="song-image" src="https://via.placeholder.com/48/0f5c2d/ffffff?text=CM" alt="Channa Mereya">
+                    <div class="song-info">
+                        <div class="song-title">Channa Mereya</div>
+                        <div class="song-artist">Pritam, Arijit Singh</div>
+                    </div>
+                </div>
+                <div class="song-album">Ae Dil Hai Mushkil (Original Motion Picture Soundtrack)</div>
+                <div class="song-date">Jun 18, 2025</div>
+                <div class="song-duration">
+                    4:49
+                    <button class="options-btn">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                    <div class="options-menu">
+                        <div class="option-item">
+                            <i class="fas fa-play"></i>
+                            <span>Play song</span>
+                        </div>
+                        <div class="option-item">
+                            <i class="fas fa-heart"></i>
+                            <span>Add to favorites</span>
+                        </div>
+                        <div class="option-item remove">
+                            <i class="fas fa-times"></i>
+                            <span>Remove from playlist</span>
+                        </div>
+                        <div class="option-item">
+                            <i class="fas fa-download"></i>
+                            <span>Download</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="song-row" data-song="2">
+                <div class="song-number">2</div>
+                <div class="song-title-artist">
+                    <img class="song-image" src="https://via.placeholder.com/48/0f5c2d/ffffff?text=KT" alt="Kaun Tujhe">
+                    <div class="song-info">
+                        <div class="song-title">Kaun Tujhe (From "M.S. Dhoni - The Untold Story")</div>
+                        <div class="song-artist">Palak Muchhal</div>
+                    </div>
+                </div>
+                <div class="song-album">Best Of Palak Muchhal</div>
+                <div class="song-date">9 minutes ago</div>
+                <div class="song-duration">
+                    4:01
+                    <button class="options-btn">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                    <div class="options-menu">
+                        <div class="option-item">
+                            <i class="fas fa-play"></i>
+                            <span>Play song</span>
+                        </div>
+                        <div class="option-item">
+                            <i class="fas fa-heart"></i>
+                            <span>Add to favorites</span>
+                        </div>
+                        <div class="option-item remove">
+                            <i class="fas fa-times"></i>
+                            <span>Remove from playlist</span>
+                        </div>
+                        <div class="option-item">
+                            <i class="fas fa-download"></i>
+                            <span>Download</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Additional song rows would go here -->
+        </div>
+
+        <div class="search-section">
+            <h3 class="search-text">Let's find something for your playlist</h3>
+            <div class="search-container">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-bar" placeholder="Search for songs, artists, or albums...">
+            </div>
+        </div>
+    </div>
+
+    <div class="floating-player">
+        <img src="https://via.placeholder.com/36/0f5c2d/ffffff?text=CM" alt="Now playing">
+        <div class="floating-info">
+            <div class="floating-title">Channa Mereya</div>
+            <div class="floating-artist">Arijit Singh</div>
+        </div>
+        <div class="floating-controls">
+            <button><i class="fas fa-step-backward"></i></button>
+            <button><i class="fas fa-pause"></i></button>
+            <button><i class="fas fa-step-forward"></i></button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

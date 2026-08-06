@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shotto - Warfaze</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-button">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span>Album</span>
+        </div>
+        
+        <div class="album-container">
+            <div class="album-art"></div>
+            <div class="album-info">
+                <div class="album-type">Album</div>
+                <h1 class="album-title">Shotto</h1>
+                <p class="album-subtitle">Warfaze • 2012 • 10 songs, 56 min 12 sec</p>
+                
+                <div class="album-actions">
+                    <button class="play-btn" id="playBtn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="action-btn" id="addBtn">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <button class="action-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="action-btn" id="menuBtn">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tracklist">
+            <div class="track-header">
+                <div>#</div>
+                <div>Title</div>
+                <div>Time</div>
+            </div>
+            
+            <div class="track-item" data-track="1">
+                <div class="track-number">1</div>
+                <div class="track-info">
+                    <div class="track-title">Agami</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">6:16</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="2">
+                <div class="track-number">2</div>
+                <div class="track-info">
+                    <div class="track-title">Je Din</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">5:18</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="3">
+                <div class="track-number">3</div>
+                <div class="track-info">
+                    <div class="track-title">Jonosrot</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">6:48</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="4">
+                <div class="track-number">4</div>
+                <div class="track-info">
+                    <div class="track-title">Na</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">4:50</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="5">
+                <div class="track-number">5</div>
+                <div class="track-info">
+                    <div class="track-title">Projnom 2012</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">7:11</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="6">
+                <div class="track-number">6</div>
+                <div class="track-info">
+                    <div class="track-title">Protikha</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">5:28</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="7">
+                <div class="track-number">7</div>
+                <div class="track-info">
+                    <div class="track-title">Ogo Bodhu Shuno</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">4:45</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="8">
+                <div class="track-number">8</div>
+                <div class="track-info">
+                    <div class="track-title">Moner Manush</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">5:55</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="9">
+                <div class="track-number">9</div>
+                <div class="track-info">
+                    <div class="track-title">Jibon Theke Bolchi</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">6:02</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+            
+            <div class="track-item" data-track="10">
+                <div class="track-number">10</div>
+                <div class="track-info">
+                    <div class="track-title">Shototto (Outro)</div>
+                    <div class="track-artist">Warfaze</div>
+                </div>
+                <div class="track-duration">3:30</div>
+                <audio src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3"></audio>
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer-player">
+        <div class="now-playing">
+            <div class="now-playing-img"></div>
+            <div class="now-playing-info">
+                <div class="now-playing-title">Not Playing</div>
+                <div class="now-playing-artist">Select a song to play</div>
+            </div>
+        </div>
+        
+        <div class="player-controls">
+            <div class="control-buttons">
+                <button class="control-btn">
+                    <i class="fas fa-random"></i>
+                </button>
+                <button class="control-btn">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button class="control-btn play-pause" id="footerPlayBtn">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="control-btn">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+                <button class="control-btn">
+                    <i class="fas fa-repeat"></i>
+                </button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-time">0:00</div>
+                <div class="progress-bar-full">
+                    <div class="progress-bar-current"></div>
+                </div>
+                <div class="progress-time">0:00</div>
+            </div>
+        </div>
+        
+        <div class="volume-controls">
+            <i class="fas fa-volume-up volume-icon"></i>
+            <div class="volume-bar">
+                <div class="volume-level"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
