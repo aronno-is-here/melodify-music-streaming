@@ -84,6 +84,8 @@ Melodify - Music Streaming Website/
 
 ## 🚀 Getting Started
 
+> **Need full step-by-step instructions (including the Admin Panel guide)?** See **[`RUNNING_AND_ADMIN_GUIDE.md`](./RUNNING_AND_ADMIN_GUIDE.md)**.
+
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (installed on `G:\NodeJS` on this machine)
 - [MongoDB Community Server](https://www.mongodb.com/try/download/community) (installed on `G:\MongoDB` on this machine)
