@@ -92,3 +92,16 @@ npm run dev
 - Keep the Features, Project Structure, and Getting Started sections in sync with the actual code.
 - Update the README in the same commit as the code change (or a commit immediately after).
 - If a feature is removed or renamed, remove/update its README entry too.
+
+## Commit Policy — NEVER commit
+
+- `.env` files (any location, any variant: `.env`, `.env.local`, `.env.*` — only `.env.example` allowed)
+- API keys, tokens, or secrets (auth tokens, JWT secrets, OAuth client secrets, etc.)
+- Database passwords / connection strings containing credentials
+- AWS/GCP/Azure credentials or any cloud service-account keys
+- Private certificates (`.pem`, `.crt`, `.key`, `.p12`, `.pfx`, `.p8`)
+- SSH keys (`id_rsa`, `id_ed25519`, known_hosts, config with keys)
+- Customer/personal data (PII, user data dumps)
+- Paid datasets you don't have permission to share (e.g. the MP3 files in `assets/songs/` are gitignored for this reason)
+
+**Before every commit:** run `git status` and review `git diff` to confirm no secrets or sensitive files are staged. If something sensitive is committed by mistake, rotate the secret immediately and rewrite history only with explicit user approval.

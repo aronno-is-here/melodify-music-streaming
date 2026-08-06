@@ -16,5 +16,23 @@ node_modules/
 # Server env
 server/.env
 
+# Environment & secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.p8
+id_rsa*
+id_ed25519*
+id_dsa*
+secrets.*
+credentials*
+auth.json
+*service-account*.json
+
 # Vite build output
 client/dist/
