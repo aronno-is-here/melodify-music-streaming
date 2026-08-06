@@ -15,6 +15,7 @@
 - [x] `2026-08-06` Keep all `.exe` files in E drive — Mongo installer kept on `E:\Downloads`
 - [x] `2026-08-06` Update README.md to match the new MERN structure
 - [x] `2026-08-06` Split `karaoke-app/public/index.html` into `index.html` + `style.css` + `script.js` (byte-identical CSS/JS)
+- [x] `2026-08-06` Commit MERN migration to git (`a5ba9d8`) — all updated files, archives, and docs
 
 ## To-Do Tracking
 
