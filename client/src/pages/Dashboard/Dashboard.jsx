@@ -628,9 +628,6 @@ export default function Dashboard() {
             <span>{player.currentSong ? player.currentSong.duration : formatTime(player.duration)}</span>
           </div>
           <div className="controls">
-            <button className={`control-btn shuffle-btn${player.shuffle ? ' active' : ''}`} aria-label="Toggle shuffle" data-shuffle={player.shuffle ? 'on' : 'off'} onClick={() => player.setShuffle(!player.shuffle)}>
-              <i className="fa-solid fa-shuffle"></i>
-            </button>
             <button className="control-btn prev-btn" aria-label="Previous song" onClick={player.prev}>
               <i className="fa-solid fa-backward"></i>
             </button>
@@ -640,8 +637,14 @@ export default function Dashboard() {
             <button className="control-btn next-btn" aria-label="Next song" onClick={player.next}>
               <i className="fa-solid fa-forward"></i>
             </button>
-            <button className={`control-btn repeat-btn${player.repeat ? ' active' : ''}`} aria-label="Toggle repeat" data-repeat={player.repeat ? 'on' : 'off'} onClick={() => player.setRepeat(!player.repeat)}>
-              <i className="fa-solid fa-repeat"></i>
+            <button className={`control-btn mode-btn${player.playMode !== 'list' ? ' active' : ''}`} aria-label="Toggle play mode" onClick={() => {
+              const modes = ['list', 'single', 'shuffle'];
+              const i = modes.indexOf(player.playMode);
+              player.setPlayMode(modes[(i + 1) % modes.length]);
+            }}>
+              {player.playMode === 'list' && <i className="fa-solid fa-repeat"></i>}
+              {player.playMode === 'single' && <i className="fa-solid fa-1"></i>}
+              {player.playMode === 'shuffle' && <i className="fa-solid fa-shuffle"></i>}
             </button>
           </div>
           <div className="volume-container">

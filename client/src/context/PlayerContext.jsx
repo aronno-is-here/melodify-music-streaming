@@ -22,8 +22,7 @@ export function PlayerProvider({ children }) {
   const [progress, setProgress] = useState(0);
   const [volume, setVolumeState] = useState(50);
   const [muted, setMuted] = useState(false);
-  const [repeat, setRepeat] = useState(false);
-  const [shuffle, setShuffle] = useState(false);
+  const [playMode, setPlayMode] = useState('list');
 
   const audioRef = useRef(null);
   const ytRef = useRef(null);
@@ -32,8 +31,7 @@ export function PlayerProvider({ children }) {
   const pendingLoadRef = useRef(null);
   const pollRef = useRef(null);
   const errorCountRef = useRef(0);
-  const repeatRef = useRef(false);
-  const shuffleRef = useRef(false);
+  const playModeRef = useRef('list');
   const nextRef = useRef(null);
   const playSongRef = useRef(null);
   const stateRef = useRef({ list: [], index: -1, isPlaying: false, volume: 50, muted: false });
@@ -42,8 +40,7 @@ export function PlayerProvider({ children }) {
   stateRef.current.isPlaying = isPlaying;
   stateRef.current.volume = volume;
   stateRef.current.muted = muted;
-  repeatRef.current = repeat;
-  shuffleRef.current = shuffle;
+  playModeRef.current = playMode;
 
   const currentSong = index >= 0 && list[index] ? list[index] : null;
 
@@ -130,7 +127,7 @@ export function PlayerProvider({ children }) {
     const { list: l, index: i } = stateRef.current;
     if (!l.length) return;
     let n;
-    if (shuffleRef.current) {
+    if (playModeRef.current === 'shuffle') {
       n = Math.floor(Math.random() * l.length);
     } else {
       n = (i + 1) % l.length;
@@ -174,7 +171,7 @@ export function PlayerProvider({ children }) {
             stopPolling();
           } else if (e.data === window.YT.PlayerState.ENDED) {
             stopPolling();
-            if (repeatRef.current) {
+            if (playModeRef.current === 'single') {
               try {
                 ytRef.current?.seekTo(0, true);
                 ytRef.current?.playVideo();
@@ -208,7 +205,7 @@ export function PlayerProvider({ children }) {
     });
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
     audio.addEventListener('ended', () => {
-      if (repeatRef.current) {
+      if (playModeRef.current === 'single') {
         audio.currentTime = 0;
         audio.play().catch(() => {});
       } else {
@@ -340,10 +337,8 @@ export function PlayerProvider({ children }) {
     progress,
     volume,
     muted,
-    repeat,
-    setRepeat,
-    shuffle,
-    setShuffle,
+    playMode,
+    setPlayMode,
     playSong,
     togglePlay,
     pause,
