@@ -108,9 +108,9 @@ export default function Dashboard() {
     const list = songList || filteredSongs;
     const song = list[songIndex];
     if (!song) return;
-    const isCurrentlyPlaying = player.currentSong?._id === song._id && player.isPlaying;
-    if (isCurrentlyPlaying) {
-      player.pause();
+    const isCurrentSong = player.currentSong?._id === song._id;
+    if (isCurrentSong) {
+      player.togglePlay();
     } else {
       player.playSong(list, songIndex);
       recordPlay(song);
@@ -233,8 +233,8 @@ export default function Dashboard() {
   const playPlaylistRow = (rowIndex) => {
     const song = activePlaylistSongs[rowIndex];
     if (!song) return;
-    if (player.isPlaying && player.currentSong?._id === song._id) {
-      player.pause();
+    if (player.currentSong?._id === song._id) {
+      player.togglePlay();
     } else {
       player.playSong(activePlaylistSongs, rowIndex);
       recordPlay(song);
@@ -256,8 +256,8 @@ export default function Dashboard() {
   const playFavoriteRow = (index) => {
     const song = favorites[index];
     if (!song) return;
-    if (player.isPlaying && player.currentSong?._id === song._id) {
-      player.pause();
+    if (player.currentSong?._id === song._id) {
+      player.togglePlay();
     } else {
       player.playSong(favorites, index);
       recordPlay(song);
