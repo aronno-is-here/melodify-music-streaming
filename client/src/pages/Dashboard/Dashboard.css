@@ -496,8 +496,7 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
 }
 
-.control-btn:hover,
-.control-btn:focus {
+.control-btn:hover {
   background: var(--sky-blue);
   color: var(--white);
   transform: scale(1.1);
@@ -560,8 +559,7 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   transition: color 0.3s ease, transform 0.3s ease;
 }
 
-.volume-btn:hover,
-.volume-btn:focus {
+.volume-btn:hover {
   color: var(--light-blue);
   transform: scale(1.1);
 }
