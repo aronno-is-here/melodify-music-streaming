@@ -152,3 +152,50 @@
   font-size: 13px;
   font-family: 'Roboto', sans-serif;
 }
+
+/* Synced lyrics */
+.lc-lyrics {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.lc-lyric-line {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 15px;
+  line-height: 1.6;
+  font-family: 'Roboto', sans-serif;
+  transition: color 0.3s ease, transform 0.3s ease, font-size 0.3s ease;
+  padding: 2px 0;
+  cursor: default;
+}
+
+.lc-lyrics.synced .lc-lyric-line:not(.static) {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.lc-lyric-line.active {
+  color: var(--sky-blue);
+  font-size: 18px;
+  font-weight: 700;
+  transform: scale(1.02);
+  transform-origin: left center;
+}
+
+.lc-lyric-line.static {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.lc-lyric-line.static.active {
+  color: var(--sky-blue);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-lyric-line {
+    transition: none;
+  }
+}
