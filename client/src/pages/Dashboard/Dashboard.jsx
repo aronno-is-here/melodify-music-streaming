@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
 import cssRaw from './Dashboard.css?raw';
+import FullScreenPlayer from './FullScreenPlayer.jsx';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
 
@@ -50,6 +51,7 @@ export default function Dashboard() {
   const [newPlSearch, setNewPlSearch] = useState('');
   const [newPlSearchResults, setNewPlSearchResults] = useState([]);
   const [newPlSearching, setNewPlSearching] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
 
   const fetchSongs = async () => {
     const data = await api.get('/api/songs');
@@ -586,6 +588,9 @@ export default function Dashboard() {
         <div className="scroll-grid">
           <div className="now-playing-header">
             <h2 id="right-heading">Now Playing</h2>
+            <button className="fs-toggle-btn" type="button" aria-label="Open full screen player" title="Open Full Screen Player" onClick={() => setFullscreenOpen(true)}>
+              <i className="fa-solid fa-expand"></i>
+            </button>
           </div>
           <img
             className="song-poster"
@@ -757,6 +762,7 @@ export default function Dashboard() {
           </form>
         </div>
       </main>
+      {fullscreenOpen && <FullScreenPlayer onClose={() => setFullscreenOpen(false)} />}
     </>
   );
 }

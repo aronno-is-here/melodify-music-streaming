@@ -387,6 +387,29 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   margin-bottom: 15px;
 }
 
+.fs-toggle-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: var(--sky-blue);
+  font-size: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.fs-toggle-btn:hover {
+  background: var(--sky-blue);
+  color: #fff;
+}
+.fs-toggle-btn:focus-visible {
+  outline: 2px solid var(--sky-blue);
+  outline-offset: 2px;
+}
+
 .scroll-grid:nth-child(3) {
   overflow: hidden;
 }
