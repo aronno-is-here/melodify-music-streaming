@@ -89,12 +89,7 @@ export default function Signup() {
               Next
             </button>
           </form>
-          <div className="or-separator">or</div>
-          <div className="social-signup-btn">
-            <a href="#" className="social-btn google-btn" onClick={(e) => e.preventDefault()}>
-              <img src="https://www.google.com/favicon.ico" alt="Google" /> Sign up with Google
-            </a>
-          </div>
+
           <div className="login-link">
             Already have an account? <Link to="/login">Log in here</Link>
           </div>

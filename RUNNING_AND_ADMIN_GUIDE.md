@@ -76,7 +76,7 @@ npm run dev
 - Sign up as a normal user at **http://localhost:5173/signup**
 - Login at **http://localhost:5173/login**
 - Admin panel: **http://localhost:5173/admin** (see section 2)
-- Static pages: `/playlist/`, `/song-details/`, `/premium/`
+- Dynamic pages: `/playlist/:id`, `/song/:id` (login required), `/premium` (public — subscribe/cancel plans live)
 - Karaoke app: served separately from the `karaoke-app/` folder
 
 ---
@@ -99,7 +99,7 @@ npm run seed
 | Port already in use | Find the process: `Get-NetTCPConnection -LocalPort <port> -State Listen`, then stop it and restart the service. |
 | API not responding | Check `server/server.log` for errors. |
 | Frontend errors | Check `client/vite.log`. |
-| Songs not playing / posters missing | Media lives in `assets/songs/` (MP3s) and `assets/posters/`. Make sure the server is running — the frontend proxies `/assets` to it. Do not delete the MP3 folder; it is gitignored. |
+| Songs not playing / posters missing | Seed songs stream from YouTube (IFrame API) — an internet connection is required. If YouTube is blocked or a video is unavailable, the player skips to the next song. User-uploaded songs play from `assets/songs/uploads/` (served via the `/assets` proxy — do not delete that folder; it is gitignored). |
 | `npm run dev` not found | Run `npm install` in that folder first. |
 
 ---
@@ -215,9 +215,9 @@ npm run seed
 | User Dashboard      | `http://localhost:5173/dashboard` |
 | Profile             | `http://localhost:5173/profile` |
 | Admin Panel         | `http://localhost:5173/admin`  |
-| Playlist (static)   | `http://localhost:5173/playlist/` |
-| Song Details (static)| `http://localhost:5173/song-details/` |
-| Premium (static)    | `http://localhost:5173/premium/` |
+| Playlist (dynamic)  | `http://localhost:5173/playlist/:id` |
+| Song Details (dynamic) | `http://localhost:5173/song/:id` |
+| Premium (dynamic)   | `http://localhost:5173/premium` |
 | Karaoke             | open `karaoke-app/` separately |
 
-> Dashboard and Profile require login — visitors are redirected to `/login`.
+> Dashboard, Profile, Playlist, and Song Details require login — visitors are redirected to `/login`.

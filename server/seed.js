@@ -7,6 +7,7 @@ import Song from './models/Song.js';
 import User from './models/User.js';
 import Report from './models/Report.js';
 import Subscription from './models/Subscription.js';
+import Playlist from './models/Playlist.js';
 
 dotenv.config();
 
@@ -15,21 +16,23 @@ function generateRandomPassword() {
   return Array.from(crypto.randomBytes(18)).map((b) => chars[b % chars.length]).join('');
 }
 
+const yt = (id) => `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+
 const songs = [
-  { title: 'Amar Dehokhan', artist: 'Odd Signature', genre: 'Melodious', file_path: 'assets/songs/bengali/amar_dehokhan.mp3', poster_url: 'assets/posters/Amar_Dehokhan_Poster.jpg', duration: '3:15', release_date: '2023-02-01' },
-  { title: 'Bhalobasha Tarpor', artist: 'Arnob', genre: 'Romantic', file_path: 'assets/songs/bengali/bhalobasha_tarpor.mp3', poster_url: 'assets/posters/Bhalobasha_Tarpor_Poster.jfif', duration: '4:00', release_date: '2023-03-01' },
-  { title: 'Dukkho Bilash', artist: 'Artcell', genre: 'Metal', file_path: 'assets/songs/bengali/dukkho_bilash.mp3', poster_url: 'assets/posters/Dukkho_Bilash_Poster.jpg', duration: '3:45', release_date: '2023-04-01' },
-  { title: 'Keno Hothat Tumi Ele', artist: 'Romantic', genre: 'Hindi', file_path: 'assets/songs/bengali/keno_hothat_tumi_ele.mp3', poster_url: 'assets/posters/Keno_Hothat_Tumi_Ele_Poster.jpg', duration: '3:30', release_date: '2023-05-01' },
-  { title: 'Nisshash', artist: 'Borbaad', genre: 'Rock', file_path: 'assets/songs/bengali/nisshash.mp3', poster_url: 'assets/posters/Nisshash_Poster.jpg', duration: '4:15', release_date: '2023-06-01' },
-  { title: 'Khamoshiyan', artist: 'Arijit Singh', genre: 'Love', file_path: 'assets/songs/hindi/Khamoshiyan (Title Song) Lyrics - Arijit Singh - Rashmi S _ Jeet G - Ali Fazal _ Sapna P _ Gurmeet C(MP3_160K).mp3', poster_url: 'assets/posters/Khamoshiyan_Poster.jpg', duration: '3:50', release_date: '2023-07-01' },
-  { title: 'Hasi Ban Gaye', artist: 'Ami Mishra', genre: 'Romantic', file_path: 'assets/songs/hindi/Hasi Ban Gaye Full Lyrics (Male Version) _  Hamari Adhuri Kahani _ Ami Mishra _ Emraan _ Vidya B(MP3_160K).mp3', poster_url: 'assets/posters/Hasi_Ban_Gaye_Poster.jpg', duration: '3:20', release_date: '2023-08-01' },
-  { title: 'Labon Ko', artist: 'K.K.', genre: 'Romantic', file_path: 'assets/songs/hindi/LABON KO LABON PE FULL SONG (LYRICS) - K.K. _ BHOOL BHULAIYAA(MP3_160K).mp3', poster_url: 'assets/posters/Labon_Ko_Poster.jpg', duration: '4:10', release_date: '2023-09-01' },
-  { title: 'Suraj Dooba Hae', artist: 'Arijit', genre: 'Happy', file_path: 'assets/songs/hindi/_Sooraj Dooba Hain_ FULL VIDEO SONG _ Arijit singh Aditi Singh Sharma _ T-SERIES(MP3_160K).mp3', poster_url: 'assets/posters/Sooraj_Dooba_Hain_Poster.jpg', duration: '3:55', release_date: '2023-10-01' },
-  { title: 'Comfortably Numb', artist: 'Pink Floyd', genre: 'Pop', file_path: 'assets/songs/english/Comfortably Numb(MP3_160K).mp3', poster_url: 'assets/posters/Comfortably_Numb_Poster.jpeg', duration: '3:55', release_date: '2023-10-01' },
-  { title: 'Die with a smile', artist: 'Bruno Mars and Lady Gaga', genre: 'Romantic', file_path: 'assets/songs/english/Lady GagaBruno Mars - Die With A Smile (Official Music Video)(MP3_160K).mp3', poster_url: 'assets/posters/Die_With_A_Smile_Poster.jpg', duration: '3:55', release_date: '2023-10-01' },
-  { title: 'I Think They Call This Love', artist: 'Elliot James Reay', genre: 'Romantic', file_path: 'assets/songs/english/Elliot James Reay - I Think They Call This Love (Lyrics)(MP3_160K).mp3', poster_url: 'assets/posters/I_Think_They_Call_This_Love_Poster.jpg', duration: '3:15', release_date: '2023-10-01' },
-  { title: 'Let Me Down Slowly', artist: 'Alec Benjamin', genre: 'Pop', file_path: 'assets/songs/english/Alec Benjamin - Let Me Down Slowly (Lyrics)(MP3_160K).mp3', poster_url: 'assets/posters/Let_Me_Down_Slowly_Poster.jpg', duration: '2:50', release_date: '2023-10-01' },
-  { title: 'Perfect', artist: 'Ed Sheeran', genre: 'Romantic', file_path: 'assets/songs/english/Ed Sheeran - Perfect (D-Day Music Video)(MP3_160K).mp3', poster_url: 'assets/posters/Perfect_Poster.jpg', duration: '4:25', release_date: '2023-10-01' },
+  { title: 'Amar Dehokhan', artist: 'Odd Signature', genre: 'Melodious', youtube_id: 'OUu19JIk-_k', poster_url: yt('OUu19JIk-_k'), duration: '7:10', release_date: '2020-10-25' },
+  { title: 'Bhalobasha Tarpor', artist: 'Arnob', genre: 'Romantic', youtube_id: 'sjRZJByUGGg', poster_url: yt('sjRZJByUGGg'), duration: '4:34', release_date: '2025-02-28' },
+  { title: 'Dukkho Bilash', artist: 'Artcell', genre: 'Metal', youtube_id: 'ECh1rS2ipJw', poster_url: yt('ECh1rS2ipJw'), duration: '6:42', release_date: '2002-01-30' },
+  { title: 'Keno Hothat Tumi Ele', artist: 'Tahsan', genre: 'Bengali', youtube_id: 'gXxYPU2dsnQ', poster_url: yt('gXxYPU2dsnQ'), duration: '4:43', release_date: '2020-06-14' },
+  { title: 'Nisshash', artist: 'G.M. Ashraf', genre: 'Bengali', youtube_id: 'VHz3srJjAV4', poster_url: yt('VHz3srJjAV4'), duration: '5:22', release_date: '2025-03-28' },
+  { title: 'Khamoshiyan', artist: 'Arijit Singh', genre: 'Love', youtube_id: 'c0viCB5k3Mg', poster_url: yt('c0viCB5k3Mg'), duration: '3:17', release_date: '2015-03-19' },
+  { title: 'Hasi Ban Gaye', artist: 'Ami Mishra', genre: 'Romantic', youtube_id: '5c9iFQZE74E', poster_url: yt('5c9iFQZE74E'), duration: '2:45', release_date: '2023-06-09' },
+  { title: 'Labon Ko', artist: 'K.K.', genre: 'Romantic', youtube_id: 'vlbsHZfM2mY', poster_url: yt('vlbsHZfM2mY'), duration: '5:41', release_date: '2007-09-05' },
+  { title: 'Suraj Dooba Hae', artist: 'Arijit Singh', genre: 'Happy', youtube_id: 'nJZcbidTutE', poster_url: yt('nJZcbidTutE'), duration: '4:24', release_date: '2014-12-19' },
+  { title: 'Comfortably Numb', artist: 'Pink Floyd', genre: 'Pop', youtube_id: '4FLjT5V5Hog', poster_url: yt('4FLjT5V5Hog'), duration: '6:22', release_date: '1979-11-30' },
+  { title: 'Die with a smile', artist: 'Bruno Mars and Lady Gaga', genre: 'Romantic', youtube_id: 'Fn6Ul6sYqro', poster_url: yt('Fn6Ul6sYqro'), duration: '4:11', release_date: '2024-08-16' },
+  { title: 'I Think They Call This Love', artist: 'Elliot James Reay', genre: 'Romantic', youtube_id: 'e1mOmdykmwI', poster_url: yt('e1mOmdykmwI'), duration: '3:09', release_date: '2024-07-17' },
+  { title: 'Let Me Down Slowly', artist: 'Alec Benjamin', genre: 'Pop', youtube_id: '50VNCymT-Cs', poster_url: yt('50VNCymT-Cs'), duration: '2:58', release_date: '2018-11-23' },
+  { title: 'Perfect', artist: 'Ed Sheeran', genre: 'Romantic', youtube_id: '2Vv-BfVoq4g', poster_url: yt('2Vv-BfVoq4g'), duration: '4:23', release_date: '2017-09-26' },
 ];
 
 async function seed() {
@@ -70,10 +73,32 @@ async function seed() {
   ]);
 
   await Subscription.deleteMany({});
+  const futureDate = new Date();
+  futureDate.setMonth(futureDate.getMonth() + 3);
+  const pastDate = new Date();
+  pastDate.setMonth(pastDate.getMonth() - 1);
   await Subscription.insertMany([
-    { user_email: 'user1@example.com', status: 'active', end_date: new Date('2025-12-31'), amount: 9.99 },
-    { user_email: 'user2@example.com', status: 'expired', end_date: new Date('2025-01-01'), amount: 9.99 },
+    { user_email: 'user1@example.com', status: 'active', end_date: futureDate, plan: 'Individual', amount: 219 },
+    { user_email: 'user2@example.com', status: 'expired', end_date: pastDate, plan: 'Student', amount: 109 },
   ]);
+
+  await Playlist.deleteMany({});
+  if (process.env.ADMIN_EMAIL || process.env.ADMIN_PASSWORD) {
+    const dbSongs = await Song.find();
+    const byTitle = Object.fromEntries(dbSongs.map((s) => [s.title.toLowerCase(), s]));
+    const picks = (titles) => titles.map((t) => byTitle[t.toLowerCase()]).filter(Boolean).map((s) => ({ songId: s._id }));
+    const playlists = [];
+    if (byTitle['perfect'] && byTitle['let me down slowly'] && byTitle['i think they call this love'] && byTitle['die with a smile']) {
+      playlists.push({ user_email: adminEmail, title: 'My English Mix', items: picks(['Perfect', 'Let Me Down Slowly', 'I Think They Call This Love', 'Die with a smile']) });
+    }
+    if (byTitle['dukkho bilash'] && byTitle['amar dehokhan'] && byTitle['nisshash'] && byTitle['keno hothat tumi ele']) {
+      playlists.push({ user_email: adminEmail, title: 'Bangla Rock Favorites', items: picks(['Dukkho Bilash', 'Amar Dehokhan', 'Nisshash', 'Keno Hothat Tumi Ele']) });
+    }
+    if (playlists.length) {
+      await Playlist.insertMany(playlists);
+      console.log(`Seeded ${playlists.length} playlists for ${adminEmail}`);
+    }
+  }
 
   console.log('Seed complete');
   await mongoose.connection.close();

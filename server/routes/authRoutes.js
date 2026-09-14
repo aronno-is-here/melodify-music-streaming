@@ -11,6 +11,8 @@ const signToken = (user) =>
     expiresIn: '7d',
   });
 
+
+
 router.post('/signup/step1', async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
@@ -71,7 +73,10 @@ router.post('/login', async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.json({ success: false, error: 'Email and password are required.' });
+    }
+    const user = await User.findOne({ email }).select('+password');
     if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
       return res.json({ success: false, error: 'Invalid email or password.' });
     }
@@ -90,12 +95,15 @@ router.get('/me', protect, (req, res) => {
 
 router.put('/me', protect, async (req, res) => {
   try {
-    const { name, dob, gender, country } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { name, dob, gender, country },
-      { new: true, runValidators: true }
-    ).select('-password');
+    const allowedFields = ['name', 'dob', 'gender', 'country'];
+    const update = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) update[field] = req.body[field];
+    }
+    if (Object.keys(update).length === 0) {
+      return res.json({ success: false, error: 'No valid fields to update.' });
+    }
+    const user = await User.findByIdAndUpdate(req.user._id, update, { new: true, runValidators: true });
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -105,15 +113,75 @@ router.put('/me', protect, async (req, res) => {
 router.post('/me/password', protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!(await bcrypt.compare(currentPassword, req.user.password))) {
+    if (!currentPassword || !newPassword) {
+      return res.json({ success: false, error: 'Current and new password are required.' });
+    }
+    const userWithPassword = await User.findById(req.user._id).select('+password');
+    if (!userWithPassword || !userWithPassword.password) {
+      return res.json({ success: false, error: 'User not found.' });
+    }
+    if (!(await bcrypt.compare(currentPassword, userWithPassword.password))) {
       return res.json({ success: false, error: 'Current password is incorrect.' });
     }
     if (newPassword.length < 10 || !/[a-zA-Z]/.test(newPassword) || !/[0-9#?!&]/.test(newPassword)) {
       return res.json({ success: false, error: 'New password must contain at least 10 characters, 1 letter, and 1 number or special character.' });
     }
-    req.user.password = await bcrypt.hash(newPassword, 10);
-    await req.user.save();
+    userWithPassword.password = await bcrypt.hash(newPassword, 10);
+    userWithPassword.passwordChangedAt = new Date();
+    await userWithPassword.save();
     res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
+    }
+    const token = jwt.sign({ id: user._id, purpose: 'password-reset' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    console.log(`Password reset token for ${email}: ${token}`);
+    res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.json({ success: false, error: 'Token and password are required.' });
+    }
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.json({ success: false, error: 'Invalid or expired reset token.' });
+    }
+    if (decoded.purpose !== 'password-reset') {
+      return res.json({ success: false, error: 'Invalid token.' });
+    }
+    const user = await User.findById(decoded.id).select('+password passwordChangedAt');
+    if (!user) {
+      return res.json({ success: false, error: 'Invalid token.' });
+    }
+    if (user.passwordChangedAt) {
+      const tokenIssuedAt = new Date(decoded.iat * 1000);
+      if (tokenIssuedAt < user.passwordChangedAt) {
+        return res.json({ success: false, error: 'Reset token has been invalidated. Please request a new one.' });
+      }
+    }
+    if (password.length < 10 || !/[a-zA-Z]/.test(password) || !/[0-9#?!&]/.test(password)) {
+      return res.json({ success: false, error: 'Password must contain at least 10 characters, 1 letter, and 1 number or special character.' });
+    }
+    user.password = await bcrypt.hash(password, 10);
+    user.passwordChangedAt = new Date();
+    await user.save();
+    res.json({ success: true, message: 'Password reset successful.' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

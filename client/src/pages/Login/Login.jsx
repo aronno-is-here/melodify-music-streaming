@@ -66,12 +66,10 @@ export default function Login() {
           Continue
         </button>
       </form>
-      <div className="or-separator">or</div>
-      <div className="social-signup-btn">
-        <a href="#" className="social-btn google-btn" onClick={(e) => e.preventDefault()}>
-          <img src="https://www.google.com/favicon.ico" alt="Google" /> Continue with Google
-        </a>
+      <div style={{ textAlign: 'right', marginTop: '10px' }}>
+        <Link to="/forgot-password" style={{ color: '#00b4d8', fontSize: '14px' }}>Forgot password?</Link>
       </div>
+
       <div className="signup-link">
         Don&apos;t have an account? <Link to="/signup">Sign up for Melodify</Link>
       </div>

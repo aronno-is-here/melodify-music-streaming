@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
@@ -12,7 +12,7 @@ export default function Profile() {
     document.head.appendChild(style);
     return () => style.remove();
   }, []);
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -24,6 +24,15 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setDob(user.dob ? String(user.dob).slice(0, 10) : '');
+      setGender(user.gender || '');
+      setCountry(user.country || '');
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -39,9 +48,9 @@ export default function Profile() {
     setMsg('');
     const data = await api.put('/api/auth/me', { name, dob, gender, country });
     if (data.success) {
+      await refreshUser();
       setMsg('Profile updated successfully');
       setEditOpen(false);
-      window.location.reload();
     } else {
       setMsg(data.error || 'Update failed');
     }
@@ -74,7 +83,7 @@ export default function Profile() {
         </div>
         <nav className="nav-links">
           <Link to="/dashboard">Dashboard</Link>
-          <a href="/premium/">Premium</a>
+          <Link to="/premium">Premium</Link>
         </nav>
       </header>
 

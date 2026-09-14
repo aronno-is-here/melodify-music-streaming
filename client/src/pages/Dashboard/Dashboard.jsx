@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
+import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
 import cssRaw from './Dashboard.css?raw';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
@@ -16,35 +17,23 @@ export default function Dashboard() {
   }, []);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const player = usePlayer();
 
   const [songs, setSongs] = useState([]);
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [history, setHistory] = useState([]);
-  const [currentSongIndex, setCurrentSongIndex] = useState(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [volume, setVolume] = useState(50);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [search, setSearch] = useState('');
-  const [librarySearch, setLibrarySearch] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  const audioRef = useRef(null);
-  const currentSong = currentSongIndex >= 0 ? filteredSongs[currentSongIndex] : null;
+  const [uploadMsg, setUploadMsg] = useState('');
 
   const fetchSongs = async () => {
     const data = await api.get('/api/songs');
     if (data.success) {
       setSongs(data.songs);
       setFilteredSongs(data.songs);
-      setCurrentSongIndex((prev) => (prev === -1 && data.songs.length > 0 ? 0 : prev));
     }
   };
 
@@ -59,18 +48,13 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (currentSongIndex >= 0 && filteredSongs.length > 0) {
-      const song = filteredSongs[currentSongIndex];
-      const audio = audioRef.current;
-      audio.src = song.file_path;
-      if (isPlaying) audio.play();
-    }
-  }, [currentSongIndex]);
-
-  useEffect(() => {
     const term = search.toLowerCase();
-    const list = songs.filter((s) => s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term));
-    setFilteredSongs(list);
+    if (!term) {
+      setFilteredSongs(songs);
+    } else {
+      const list = songs.filter((s) => s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term));
+      setFilteredSongs(list);
+    }
   }, [search, songs]);
 
   const recordPlay = (song) => {
@@ -80,103 +64,52 @@ export default function Dashboard() {
     });
   };
 
-  const playSong = (song) => {
-    const audio = audioRef.current;
-    audio.src = song.file_path;
-    audio.play();
-    setIsPlaying(true);
-    recordPlay(song);
-  };
-
   const handleSongClick = (index) => {
-    if (index === currentSongIndex && isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
+    const song = filteredSongs[index];
+    if (!song) return;
+    if (player.index === index && player.isPlaying) {
+      player.pause();
     } else {
-      setCurrentSongIndex(index);
-      playSong(filteredSongs[index]);
+      player.playSong(filteredSongs, index);
+      recordPlay(song);
     }
   };
 
-  const playFromSong = (song) => {
+  const playFromHistory = (song) => {
     const idx = filteredSongs.findIndex((s) => s._id === song._id);
-    if (idx >= 0) setCurrentSongIndex(idx);
-    playSong(song);
-  };
-
-  const togglePlay = () => {
-    if (filteredSongs.length === 0) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
+    if (idx >= 0) {
+      handleSongClick(idx);
     } else {
-      playSong(filteredSongs[currentSongIndex === -1 ? 0 : currentSongIndex]);
-      if (currentSongIndex === -1) setCurrentSongIndex(0);
-    }
-  };
-
-  const prevSong = () => {
-    if (filteredSongs.length === 0) return;
-    const next = shuffle ? Math.floor(Math.random() * filteredSongs.length) : (currentSongIndex - 1 + filteredSongs.length) % filteredSongs.length;
-    setCurrentSongIndex(next);
-    playSong(filteredSongs[next]);
-  };
-
-  const nextSong = () => {
-    if (filteredSongs.length === 0) return;
-    const next = shuffle ? Math.floor(Math.random() * filteredSongs.length) : (currentSongIndex + 1) % filteredSongs.length;
-    setCurrentSongIndex(next);
-    playSong(filteredSongs[next]);
-  };
-
-  const handleVolume = (e) => {
-    const v = Number(e.target.value);
-    setVolume(v);
-    audioRef.current.volume = v / 100;
-    setMuted(v === 0);
-  };
-
-  const toggleMute = () => {
-    const audio = audioRef.current;
-    if (muted) {
-      audio.volume = volume / 100;
-      setMuted(false);
-    } else {
-      audio.volume = 0;
-      setMuted(true);
+      player.playSong([song], 0);
+      recordPlay(song);
     }
   };
 
   const handleSeek = (e) => {
-    const audio = audioRef.current;
-    if (!audio || !audio.duration) return;
     const ratio = Number(e.target.value) / 1000;
-    audio.currentTime = ratio * audio.duration;
-    setProgress(ratio * 100);
-    setCurrentTime(audio.currentTime);
+    player.seek(ratio);
   };
 
-  const formatTime = (secs) => {
-    if (!isFinite(secs)) return '0:00';
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
+  const handleVolume = (e) => {
+    player.setVolume(Number(e.target.value));
   };
 
   const handleUpload = async (e) => {
     e.preventDefault();
     setUploading(true);
+    setUploadMsg('');
     const form = e.target;
     const formData = new FormData(form);
     const data = await api.post('/api/songs/upload', formData);
     setUploading(false);
     if (data.success) {
-      alert('Song uploaded successfully');
+      setUploadMsg('Song uploaded successfully!');
+      setTimeout(() => setUploadMsg(''), 3000);
       setPopupOpen(false);
       form.reset();
       fetchSongs();
     } else {
-      alert('Error uploading song: ' + data.error);
+      setUploadMsg(data.error || 'Upload failed');
     }
   };
 
@@ -199,6 +132,13 @@ export default function Dashboard() {
                   View Profile
                 </Link>
               </li>
+              {user?.role === 'admin' && (
+                <li>
+                  <Link to="/admin" style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>
+                    Admin Panel
+                  </Link>
+                </li>
+              )}
               <li onClick={() => { logout(); navigate('/login'); }}>Logout</li>
             </ul>
           </div>
@@ -211,14 +151,12 @@ export default function Dashboard() {
               ◀
             </button>
             <span className="grid-title">Library</span>
-            <button className="add-song-btn" onClick={() => setPopupOpen(true)}>
-              Add Song
-            </button>
+            {user?.role === 'admin' && (
+              <button className="add-song-btn" onClick={() => setPopupOpen(true)}>
+                Add Song
+              </button>
+            )}
           </h2>
-          <div className="library-search">
-            <i className="fa-solid fa-magnifying-glass"></i>
-            <input type="text" placeholder="Search in Library" value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} />
-          </div>
         </div>
         <div className="scroll-grid">
           <div className="recent-container">
@@ -230,7 +168,7 @@ export default function Dashboard() {
                 {history.map((song, index) => (
                   <div className="song-item recent-item" key={song._id || index}>
                     <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
-                    <div className="play-button" onClick={() => playFromSong(song)}>
+                    <div className="play-button" onClick={() => playFromHistory(song)}>
                       <i className="fa-solid fa-play"></i>
                     </div>
                     <div className="song-info">
@@ -246,7 +184,6 @@ export default function Dashboard() {
             <div className="search-bar">
               <i className="fa-solid fa-magnifying-glass"></i>
               <input type="text" placeholder="Search by songs or artists" value={search} onChange={(e) => setSearch(e.target.value)} />
-              <i className="fa-solid fa-face-smile"></i>
             </div>
           </div>
           <div className="songs-container">
@@ -254,9 +191,9 @@ export default function Dashboard() {
             <div className="songs-grid">
               {filteredSongs.map((song, index) => (
                 <div className="song-item" key={song._id || index}>
-                  <img className="song-poster" src={song.poster_url.startsWith('http') ? song.poster_url : song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
+                  <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
                   <div className="play-button" data-index={index} onClick={() => handleSongClick(index)}>
-                    <i className={`fa-solid ${index === currentSongIndex && isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                    <i className={`fa-solid ${player.index === index && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
                   </div>
                   <div className="song-info">
                     <div className="song-name">{song.title}</div>
@@ -273,18 +210,18 @@ export default function Dashboard() {
           </div>
           <img
             className="song-poster"
-            src={currentSong ? currentSong.poster_url : DEFAULT_POSTER}
+            src={player.currentSong ? player.currentSong.poster_url : DEFAULT_POSTER}
             alt="Now Playing Song Poster"
             onError={(e) => (e.target.src = DEFAULT_POSTER)}
           />
           <div className="song-details">
-            {currentSong ? (
+            {player.currentSong ? (
               <>
-                <h3>{currentSong.title}</h3>
-                <p>Artist: {currentSong.artist}</p>
-                <p>Genre: {currentSong.genre}</p>
-                <p>Duration: {currentSong.duration}</p>
-                <p>Release Date: {currentSong.release_date ? String(currentSong.release_date).slice(0, 10) : 'None'}</p>
+                <h3>{player.currentSong.title}</h3>
+                <p>Artist: {player.currentSong.artist}</p>
+                <p>Genre: {player.currentSong.genre}</p>
+                <p>Duration: {player.currentSong.duration}</p>
+                <p>Release Date: {player.currentSong.release_date ? String(player.currentSong.release_date).slice(0, 10) : 'None'}</p>
               </>
             ) : (
               <>
@@ -302,54 +239,38 @@ export default function Dashboard() {
             min="0"
             max="1000"
             step="1"
-            value={Math.min(1000, Math.round(progress * 10))}
+            value={Math.min(1000, Math.round(player.progress * 10))}
             onChange={handleSeek}
             aria-label="Seek bar"
-            style={{ '--fill': `${progress}%` }}
+            style={{ '--fill': `${player.progress}%` }}
           />
           <div className="progress-time">
-            <span>{formatTime(currentTime)}</span>
-            <span>{currentSong ? currentSong.duration : formatTime(duration)}</span>
+            <span>{formatTime(player.currentTime)}</span>
+            <span>{player.currentSong ? player.currentSong.duration : formatTime(player.duration)}</span>
           </div>
           <div className="controls">
-            <button className={`control-btn shuffle-btn${shuffle ? ' active' : ''}`} aria-label="Toggle shuffle" data-shuffle={shuffle ? 'on' : 'off'} onClick={() => setShuffle(!shuffle)}>
+            <button className={`control-btn shuffle-btn${player.shuffle ? ' active' : ''}`} aria-label="Toggle shuffle" data-shuffle={player.shuffle ? 'on' : 'off'} onClick={() => player.setShuffle(!player.shuffle)}>
               <i className="fa-solid fa-shuffle"></i>
             </button>
-            <button className="control-btn prev-btn" aria-label="Previous song" onClick={prevSong}>
+            <button className="control-btn prev-btn" aria-label="Previous song" onClick={player.prev}>
               <i className="fa-solid fa-backward"></i>
             </button>
-            <button className="control-btn play-btn" aria-label="Play song" data-state={isPlaying ? 'pause' : 'play'} onClick={togglePlay}>
-              <i className={`fa-solid ${isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+            <button className="control-btn play-btn" aria-label="Play song" data-state={player.isPlaying ? 'pause' : 'play'} onClick={() => player.togglePlay()}>
+              <i className={`fa-solid ${player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
             </button>
-            <button className="control-btn next-btn" aria-label="Next song" onClick={nextSong}>
+            <button className="control-btn next-btn" aria-label="Next song" onClick={player.next}>
               <i className="fa-solid fa-forward"></i>
             </button>
-            <button className={`control-btn repeat-btn${repeat ? ' active' : ''}`} aria-label="Toggle repeat" data-repeat={repeat ? 'on' : 'off'} onClick={() => setRepeat(!repeat)}>
+            <button className={`control-btn repeat-btn${player.repeat ? ' active' : ''}`} aria-label="Toggle repeat" data-repeat={player.repeat ? 'on' : 'off'} onClick={() => player.setRepeat(!player.repeat)}>
               <i className="fa-solid fa-repeat"></i>
             </button>
           </div>
           <div className="volume-container">
-            <button className="volume-btn" aria-label="Toggle mute" data-muted={muted ? 'true' : 'false'} onClick={toggleMute}>
-              <i className={`fa-solid ${muted || volume === 0 ? 'fa-volume-mute' : 'fa-volume-high'}`}></i>
+            <button className="volume-btn" aria-label="Toggle mute" data-muted={player.muted ? 'true' : 'false'} onClick={player.toggleMute}>
+              <i className={`fa-solid ${player.muted || player.volume === 0 ? 'fa-volume-mute' : 'fa-volume-high'}`}></i>
             </button>
-            <input type="range" className="volume-slider" min="0" max="100" value={muted ? 0 : volume} aria-label="Volume control" onChange={handleVolume} />
+            <input type="range" className="volume-slider" min="0" max="100" value={player.muted ? 0 : player.volume} aria-label="Volume control" onChange={handleVolume} />
           </div>
-          <audio
-            id="audio-player"
-            ref={audioRef}
-            onTimeUpdate={(e) => {
-              setCurrentTime(e.target.currentTime);
-              if (e.target.duration) setProgress((e.target.currentTime / e.target.duration) * 100);
-            }}
-            onLoadedMetadata={(e) => setDuration(e.target.duration)}
-            onEnded={() => {
-              if (repeat) {
-                playSong(filteredSongs[currentSongIndex]);
-              } else {
-                nextSong();
-              }
-            }}
-          ></audio>
         </div>
         <div className={`overlay${popupOpen ? ' active' : ''}`} onClick={() => setPopupOpen(false)}></div>
         <div className={`add-song-popup${popupOpen ? ' active' : ''}`}>
@@ -357,6 +278,9 @@ export default function Dashboard() {
             ✕
           </button>
           <h3>Add New Song</h3>
+          {uploadMsg && (
+            <div style={{ padding: 10, marginBottom: 10, borderRadius: 4, background: uploadMsg.includes('success') ? '#4caf50' : '#dc3545', color: '#fff' }}>{uploadMsg}</div>
+          )}
           <form id="add-song-form" encType="multipart/form-data" onSubmit={handleUpload}>
             <label htmlFor="title">Title</label>
             <input type="text" id="title" name="title" required />

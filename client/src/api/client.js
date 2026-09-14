@@ -7,14 +7,28 @@ async function request(path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API}${path}`, { ...options, headers });
-  let data;
+
   try {
-    data = await res.json();
-  } catch {
-    data = { success: false, error: 'Invalid server response' };
+    const res = await fetch(`${API}${path}`, { ...options, headers });
+
+    if (res.status === 401) {
+      localStorage.removeItem('melodify_token');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      return { success: false, error: 'Session expired' };
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      data = { success: false, error: 'Invalid server response' };
+    }
+    return data;
+  } catch (error) {
+    return { success: false, error: error.message || 'Network error' };
   }
-  return data;
 }
 
 export const api = {

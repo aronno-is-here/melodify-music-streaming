@@ -1,6 +1,6 @@
 # 🎵 Melodify — Music Streaming Website
 
-A full-featured music streaming web application with user authentication, a song library with an audio player, playlist support, an admin panel, and a real-time karaoke recorder. Built with the **MERN stack** (MongoDB, Express, React, Node.js) — migrated from the original PHP + MySQL version (archived in `legacy/`).
+A full-featured music streaming web application with user authentication, a song library with a YouTube-powered player, playlist support, an admin panel, and a real-time karaoke recorder. Built with the **MERN stack** (MongoDB, Express, React, Node.js) — migrated from the original PHP + MySQL version (archived in `legacy/`).
 
 ---
 
@@ -11,11 +11,14 @@ A full-featured music streaming web application with user authentication, a song
 - **Login / Logout** with JWT authentication and bcrypt password hashing
 - **Song library** — search by song title or artist, browse a poster grid
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history)
-- **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels
+- **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
+- **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
 - **Upload songs** — any user can add songs with MP3/WAV audio + JPG/PNG poster via a modal form
 - **Profile page** — view/edit personal info, change password
-- **Playlist page**, **song details page**, **Premium subscription page**
+- **Dynamic Playlist page** (`/playlist/:id`) — per-user playlists with real songs, add/remove/rename/delete, search the library to add songs, built-in floating player (YouTube streaming)
+- **Dynamic Song Details page** (`/song/:id`) — real song metadata + related tracks (same artist/genre), full footer player with shuffle/repeat/seek/volume
+- **Dynamic Premium page** (`/premium`) — live subscription status, subscribe/cancel plans (Individual/Student/Duo) via `/api/subscriptions`
 
 ### Admin Side
 - Dedicated admin login (demo credentials, see below)
@@ -39,7 +42,7 @@ A real-time karaoke voice recorder with:
 
 | Layer      | Technology                                            |
 |------------|-------------------------------------------------------|
-| Frontend   | React 18, Vite, React Router, vanilla CSS/JS per page |
+| Frontend   | React 18, Vite, React Router, YouTube IFrame API, vanilla CSS/JS per page |
 | Backend    | Node.js, Express, Mongoose (JWT + bcrypt)             |
 | Database   | MongoDB                                               |
 | Karaoke    | Node.js, Express, Socket.IO, Multer                   |
@@ -55,9 +58,9 @@ Melodify - Music Streaming Website/
 │   ├── server.js                  # Entry point
 │   ├── seed.js                    # Seeds MongoDB from the old SQL data
 │   ├── config/db.js               # MongoDB connection
-│   ├── models/                    # User, Song, Playlist, Report, Subscription
+│   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory
 │   ├── middleware/                # JWT auth, admin guard, multer upload
-│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/admin
+│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend
 │   ├── src/pages/                 # One folder per page (React)
 │   │   ├── Home/                  # Landing page
@@ -65,19 +68,20 @@ Melodify - Music Streaming Website/
 │   │   ├── Signup/                # 3-step signup
 │   │   ├── Dashboard/             # Music dashboard + player
 │   │   ├── Profile/               # User profile
+│   │   ├── Playlist/              # Playlist detail page (dynamic)
+│   │   ├── SongDetails/           # Song details page (dynamic)
+│   │   ├── Premium/               # Premium subscription page (dynamic)
 │   │   └── Admin/                 # Admin panel + login
 │   ├── src/context/               # Auth context (JWT)
 │   ├── src/api/                   # API client
-│   └── public/                    # Static pages (HTML + CSS + JS, split)
-│       ├── playlist/              # Playlist page (from Abon/)
-│       ├── song-details/          # Song details page (from Choa/)
-│       └── premium/               # Premium page (from Jannat/)
+│   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player)
+│   └── public/                    # Static assets only (no static pages left)
 ├── karaoke-app/                   # Real-time karaoke recorder (Node)
 │   ├── public/index.html          # Karaoke UI
 │   └── server/                    # Express + Socket.IO server
 ├── assets/                        # Media
-│   ├── posters/                   # Song poster images (from Posters/)
-│   └── songs/                     # MP3 files (from songs/, NOT in git)
+│   ├── posters/                   # Legacy poster images (uploads + fallbacks)
+│   └── songs/                     # Uploaded MP3s (NOT in git; seed songs stream from YouTube instead)
 └── legacy/                        # Archived PHP + HTML version (incl. Abon/Choa/Jannat)
 ```
 
@@ -86,6 +90,7 @@ Melodify - Music Streaming Website/
 ## 🚀 Getting Started
 
 > **Need full step-by-step instructions (including the Admin Panel guide)?** See **[`RUNNING_AND_ADMIN_GUIDE.md`](./RUNNING_AND_ADMIN_GUIDE.md)**.
+> **Database setup & MongoDB Compass connection?** See **[`MONGODB_CONNECTION_GUIDE.md`](./MONGODB_CONNECTION_GUIDE.md)**.
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (installed on `G:\NodeJS` on this machine)
@@ -150,9 +155,10 @@ ADMIN_PASSWORD=your-strong-password
 
 ## ⚠️ Important Notes
 
-- **Audio files are not tracked in git** — `assets/songs/` (~240 MB of MP3s) is excluded via `.gitignore`. They were restored from `G:\Xampp\htdocs\Projects\Melodify - Music Streaming Website\`.
-- The old PHP + MySQL implementation (including `all_data.sql`) is archived in `legacy/` for reference.
-- Static pages (`Playlist`, `Song Details`, `Premium`) remain plain HTML + CSS + JS because they have no backend — their design is preserved byte-for-byte.
+- **Songs stream from YouTube** — the 14 seeded songs play through the YouTube IFrame API (each has a `youtube_id` + official YouTube thumbnail poster), so no local MP3 files are needed for them. Local files are only used for songs uploaded by users (`assets/songs/uploads/`, not tracked in git).
+- **YouTube thumbnails** are fetched from `https://img.youtube.com/vi/<youtube_id>/hqdefault.jpg` at seed time and stored as `poster_url`; the UI falls back to a placeholder if a thumbnail ever fails to load.
+- The old PHP + MySQL implementation (including `all_data.sql`) and the former static pages (`playlist/`, `song-details/`, `premium/`) are archived in `legacy/` for reference.
+- **All pages are now dynamic React pages** — no dummy/static content remains in the app; Playlist, Song Details, and Premium are fully backed by the API.
 - This is a university/project build; some admin actions (ban, edit, delete) are demo stubs.
 
 ---

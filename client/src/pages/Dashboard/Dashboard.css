@@ -367,6 +367,23 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   margin-bottom: 15px;
 }
 
+.scroll-grid:nth-child(3) {
+  overflow: hidden;
+}
+
+.scroll-grid:nth-child(3):hover {
+  overflow: hidden;
+}
+
+.scroll-grid:nth-child(3) .song-poster {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-height: 45vh;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
 .now-playing-header h2 {
   font-size: 40px;
   color: var(--white);
@@ -804,3 +821,12 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
     font-size: 16px;
   }
 }
+
+.yt-player {
+  position: absolute;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+

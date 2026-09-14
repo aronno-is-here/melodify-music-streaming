@@ -1,6 +1,7 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const uploadsRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets');
@@ -19,7 +20,9 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, sanitize(req.body.title || 'song') + ext);
+    const base = sanitize(req.body.title || 'song');
+    const unique = crypto.randomBytes(8).toString('hex');
+    cb(null, `${base}-${unique}${ext}`);
   },
 });
 
