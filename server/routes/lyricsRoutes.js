@@ -1,9 +1,22 @@
 import express from 'express';
-import { transliterate } from 'transliteration';
 import Song from '../models/Song.js';
 
 const router = express.Router();
 const UA = 'Melodify/1.0 (https://github.com/aronno-is-here/melodify-music-streaming)';
+
+let transliterateFn = null;
+try {
+  const mod = await import('transliteration');
+  transliterateFn = mod.transliterate;
+} catch {}
+
+function romanize(text) {
+  if (!text) return text;
+  if (transliterateFn) {
+    try { return transliterateFn(text); } catch {}
+  }
+  return text;
+}
 
 function parseLRC(lrc) {
   if (!lrc) return [];
@@ -37,45 +50,24 @@ function isLatinScript(text) {
   return latin.length > text.replace(/\s/g, '').length * 0.5;
 }
 
-function romanizeText(text) {
-  if (!text || isLatinScript(text)) return text;
-  return transliterate(text);
-}
-
 function romanizeLRC(lrc) {
   const lines = parseLRC(lrc);
   if (lines.length === 0) return { synced: [], plain: '' };
-
   const allText = lines.map(l => l.text).join('\n');
-  if (isLatinScript(allText)) {
-    return { synced: lines, plain: allText };
-  }
-
-  const romanized = lines.map(l => ({
-    time: l.time,
-    text: romanizeText(l.text),
-  }));
-
-  return {
-    synced: romanized,
-    plain: romanized.map(l => l.text).join('\n'),
-  };
+  if (isLatinScript(allText)) return { synced: lines, plain: allText };
+  const romanized = lines.map(l => ({ time: l.time, text: romanize(l.text) }));
+  return { synced: romanized, plain: romanized.map(l => l.text).join('\n') };
 }
 
 async function fetchFromLRCLIB(artist, title, duration) {
   const headers = { 'User-Agent': UA };
-
   try {
     const params = new URLSearchParams({ artist_name: artist, track_name: title });
     const durSec = durationToSeconds(duration);
     if (durSec > 0) params.set('duration', String(durSec));
     const resp = await fetch(`https://lrclib.net/api/get?${params}`, { headers, signal: AbortSignal.timeout(5000) });
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.syncedLyrics || data.plainLyrics) return data;
-    }
+    if (resp.ok) { const data = await resp.json(); if (data.syncedLyrics || data.plainLyrics) return data; }
   } catch {}
-
   try {
     const params = new URLSearchParams({ q: `${title} ${artist}` });
     const resp = await fetch(`https://lrclib.net/api/search?${params}`, { headers, signal: AbortSignal.timeout(5000) });
@@ -85,23 +77,16 @@ async function fetchFromLRCLIB(artist, title, duration) {
         const durSec = durationToSeconds(duration);
         const titleLower = title.toLowerCase();
         let best = results[0];
-        for (const r of results) {
-          if (r.trackName && r.trackName.toLowerCase() === titleLower) { best = r; break; }
-        }
+        for (const r of results) { if (r.trackName && r.trackName.toLowerCase() === titleLower) { best = r; break; } }
         if (durSec > 0 && results.length > 1) {
-          let closest = best;
-          let minDiff = Math.abs((best.duration || 0) - durSec);
-          for (const r of results) {
-            const diff = Math.abs((r.duration || 0) - durSec);
-            if (diff < minDiff) { minDiff = diff; closest = r; }
-          }
+          let closest = best, minDiff = Math.abs((best.duration || 0) - durSec);
+          for (const r of results) { const diff = Math.abs((r.duration || 0) - durSec); if (diff < minDiff) { minDiff = diff; closest = r; } }
           best = closest;
         }
         if (best.syncedLyrics || best.plainLyrics) return best;
       }
     }
   } catch {}
-
   return null;
 }
 
@@ -110,45 +95,28 @@ router.get('/:songId', async (req, res) => {
     const song = await Song.findById(req.params.songId);
     if (!song) return res.status(404).json({ success: false, error: 'Song not found' });
 
-    // 1. Check database first
     if (song.lyrics) {
       if (isLatinScript(song.lyrics)) {
         const synced = parseLRC(song.lyrics);
-        return res.json({
-          success: true,
-          source: 'database',
-          synced: synced.length > 0,
-          lines: synced.length > 0 ? synced : song.lyrics.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })),
-          plain: song.lyrics,
-        });
+        return res.json({ success: true, source: 'database', synced: synced.length > 0, lines: synced.length > 0 ? synced : song.lyrics.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })), plain: song.lyrics });
       }
       const { synced, plain } = romanizeLRC(song.lyrics);
-      return res.json({
-        success: true,
-        source: 'database-romanized',
-        synced: synced.length > 0,
-        lines: synced.length > 0 ? synced : plain.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })),
-        plain,
-      });
+      return res.json({ success: true, source: 'database-romanized', synced: synced.length > 0, lines: synced.length > 0 ? synced : plain.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })), plain });
     }
 
-    // 2. Fetch from LRCLIB
     const lrclibData = await fetchFromLRCLIB(song.artist, song.title, song.duration);
     if (lrclibData) {
       const rawPlain = lrclibData.plainLyrics || lrclibData.syncedLyrics || '';
-
       if (isLatinScript(rawPlain)) {
         const synced = parseLRC(lrclibData.syncedLyrics || '');
         const plainLines = rawPlain.split('\n').filter(l => l.trim());
-        const lines = synced.length > 0 ? synced : plainLines.map(text => ({ time: null, text }));
-        return res.json({ success: true, source: 'lrclib', synced: synced.length > 0, lines, plain: rawPlain });
+        return res.json({ success: true, source: 'lrclib', synced: synced.length > 0, lines: synced.length > 0 ? synced : plainLines.map(text => ({ time: null, text })), plain: rawPlain });
       }
-
       if (lrclibData.syncedLyrics) {
         const { synced, plain } = romanizeLRC(lrclibData.syncedLyrics);
         return res.json({ success: true, source: 'lrclib-romanized', synced: synced.length > 0, lines: synced, plain });
       } else {
-        const romanized = romanizeText(rawPlain);
+        const romanized = romanize(rawPlain);
         const plainLines = romanized.split('\n').filter(l => l.trim());
         return res.json({ success: true, source: 'lrclib-romanized', synced: false, lines: plainLines.map(text => ({ time: null, text })), plain: romanized });
       }
