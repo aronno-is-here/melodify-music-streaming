@@ -405,9 +405,17 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   background: var(--sky-blue);
   color: #fff;
 }
+.fs-toggle-btn:active {
+  transform: scale(0.94);
+}
 .fs-toggle-btn:focus-visible {
   outline: 2px solid var(--sky-blue);
   outline-offset: 2px;
+}
+.fs-toggle-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .scroll-grid:nth-child(3) {

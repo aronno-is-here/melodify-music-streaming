@@ -588,7 +588,7 @@ export default function Dashboard() {
         <div className="scroll-grid">
           <div className="now-playing-header">
             <h2 id="right-heading">Now Playing</h2>
-            <button className="fs-toggle-btn" type="button" aria-label="Open full screen player" title="Open Full Screen Player" onClick={() => setFullscreenOpen(true)}>
+            <button className="fs-toggle-btn" type="button" aria-label="Open full screen player" title="Open Full Screen Player" disabled={!player.currentSong} onClick={() => setFullscreenOpen(true)}>
               <i className="fa-solid fa-expand"></i>
             </button>
           </div>
