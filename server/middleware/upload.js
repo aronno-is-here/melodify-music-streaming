@@ -4,13 +4,18 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
+const isProd = process.env.NODE_ENV === 'production';
 const uploadsRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets');
 
-const audioDir = path.join(uploadsRoot, 'songs', 'uploads');
-const posterDir = path.join(uploadsRoot, 'posters');
+// In production (Vercel), use /tmp for ephemeral uploads
+const baseDir = isProd ? '/tmp' : uploadsRoot;
+const audioDir = path.join(baseDir, 'songs', 'uploads');
+const posterDir = path.join(baseDir, 'posters');
 
-fs.mkdirSync(audioDir, { recursive: true });
-fs.mkdirSync(posterDir, { recursive: true });
+if (!isProd) {
+  fs.mkdirSync(audioDir, { recursive: true });
+  fs.mkdirSync(posterDir, { recursive: true });
+}
 
 const sanitize = (name) => name.replace(/[^A-Za-z0-9\-_\.]/g, '_');
 

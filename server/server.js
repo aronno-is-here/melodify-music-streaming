@@ -57,8 +57,15 @@ const strictLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Connect to DB
-await connectDB();
+// Lazy DB connect (serverless-friendly)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Database connection failed' });
+  }
+});
 
 // Static assets
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
@@ -89,5 +96,11 @@ app.use((err, req, res, next) => {
   res.status(err.statusCode || 500).json({ success: false, error: message });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Melodify server running on port ${PORT}`));
+// Export for Vercel serverless
+export default app;
+
+// Local dev server
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Melodify server running on port ${PORT}`));
+}

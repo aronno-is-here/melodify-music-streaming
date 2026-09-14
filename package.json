@@ -1,0 +1,13 @@
+{
+  "name": "melodify",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cd server && npm run dev",
+    "build": "cd client && npm install && npm run build",
+    "start": "cd server && node server.js",
+    "seed": "cd server && npm run seed",
+    "vercel-build": "cd client && npm install && npm run build"
+  }
+}
