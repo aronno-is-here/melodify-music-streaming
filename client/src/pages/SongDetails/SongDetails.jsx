@@ -73,9 +73,9 @@ export default function SongDetails() {
   }, 0);
   const totalLabel = `${Math.floor(totalDuration / 60)} min ${totalDuration % 60} sec`;
 
-  const playTrack = (index) => {
-    if (player.isPlaying && playingId === displayTracks[index]._id) player.pause();
-    else player.playSong(displayTracks, index);
+  const playTrack = (trackIndex) => {
+    if (player.isPlaying && playingId === displayTracks[trackIndex]._id) player.pause();
+    else player.playSong(displayTracks, trackIndex);
   };
 
   const togglePlay = () => {
@@ -150,9 +150,9 @@ export default function SongDetails() {
           <div>Time</div>
         </div>
 
-        {displayTracks.map((track, index) => (
-          <div className={`track-item${playingId === track._id ? ' playing' : ''}`} key={track._id} onClick={() => playTrack(index)}>
-            <div className="track-number">{index + 1}</div>
+        {displayTracks.map((track, trackIndex) => (
+          <div className={`track-item${playingId === track._id ? ' playing' : ''}`} key={track._id} onClick={() => playTrack(trackIndex)}>
+            <div className="track-number">{trackIndex + 1}</div>
             <div className="track-info">
               <div className="track-title">{track.title}</div>
               <div className="track-artist">{track.artist}</div>

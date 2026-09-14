@@ -29,6 +29,12 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
 
+  const [playlists, setPlaylists] = useState([]);
+  const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [playlistError, setPlaylistError] = useState('');
+
   const fetchSongs = async () => {
     const data = await api.get('/api/songs');
     if (data.success) {
@@ -42,9 +48,15 @@ export default function Dashboard() {
     if (data.success) setHistory(data.history);
   };
 
+  const fetchPlaylists = async () => {
+    const data = await api.get('/api/playlists');
+    if (data.success) setPlaylists(data.playlists);
+  };
+
   useEffect(() => {
     fetchSongs();
     fetchHistory();
+    fetchPlaylists();
   }, []);
 
   useEffect(() => {
@@ -64,13 +76,14 @@ export default function Dashboard() {
     });
   };
 
-  const handleSongClick = (index) => {
-    const song = filteredSongs[index];
+  const handleSongClick = (songIndex) => {
+    const song = filteredSongs[songIndex];
     if (!song) return;
-    if (player.index === index && player.isPlaying) {
+    const globalIdx = player.list === filteredSongs ? player.index : -1;
+    if (globalIdx === songIndex && player.isPlaying) {
       player.pause();
     } else {
-      player.playSong(filteredSongs, index);
+      player.playSong(filteredSongs, songIndex);
       recordPlay(song);
     }
   };
@@ -113,6 +126,29 @@ export default function Dashboard() {
     }
   };
 
+  const handleCreatePlaylist = async (e) => {
+    e.preventDefault();
+    const name = newPlaylistName.trim();
+    if (!name) {
+      setPlaylistError('Playlist name cannot be empty.');
+      return;
+    }
+    setCreatingPlaylist(true);
+    setPlaylistError('');
+    const data = await api.post('/api/playlists', { title: name });
+    setCreatingPlaylist(false);
+    if (data.success) {
+      setPlaylists((prev) => [data.playlist, ...prev]);
+      setNewPlaylistName('');
+      setPlaylistModalOpen(false);
+      navigate(`/playlist/${data.playlist._id}`);
+    } else {
+      setPlaylistError(data.error || 'Failed to create playlist.');
+    }
+  };
+
+  const playingSongId = player.currentSong?._id;
+
   return (
     <>
       <header>
@@ -151,12 +187,32 @@ export default function Dashboard() {
               ◀
             </button>
             <span className="grid-title">Library</span>
-            {user?.role === 'admin' && (
-              <button className="add-song-btn" onClick={() => setPopupOpen(true)}>
-                Add Song
-              </button>
-            )}
+            <button className="add-song-btn" style={{ marginLeft: 'auto', fontSize: '18px', padding: '4px 10px' }} onClick={() => setPlaylistModalOpen(true)} title="Create Playlist">
+              +
+            </button>
           </h2>
+          <div className="playlist-list">
+            {playlists.length === 0 ? (
+              <div style={{ padding: '12px 0', color: '#b3b3b3', fontSize: '13px', textAlign: 'center' }}>
+                <p>No playlists yet</p>
+                <button className="add-song-btn" style={{ marginTop: '8px', fontSize: '12px' }} onClick={() => setPlaylistModalOpen(true)}>
+                  Create your first playlist
+                </button>
+              </div>
+            ) : (
+              playlists.map((pl) => (
+                <Link key={pl._id} to={`/playlist/${pl._id}`} className="playlist-link" style={{ display: 'block', padding: '8px 10px', borderRadius: '6px', color: playingSongId && pl.items?.some((it) => String(it.songId?._id) === String(playingSongId)) ? '#00b4d8' : '#b3b3b3', textDecoration: 'none', fontSize: '14px', transition: 'background 0.2s, color 0.2s', background: 'transparent', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = playingSongId && pl.items?.some((it) => String(it.songId?._id) === String(playingSongId)) ? '#00b4d8' : '#b3b3b3'; }}>
+                  <i className="fa-solid fa-list" style={{ marginRight: '8px', fontSize: '12px' }}></i>
+                  {pl.title}
+                </Link>
+              ))
+            )}
+          </div>
+          {user?.role === 'admin' && (
+            <button className="add-song-btn" style={{ marginTop: '12px', width: '100%' }} onClick={() => setPopupOpen(true)}>
+              Add Song
+            </button>
+          )}
         </div>
         <div className="scroll-grid">
           <div className="recent-container">
@@ -189,18 +245,21 @@ export default function Dashboard() {
           <div className="songs-container">
             <h2>Recommended Songs</h2>
             <div className="songs-grid">
-              {filteredSongs.map((song, index) => (
-                <div className="song-item" key={song._id || index}>
-                  <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
-                  <div className="play-button" data-index={index} onClick={() => handleSongClick(index)}>
-                    <i className={`fa-solid ${player.index === index && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+              {filteredSongs.map((song, index) => {
+                const isActive = playingSongId === song._id;
+                return (
+                  <div className="song-item" key={song._id || index}>
+                    <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
+                    <div className="play-button" data-index={index} onClick={() => handleSongClick(index)}>
+                      <i className={`fa-solid ${isActive && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                    </div>
+                    <div className="song-info">
+                      <div className="song-name">{song.title}</div>
+                      <div className="artist-name">{song.artist}</div>
+                    </div>
                   </div>
-                  <div className="song-info">
-                    <div className="song-name">{song.title}</div>
-                    <div className="artist-name">{song.artist}</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -272,6 +331,7 @@ export default function Dashboard() {
             <input type="range" className="volume-slider" min="0" max="100" value={player.muted ? 0 : player.volume} aria-label="Volume control" onChange={handleVolume} />
           </div>
         </div>
+
         <div className={`overlay${popupOpen ? ' active' : ''}`} onClick={() => setPopupOpen(false)}></div>
         <div className={`add-song-popup${popupOpen ? ' active' : ''}`}>
           <button className="close-btn" onClick={() => setPopupOpen(false)}>
@@ -301,6 +361,30 @@ export default function Dashboard() {
             <label htmlFor="release_date">Release Date</label>
             <input type="date" id="release_date" name="release_date" />
             <button type="submit" disabled={uploading}>{uploading ? 'Uploading...' : 'Upload Song'}</button>
+          </form>
+        </div>
+
+        <div className={`overlay${playlistModalOpen ? ' active' : ''}`} onClick={() => setPlaylistModalOpen(false)}></div>
+        <div className={`add-song-popup${playlistModalOpen ? ' active' : ''}`}>
+          <button className="close-btn" onClick={() => setPlaylistModalOpen(false)}>✕</button>
+          <h3>Create New Playlist</h3>
+          {playlistError && (
+            <div style={{ padding: 10, marginBottom: 10, borderRadius: 4, background: '#dc3545', color: '#fff' }}>{playlistError}</div>
+          )}
+          <form onSubmit={handleCreatePlaylist}>
+            <label htmlFor="playlist-name">Playlist Name</label>
+            <input
+              type="text"
+              id="playlist-name"
+              placeholder="My Playlist"
+              value={newPlaylistName}
+              onChange={(e) => { setNewPlaylistName(e.target.value); setPlaylistError(''); }}
+              maxLength={60}
+              required
+            />
+            <button type="submit" disabled={creatingPlaylist} style={{ marginTop: '10px' }}>
+              {creatingPlaylist ? 'Creating...' : 'Create Playlist'}
+            </button>
           </form>
         </div>
       </main>

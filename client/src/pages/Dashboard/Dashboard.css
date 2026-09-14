@@ -719,6 +719,30 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   background: var(--accent-black);
 }
 
+.playlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sky-blue) transparent;
+}
+
+.playlist-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.playlist-list::-webkit-scrollbar-thumb {
+  background: var(--sky-blue);
+  border-radius: 2px;
+}
+
+.playlist-link:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+}
+
 @media (max-width: 768px) {
   main {
     grid-template-columns: 1fr;

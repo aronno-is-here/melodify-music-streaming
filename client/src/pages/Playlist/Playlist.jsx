@@ -121,11 +121,14 @@ export default function Playlist() {
     else player.playSong(songs, 0);
   };
 
-  const playRow = (index) => {
-    if (player.isPlaying && player.currentSong?._id === songs[index]?._id) {
+  const playRow = (rowIndex) => {
+    const song = songs[rowIndex];
+    if (!song) return;
+    const currentSongId = player.currentSong?._id;
+    if (player.isPlaying && currentSongId === song._id) {
       player.pause();
     } else {
-      player.playSong(songs, index);
+      player.playSong(songs, rowIndex);
     }
   };
 
@@ -213,13 +216,13 @@ export default function Playlist() {
             No songs in this playlist yet — search below to add some.
           </div>
         ) : (
-          items.map((item, index) => {
+          items.map((item, rowIndex) => {
             const song = item.songId;
             if (!song) return null;
             const isCurrent = playingId === String(song._id);
             return (
-              <div className={`song-row${isCurrent ? ' playing' : ''}`} key={song._id} onClick={() => playRow(index)}>
-                <div className="song-number">{index + 1}</div>
+              <div className={`song-row${isCurrent ? ' playing' : ''}`} key={song._id} onClick={() => playRow(rowIndex)}>
+                <div className="song-number">{rowIndex + 1}</div>
                 <div className="song-title-artist">
                   <img className="song-image" src={song.poster_url} alt={song.title} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
                   <div className="song-info">
@@ -235,13 +238,9 @@ export default function Playlist() {
                     <i className="fas fa-ellipsis-h"></i>
                   </button>
                   <div className={`options-menu${openOptions === song._id ? ' show' : ''}`} onClick={(e) => e.stopPropagation()}>
-                    <div className="option-item" onClick={() => playRow(index)}>
+                    <div className="option-item" onClick={() => playRow(rowIndex)}>
                       <i className="fas fa-play"></i>
                       <span>Play song</span>
-                    </div>
-                    <div className="option-item" onClick={() => window.alert('Added to favorites')}>
-                      <i className="fas fa-heart"></i>
-                      <span>Add to favorites</span>
                     </div>
                     <div className="option-item remove" onClick={() => removeSong(song._id)}>
                       <i className="fas fa-times"></i>
