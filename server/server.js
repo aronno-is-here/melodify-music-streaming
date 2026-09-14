@@ -25,10 +25,14 @@ app.use(helmet({
 }));
 
 // CORS
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',');
+const rawOrigins = process.env.CORS_ORIGIN || '';
+const allowedOrigins = rawOrigins
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
