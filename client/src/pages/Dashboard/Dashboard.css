@@ -64,6 +64,23 @@ main.collapsed {
   grid-template-columns: 2.5% 72.5% 25%;
 }
 
+main.collapsed .scroll-grid:nth-child(1) {
+  overflow: hidden;
+  padding: 15px 0;
+  align-items: center;
+}
+
+main.collapsed .scroll-grid:nth-child(1) h2 {
+  justify-content: center;
+}
+
+main.collapsed .scroll-grid:nth-child(1) .grid-title,
+main.collapsed .scroll-grid:nth-child(1) .add-song-btn,
+main.collapsed .scroll-grid:nth-child(1) .sidebar-item,
+main.collapsed .scroll-grid:nth-child(1) .playlist-list {
+  display: none;
+}
+
 .scroll-grid {
   background-color: #121212;
   border-radius: 8px;
@@ -100,11 +117,6 @@ main.collapsed {
 .scroll-grid:nth-child(2):hover,
 .scroll-grid:nth-child(3):hover {
   scrollbar-color: var(--sky-blue) #121212;
-}
-
-main.collapsed .scroll-grid:nth-child(1) .library-search,
-main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
-  display: none;
 }
 
 .scroll-grid h2 {

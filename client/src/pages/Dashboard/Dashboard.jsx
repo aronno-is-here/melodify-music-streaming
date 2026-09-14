@@ -363,7 +363,7 @@ export default function Dashboard() {
         <div className="scroll-grid">
           <h2>
             <button className="toggle-btn" style={{ background: 'none', border: 'none', color: '#00b4d8', cursor: 'pointer', fontSize: '16px' }} onClick={() => setCollapsed(!collapsed)}>
-              ◀
+              {collapsed ? '▶' : '◀'}
             </button>
             <span className="grid-title">Library</span>
             <button className="add-song-btn" style={{ marginLeft: 'auto', fontSize: '18px', padding: '4px 10px' }} onClick={() => setPlaylistModalOpen(true)} title="Create Playlist">
