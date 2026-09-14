@@ -27,7 +27,8 @@ export function PlayerProvider({ children }) {
 
   const audioRef = useRef(null);
   const ytRef = useRef(null);
-  const ytReady = useRef(false);
+  const ytApiReady = useRef(false);
+  const playerReadyRef = useRef(false);
   const pendingLoadRef = useRef(null);
   const pollRef = useRef(null);
   const errorCountRef = useRef(0);
@@ -36,7 +37,6 @@ export function PlayerProvider({ children }) {
   const nextRef = useRef(null);
   const playSongRef = useRef(null);
   const stateRef = useRef({ list: [], index: -1, isPlaying: false, volume: 50, muted: false });
-
   stateRef.current.list = list;
   stateRef.current.index = index;
   stateRef.current.isPlaying = isPlaying;
@@ -47,18 +47,18 @@ export function PlayerProvider({ children }) {
 
   const currentSong = index >= 0 && list[index] ? list[index] : null;
 
-  const getContainer = () => {
+  const getContainer = useCallback(() => {
     let el = document.getElementById('melodify-yt-player');
     if (!el) {
       el = document.createElement('div');
       el.id = 'melodify-yt-player';
-      el.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;pointer-events:none;left:-9999px';
+      el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1';
       document.body.appendChild(el);
     }
     return el;
-  };
+  }, []);
 
-  const startPolling = () => {
+  const startPolling = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
       const p = ytRef.current;
@@ -71,14 +71,14 @@ export function PlayerProvider({ children }) {
         if (d) setProgress((t / d) * 100);
       } catch {}
     }, 250);
-  };
+  }, []);
 
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
-  };
+  }, []);
 
   const loadVideo = useCallback((song) => {
     const p = ytRef.current;
@@ -87,10 +87,11 @@ export function PlayerProvider({ children }) {
       p.loadVideoById(song.youtube_id, 0);
       p.setVolume(stateRef.current.muted ? 0 : stateRef.current.volume);
       p.playVideo();
+      startPolling();
     } catch (err) {
       console.error('YouTube loadVideoById error:', err);
     }
-  }, []);
+  }, [startPolling]);
 
   const playSong = useCallback((newList, i) => {
     const song = newList?.[i];
@@ -104,23 +105,24 @@ export function PlayerProvider({ children }) {
         audioRef.current.pause();
         audioRef.current.src = '';
       }
-      if (ytReady.current && ytRef.current) {
+      if (playerReadyRef.current && ytRef.current) {
         loadVideo(song);
       } else {
-        pendingLoadRef.current = { newList, i };
+        pendingLoadRef.current = { song };
         setIsPlaying(true);
       }
     } else {
       if (ytRef.current) {
         try { ytRef.current.pauseVideo(); } catch {}
       }
+      stopPolling();
       const audio = audioRef.current;
       if (audio) {
         audio.src = song.file_path || '';
         audio.play().catch(() => {});
       }
     }
-  }, [loadVideo]);
+  }, [loadVideo, stopPolling]);
 
   playSongRef.current = playSong;
 
@@ -140,17 +142,27 @@ export function PlayerProvider({ children }) {
 
   const ensurePlayer = useCallback(() => {
     if (ytRef.current) return;
-    ytReady.current = true;
+    ytApiReady.current = true;
     ytRef.current = new window.YT.Player(getContainer(), {
       width: '1',
       height: '1',
-      playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1, origin: window.location.origin },
+      playerVars: { autoplay: 0, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1 },
       events: {
         onReady: () => {
+          playerReadyRef.current = true;
           if (pendingLoadRef.current) {
-            const { newList, i } = pendingLoadRef.current;
+            const { song } = pendingLoadRef.current;
             pendingLoadRef.current = null;
-            playSongRef.current(newList, i);
+            if (ytRef.current && song?.youtube_id) {
+              try {
+                ytRef.current.loadVideoById(song.youtube_id, 0);
+                ytRef.current.setVolume(stateRef.current.muted ? 0 : stateRef.current.volume);
+                ytRef.current.playVideo();
+                startPolling();
+              } catch (err) {
+                console.error('YouTube pending load error:', err);
+              }
+            }
           }
         },
         onStateChange: (e) => {
@@ -185,7 +197,7 @@ export function PlayerProvider({ children }) {
         },
       },
     });
-  }, []);
+  }, [getContainer, startPolling, stopPolling]);
 
   useEffect(() => {
     const audio = new Audio();
@@ -226,7 +238,7 @@ export function PlayerProvider({ children }) {
       audio.pause();
       audio.src = '';
     };
-  }, [ensurePlayer]);
+  }, [ensurePlayer, stopPolling]);
 
   const togglePlay = useCallback(() => {
     const { list: l, index: i, isPlaying: playing } = stateRef.current;
@@ -244,7 +256,7 @@ export function PlayerProvider({ children }) {
       }
     } else {
       if (song?.youtube_id) {
-        if (ytReady.current && ytRef.current) {
+        if (playerReadyRef.current && ytRef.current) {
           try { ytRef.current.playVideo(); } catch {}
         } else {
           playSongRef.current(l, i);
