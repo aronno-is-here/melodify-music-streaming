@@ -643,7 +643,7 @@ export default function Dashboard() {
               player.setPlayMode(modes[(i + 1) % modes.length]);
             }}>
               {player.playMode === 'list' && <i className="fa-solid fa-repeat"></i>}
-              {player.playMode === 'single' && <i className="fa-solid fa-1"></i>}
+              {player.playMode === 'single' && <><i className="fa-solid fa-repeat"></i><span className="mode-badge">1</span></>}
               {player.playMode === 'shuffle' && <i className="fa-solid fa-shuffle"></i>}
             </button>
           </div>

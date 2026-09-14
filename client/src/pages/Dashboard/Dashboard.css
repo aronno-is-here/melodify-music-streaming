@@ -511,6 +511,30 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   font-size: 18px;
 }
 
+.mode-btn {
+  position: relative;
+}
+
+.mode-btn i {
+  font-size: 16px;
+}
+
+.mode-badge {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 700;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  color: var(--sky-blue);
+}
+
+.control-btn:hover .mode-badge,
+.control-btn.active .mode-badge {
+  color: var(--white);
+}
+
 .play-btn {
   width: 50px;
   height: 50px;
