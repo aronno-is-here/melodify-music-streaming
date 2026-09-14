@@ -139,6 +139,7 @@ export default function FullScreenPlayer({ onClose }) {
                 value={player.muted ? 0 : player.volume}
                 aria-label="Volume"
                 onChange={handleVolume}
+                style={{ '--fill': `${player.muted ? 0 : player.volume}%` }}
               />
             </div>
           </>
