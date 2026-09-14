@@ -36,3 +36,5 @@ auth.json
 
 # Vite build output
 client/dist/
+
+.vercel
