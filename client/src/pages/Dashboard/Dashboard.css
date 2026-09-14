@@ -296,12 +296,18 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   flex-direction: column;
   align-items: center;
   position: relative;
+  cursor: pointer;
+}
+
+.song-poster-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
 }
 
 .song-poster {
   width: 100%;
-  height: auto;
-  aspect-ratio: 1 / 1;
+  height: 100%;
   object-fit: cover;
   border-radius: 8px;
   margin-bottom: 15px;
@@ -314,8 +320,9 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
 
 .song-item .play-button {
   position: absolute;
-  bottom: 35px;
-  right: 5px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
   width: 40px;
   height: 40px;
   background-color: var(--sky-blue);
@@ -325,14 +332,14 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: scale(0.8);
   transition: opacity 0.3s ease, transform 0.3s ease;
   cursor: pointer;
+  pointer-events: none;
 }
 
 .song-item:hover .play-button {
   opacity: 1;
-  transform: scale(1);
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .song-item .play-button i {
@@ -342,6 +349,7 @@ main.collapsed .scroll-grid:nth-child(1) .add-song-btn {
 .song-info {
   text-align: center;
   margin-top: 5px;
+  pointer-events: none;
 }
 
 .song-name {

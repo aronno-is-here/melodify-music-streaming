@@ -560,16 +560,18 @@ export default function Dashboard() {
                   {filteredSongs.map((song, index) => {
                     const isActive = playingSongId === song._id;
                     return (
-                      <div className="song-item" key={song._id || index}>
-                        <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
-                        <div className="play-button" data-index={index} onClick={() => handleSongClick(index)}>
-                          <i className={`fa-solid ${isActive && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                      <div className="song-item" key={song._id || index} onClick={() => handleSongClick(index)}>
+                        <div className="song-poster-wrapper">
+                          <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
+                          <div className="play-button">
+                            <i className={`fa-solid ${isActive && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                          </div>
                         </div>
                         <div className="song-info">
                           <div className="song-name">{song.title}</div>
                           <div className="artist-name">{song.artist}</div>
                         </div>
-                        <button className={`grid-fav-btn${favoritedIds.has(String(song._id)) ? ' active' : ''}`} onClick={() => toggleFavorite(song._id)}>
+                        <button className={`grid-fav-btn${favoritedIds.has(String(song._id)) ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); toggleFavorite(song._id); }}>
                           <i className={`fa-${favoritedIds.has(String(song._id)) ? 'solid' : 'regular'} fa-heart`}></i>
                         </button>
                       </div>
