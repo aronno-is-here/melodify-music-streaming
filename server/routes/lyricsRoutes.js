@@ -1,4 +1,5 @@
 import express from 'express';
+import { transliterate } from 'transliteration';
 import Song from '../models/Song.js';
 
 const router = express.Router();
@@ -30,58 +31,34 @@ function durationToSeconds(dur) {
   return 0;
 }
 
-function isLikelyEnglish(text) {
+function isLatinScript(text) {
   if (!text) return false;
-  const sample = text.replace(/[^a-zA-Z]/g, '');
-  return sample.length > text.replace(/\s/g, '').length * 0.5;
+  const latin = text.replace(/[^a-zA-Z]/g, '');
+  return latin.length > text.replace(/\s/g, '').length * 0.5;
 }
 
-async function translateToEnglish(text) {
-  if (!text || isLikelyEnglish(text)) return text;
-  try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text)}`;
-    const resp = await fetch(url, {
-      headers: { 'User-Agent': UA },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!resp.ok) return text;
-    const data = await resp.json();
-    if (data && data[0]) {
-      return data[0].map(s => s[0]).join('');
-    }
-    return text;
-  } catch {
-    return text;
-  }
+function romanizeText(text) {
+  if (!text || isLatinScript(text)) return text;
+  return transliterate(text);
 }
 
-async function translateLRC(lrc) {
+function romanizeLRC(lrc) {
   const lines = parseLRC(lrc);
   if (lines.length === 0) return { synced: [], plain: '' };
 
   const allText = lines.map(l => l.text).join('\n');
-  if (isLikelyEnglish(allText)) {
+  if (isLatinScript(allText)) {
     return { synced: lines, plain: allText };
   }
 
-  const batchSize = 20;
-  const translated = [];
-  for (let i = 0; i < lines.length; i += batchSize) {
-    const batch = lines.slice(i, i + batchSize);
-    const batchText = batch.map(l => l.text).join('\n');
-    const enText = await translateToEnglish(batchText);
-    const enLines = enText.split('\n');
-    for (let j = 0; j < batch.length; j++) {
-      translated.push({
-        time: batch[j].time,
-        text: enLines[j] || batch[j].text,
-      });
-    }
-  }
+  const romanized = lines.map(l => ({
+    time: l.time,
+    text: romanizeText(l.text),
+  }));
 
   return {
-    synced: translated,
-    plain: translated.map(l => l.text).join('\n'),
+    synced: romanized,
+    plain: romanized.map(l => l.text).join('\n'),
   };
 }
 
@@ -133,9 +110,9 @@ router.get('/:songId', async (req, res) => {
     const song = await Song.findById(req.params.songId);
     if (!song) return res.status(404).json({ success: false, error: 'Song not found' });
 
-    // 1. Check database first — if lyrics exist and are English, use them
+    // 1. Check database first
     if (song.lyrics) {
-      if (isLikelyEnglish(song.lyrics)) {
+      if (isLatinScript(song.lyrics)) {
         const synced = parseLRC(song.lyrics);
         return res.json({
           success: true,
@@ -145,11 +122,10 @@ router.get('/:songId', async (req, res) => {
           plain: song.lyrics,
         });
       }
-      // Database lyrics exist but are not English — translate
-      const { synced, plain } = await translateLRC(song.lyrics);
+      const { synced, plain } = romanizeLRC(song.lyrics);
       return res.json({
         success: true,
-        source: 'database-translated',
+        source: 'database-romanized',
         synced: synced.length > 0,
         lines: synced.length > 0 ? synced : plain.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })),
         plain,
@@ -159,25 +135,22 @@ router.get('/:songId', async (req, res) => {
     // 2. Fetch from LRCLIB
     const lrclibData = await fetchFromLRCLIB(song.artist, song.title, song.duration);
     if (lrclibData) {
-      const rawLyrics = lrclibData.syncedLyrics || lrclibData.plainLyrics || '';
       const rawPlain = lrclibData.plainLyrics || lrclibData.syncedLyrics || '';
 
-      // If lyrics are already English, use directly
-      if (isLikelyEnglish(rawPlain)) {
+      if (isLatinScript(rawPlain)) {
         const synced = parseLRC(lrclibData.syncedLyrics || '');
         const plainLines = rawPlain.split('\n').filter(l => l.trim());
         const lines = synced.length > 0 ? synced : plainLines.map(text => ({ time: null, text }));
         return res.json({ success: true, source: 'lrclib', synced: synced.length > 0, lines, plain: rawPlain });
       }
 
-      // Non-English — translate while preserving timestamps
       if (lrclibData.syncedLyrics) {
-        const { synced, plain } = await translateLRC(lrclibData.syncedLyrics);
-        return res.json({ success: true, source: 'lrclib-translated', synced: synced.length > 0, lines: synced, plain });
+        const { synced, plain } = romanizeLRC(lrclibData.syncedLyrics);
+        return res.json({ success: true, source: 'lrclib-romanized', synced: synced.length > 0, lines: synced, plain });
       } else {
-        const enPlain = await translateToEnglish(rawPlain);
-        const plainLines = enPlain.split('\n').filter(l => l.trim());
-        return res.json({ success: true, source: 'lrclib-translated', synced: false, lines: plainLines.map(text => ({ time: null, text })), plain: enPlain });
+        const romanized = romanizeText(rawPlain);
+        const plainLines = romanized.split('\n').filter(l => l.trim());
+        return res.json({ success: true, source: 'lrclib-romanized', synced: false, lines: plainLines.map(text => ({ time: null, text })), plain: romanized });
       }
     }
 
