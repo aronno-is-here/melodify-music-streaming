@@ -176,13 +176,13 @@ export default function SongDetails() {
 
         <div className="player-controls">
           <div className="control-buttons">
-            <button className="control-btn" onClick={toggleShuffle} style={shuffled ? { color: '#1db954' } : undefined}><i className="fas fa-random"></i></button>
+            <button className="control-btn" onClick={toggleShuffle} style={shuffled ? { color: '#00b4d8' } : undefined}><i className="fas fa-random"></i></button>
             <button className="control-btn" onClick={player.prev}><i className="fas fa-step-backward"></i></button>
             <button className="control-btn play-pause" id="footerPlayBtn" onClick={togglePlay}>
               <i className={`fas ${player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
             </button>
             <button className="control-btn" onClick={player.next}><i className="fas fa-step-forward"></i></button>
-            <button className="control-btn" onClick={() => player.setRepeat(!player.repeat)} style={player.repeat ? { color: '#1db954' } : undefined}><i className="fas fa-repeat"></i></button>
+            <button className="control-btn" onClick={() => player.setRepeat(!player.repeat)} style={player.repeat ? { color: '#00b4d8' } : undefined}><i className="fas fa-repeat"></i></button>
           </div>
 
           <div className="progress-container" onClick={seekFromEvent} style={{ cursor: 'pointer' }}>

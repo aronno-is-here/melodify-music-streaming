@@ -159,7 +159,7 @@ export default function Premium() {
             Premium Individual only. BDT 0 for 3 months, then BDT 219 per month after. Offer available if you haven't tried Premium before. Terms apply. Offer ends {trialEndLabel}.
           </p>
           {subscription && (
-            <p className="terms" style={{ color: '#1db954' }}>
+            <p className="terms" style={{ color: '#00b4d8' }}>
               <i className="fas fa-crown"></i> Your Premium {subscription.plan} is active until {new Date(subscription.end_date).toLocaleDateString()}.
             </p>
           )}

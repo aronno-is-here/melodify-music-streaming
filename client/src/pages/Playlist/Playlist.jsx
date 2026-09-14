@@ -151,7 +151,7 @@ export default function Playlist() {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#121212', color: '#fff' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '18px', marginBottom: '12px' }}>Loading playlist...</div>
-          <div style={{ width: '32px', height: '32px', border: '3px solid #333', borderTopColor: '#1db954', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
+          <div style={{ width: '32px', height: '32px', border: '3px solid #333', borderTopColor: '#00b4d8', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
         </div>
       </div>
     );
@@ -278,7 +278,7 @@ export default function Playlist() {
                     <div style={{ color: '#fff', fontFamily: 'Roboto, sans-serif', fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</div>
                     <div style={{ color: '#b3b3b3', fontFamily: 'Roboto, sans-serif', fontSize: '12px' }}>{song.artist}</div>
                   </div>
-                  <button onClick={() => addSong(song._id)} style={{ background: '#1db954', border: 'none', color: '#fff', borderRadius: '999px', padding: '6px 14px', cursor: 'pointer', fontFamily: 'Roboto, sans-serif', fontWeight: 700, fontSize: '13px' }}>
+                   <button onClick={() => addSong(song._id)} style={{ background: '#00b4d8', border: 'none', color: '#fff', borderRadius: '999px', padding: '6px 14px', cursor: 'pointer', fontFamily: 'Roboto, sans-serif', fontWeight: 700, fontSize: '13px' }}>
                     <i className="fas fa-plus"></i> Add
                   </button>
                 </div>

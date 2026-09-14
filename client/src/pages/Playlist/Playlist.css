@@ -1,7 +1,7 @@
 
         :root {
-            --primary: #1DB954;
-            --primary-hover: #1ED760;
+            --primary: #00b4d8;
+            --primary-hover: #90e0ef;
             --background: #121212;
             --card-bg: #181818;
             --text-primary: #FFFFFF;
@@ -53,7 +53,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at 70% 30%, rgba(29, 185, 84, 0.1) 0%, transparent 60%);
+            background: radial-gradient(circle at 70% 30%, rgba(0, 180, 216, 0.1) 0%, transparent 60%);
             pointer-events: none;
         }
         
@@ -68,7 +68,7 @@
             overflow: hidden;
             border-radius: 8px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-            background: linear-gradient(135deg, #0f5c2d, #1DB954);
+            background: linear-gradient(135deg, #003344, #00b4d8);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -270,7 +270,7 @@
         }
         
         .song-row.playing {
-            background-color: rgba(29, 185, 84, 0.1);
+            background-color: rgba(0, 180, 216, 0.1);
         }
         
         .song-row.playing .song-number {
@@ -437,7 +437,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at 90% 50%, rgba(29, 185, 84, 0.1) 0%, transparent 60%);
+            background: radial-gradient(circle at 90% 50%, rgba(0, 180, 216, 0.1) 0%, transparent 60%);
             pointer-events: none;
         }
         
@@ -472,7 +472,7 @@
         .search-bar:focus {
             background-color: rgba(255, 255, 255, 0.15);
             border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3);
+            box-shadow: 0 0 0 2px rgba(0, 180, 216, 0.3);
         }
         
         .search-bar::placeholder {
