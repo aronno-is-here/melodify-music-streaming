@@ -38,3 +38,6 @@ auth.json
 client/dist/
 
 .vercel
+
+# Credentials file
+All Credentials.txt
