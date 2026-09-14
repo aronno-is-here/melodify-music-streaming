@@ -10,6 +10,8 @@ const songSchema = new mongoose.Schema(
     poster_url: { type: String, default: 'https://picsum.photos/150/150?random' },
     duration: { type: String, default: '3:00' },
     release_date: { type: Date, default: '2023-01-01' },
+    lyrics: { type: String, default: '' },
+    chords: { type: String, default: '' },
   },
   { timestamps: true }
 );

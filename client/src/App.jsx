@@ -11,6 +11,7 @@ import Admin from './pages/Admin/Admin.jsx';
 import Playlist from './pages/Playlist/Playlist.jsx';
 import SongDetails from './pages/SongDetails/SongDetails.jsx';
 import Premium from './pages/Premium/Premium.jsx';
+import MelodifyStudio from './pages/MelodifyStudio/MelodifyStudio.jsx';
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -68,6 +69,14 @@ export default function App() {
         }
       />
       <Route path="/premium" element={<Premium />} />
+      <Route
+        path="/studio"
+        element={
+          <Protected>
+            <MelodifyStudio />
+          </Protected>
+        }
+      />
       <Route
         path="/admin"
         element={

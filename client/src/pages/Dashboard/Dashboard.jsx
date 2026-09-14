@@ -5,6 +5,7 @@ import { api } from '../../api/client.js';
 import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
 import cssRaw from './Dashboard.css?raw';
 import FullScreenPlayer from './FullScreenPlayer.jsx';
+import LyricsChordsPanel from './LyricsChordsPanel.jsx';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
 
@@ -52,6 +53,7 @@ export default function Dashboard() {
   const [newPlSearchResults, setNewPlSearchResults] = useState([]);
   const [newPlSearching, setNewPlSearching] = useState(false);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const [lcPanelOpen, setLcPanelOpen] = useState(false);
 
   const fetchSongs = async () => {
     const data = await api.get('/api/songs');
@@ -336,6 +338,10 @@ export default function Dashboard() {
         <div className="logo">
           MELOD<span>IFY</span>
         </div>
+        <nav className="header-nav">
+          <Link to="/premium" className="header-nav-link">PREMIUM</Link>
+          <Link to="/studio" className="header-nav-link">MELODIFY STUDIO</Link>
+        </nav>
       </header>
       <div className="profile-container">
         <button className="profile-btn" aria-label="Open profile menu" onClick={() => setMenuOpen(!menuOpen)}>
@@ -588,76 +594,89 @@ export default function Dashboard() {
         <div className="scroll-grid">
           <div className="now-playing-header">
             <h2 id="right-heading">Now Playing</h2>
-            <button className="fs-toggle-btn" type="button" aria-label="Open full screen player" title="Open Full Screen Player" disabled={!player.currentSong} onClick={() => setFullscreenOpen(true)}>
-              <i className="fa-solid fa-expand"></i>
-            </button>
+            <div className="now-playing-actions">
+              <button className="lc-toggle-btn" type="button" aria-label="Toggle lyrics and chords panel" title="Lyrics & Chords" disabled={!player.currentSong} onClick={() => setLcPanelOpen(!lcPanelOpen)}>
+                <i className="fa-solid fa-music"></i>
+              </button>
+              <button className="fs-toggle-btn" type="button" aria-label="Open full screen player" title="Open Full Screen Player" disabled={!player.currentSong} onClick={() => setFullscreenOpen(true)}>
+                <i className="fa-solid fa-expand"></i>
+              </button>
+            </div>
           </div>
-          <img
-            className="song-poster"
-            src={player.currentSong ? player.currentSong.poster_url : DEFAULT_POSTER}
-            alt="Now Playing Song Poster"
-            onError={(e) => (e.target.src = DEFAULT_POSTER)}
-          />
-          <div className="song-details">
-            {player.currentSong ? (
-              <>
-                <h3>{player.currentSong.title}</h3>
-                <p>Artist: {player.currentSong.artist}</p>
-                <p>Genre: {player.currentSong.genre}</p>
-                <p>Duration: {player.currentSong.duration}</p>
-                <p>Release Date: {player.currentSong.release_date ? String(player.currentSong.release_date).slice(0, 10) : 'None'}</p>
-              </>
-            ) : (
-              <>
-                <h3>No Song Selected</h3>
-                <p>Artist: None</p>
-                <p>Genre: None</p>
-                <p>Duration: 0:00</p>
-                <p>Release Date: None</p>
-              </>
-            )}
-          </div>
-          <input
-            type="range"
-            className="progress-slider"
-            min="0"
-            max="1000"
-            step="1"
-            value={Math.min(1000, Math.round(player.progress * 10))}
-            onChange={handleSeek}
-            aria-label="Seek bar"
-            style={{ '--fill': `${player.progress}%` }}
-          />
-          <div className="progress-time">
-            <span>{formatTime(player.currentTime)}</span>
-            <span>{player.currentSong ? player.currentSong.duration : formatTime(player.duration)}</span>
-          </div>
-          <div className="controls">
-            <button className="control-btn prev-btn" aria-label="Previous song" onClick={player.prev}>
-              <i className="fa-solid fa-backward"></i>
-            </button>
-            <button className="control-btn play-btn" aria-label="Play song" data-state={player.isPlaying ? 'pause' : 'play'} onClick={() => player.togglePlay()}>
-              <i className={`fa-solid ${player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
-            </button>
-            <button className="control-btn next-btn" aria-label="Next song" onClick={player.next}>
-              <i className="fa-solid fa-forward"></i>
-            </button>
-            <button className={`control-btn mode-btn${player.playMode !== 'list' ? ' active' : ''}`} aria-label="Toggle play mode" onClick={() => {
-              const modes = ['list', 'single', 'shuffle'];
-              const i = modes.indexOf(player.playMode);
-              player.setPlayMode(modes[(i + 1) % modes.length]);
-            }}>
-              {player.playMode === 'list' && <i className="fa-solid fa-repeat"></i>}
-              {player.playMode === 'single' && <><i className="fa-solid fa-repeat"></i><span className="mode-badge">1</span></>}
-              {player.playMode === 'shuffle' && <i className="fa-solid fa-shuffle"></i>}
-            </button>
-          </div>
-          <div className="volume-container">
-            <button className="volume-btn" aria-label="Toggle mute" data-muted={player.muted ? 'true' : 'false'} onClick={player.toggleMute}>
-              <i className={`fa-solid ${player.muted || player.volume === 0 ? 'fa-volume-mute' : 'fa-volume-high'}`}></i>
-            </button>
-            <input type="range" className="volume-slider" min="0" max="100" value={player.muted ? 0 : player.volume} aria-label="Volume control" onChange={handleVolume} />
-          </div>
+          {lcPanelOpen ? (
+            <div className="lc-panel-wrapper">
+              <LyricsChordsPanel onClose={() => setLcPanelOpen(false)} />
+            </div>
+          ) : (
+            <>
+              <img
+                className="song-poster"
+                src={player.currentSong ? player.currentSong.poster_url : DEFAULT_POSTER}
+                alt="Now Playing Song Poster"
+                onError={(e) => (e.target.src = DEFAULT_POSTER)}
+              />
+              <div className="song-details">
+                {player.currentSong ? (
+                  <>
+                    <h3>{player.currentSong.title}</h3>
+                    <p>Artist: {player.currentSong.artist}</p>
+                    <p>Genre: {player.currentSong.genre}</p>
+                    <p>Duration: {player.currentSong.duration}</p>
+                    <p>Release Date: {player.currentSong.release_date ? String(player.currentSong.release_date).slice(0, 10) : 'None'}</p>
+                  </>
+                ) : (
+                  <>
+                    <h3>No Song Selected</h3>
+                    <p>Artist: None</p>
+                    <p>Genre: None</p>
+                    <p>Duration: 0:00</p>
+                    <p>Release Date: None</p>
+                  </>
+                )}
+              </div>
+              <input
+                type="range"
+                className="progress-slider"
+                min="0"
+                max="1000"
+                step="1"
+                value={Math.min(1000, Math.round(player.progress * 10))}
+                onChange={handleSeek}
+                aria-label="Seek bar"
+                style={{ '--fill': `${player.progress}%` }}
+              />
+              <div className="progress-time">
+                <span>{formatTime(player.currentTime)}</span>
+                <span>{player.currentSong ? player.currentSong.duration : formatTime(player.duration)}</span>
+              </div>
+              <div className="controls">
+                <button className="control-btn prev-btn" aria-label="Previous song" onClick={player.prev}>
+                  <i className="fa-solid fa-backward"></i>
+                </button>
+                <button className="control-btn play-btn" aria-label="Play song" data-state={player.isPlaying ? 'pause' : 'play'} onClick={() => player.togglePlay()}>
+                  <i className={`fa-solid ${player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                </button>
+                <button className="control-btn next-btn" aria-label="Next song" onClick={player.next}>
+                  <i className="fa-solid fa-forward"></i>
+                </button>
+                <button className={`control-btn mode-btn${player.playMode !== 'list' ? ' active' : ''}`} aria-label="Toggle play mode" onClick={() => {
+                  const modes = ['list', 'single', 'shuffle'];
+                  const i = modes.indexOf(player.playMode);
+                  player.setPlayMode(modes[(i + 1) % modes.length]);
+                }}>
+                  {player.playMode === 'list' && <i className="fa-solid fa-repeat"></i>}
+                  {player.playMode === 'single' && <><i className="fa-solid fa-repeat"></i><span className="mode-badge">1</span></>}
+                  {player.playMode === 'shuffle' && <i className="fa-solid fa-shuffle"></i>}
+                </button>
+              </div>
+              <div className="volume-container">
+                <button className="volume-btn" aria-label="Toggle mute" data-muted={player.muted ? 'true' : 'false'} onClick={player.toggleMute}>
+                  <i className={`fa-solid ${player.muted || player.volume === 0 ? 'fa-volume-mute' : 'fa-volume-high'}`}></i>
+                </button>
+                <input type="range" className="volume-slider" min="0" max="100" value={player.muted ? 0 : player.volume} aria-label="Volume control" onChange={handleVolume} />
+              </div>
+            </>
+          )}
         </div>
 
         <div className={`overlay${popupOpen ? ' active' : ''}`} onClick={() => setPopupOpen(false)}></div>

@@ -40,9 +40,34 @@ header {
   color: white;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 0 20px;
   z-index: 100;
   transition-duration: 1s;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-nav-link {
+  color: var(--gray);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-family: 'Roboto', sans-serif;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+.header-nav-link:hover {
+  color: var(--white);
+}
+.header-nav-link:focus-visible {
+  outline: 2px solid var(--sky-blue);
+  outline-offset: 2px;
 }
 
 header:hover {
@@ -416,6 +441,50 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   opacity: 0.3;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.now-playing-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.lc-toggle-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: var(--sky-blue);
+  font-size: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.lc-toggle-btn:hover {
+  background: var(--sky-blue);
+  color: #fff;
+}
+.lc-toggle-btn:active {
+  transform: scale(0.94);
+}
+.lc-toggle-btn:focus-visible {
+  outline: 2px solid var(--sky-blue);
+  outline-offset: 2px;
+}
+.lc-toggle-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.lc-panel-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .scroll-grid:nth-child(3) {

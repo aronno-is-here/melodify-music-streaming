@@ -106,4 +106,18 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
+router.patch('/:id/content', protect, adminOnly, async (req, res) => {
+  try {
+    const { lyrics, chords } = req.body;
+    const update = {};
+    if (lyrics !== undefined) update.lyrics = lyrics;
+    if (chords !== undefined) update.chords = chords;
+    const song = await Song.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    if (!song) return res.status(404).json({ success: false, error: 'Song not found' });
+    res.json({ success: true, song });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;
