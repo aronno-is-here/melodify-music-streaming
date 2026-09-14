@@ -12,6 +12,7 @@ import playlistRoutes from './routes/playlistRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import historyRoutes from './routes/historyRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import favoriteRoutes from './routes/favoriteRoutes.js';
 
 dotenv.config();
 
@@ -84,6 +85,7 @@ app.use('/api/playlists', playlistRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Melodify API is running' }));
