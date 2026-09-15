@@ -182,7 +182,7 @@ export default function SongDetails() {
               <i className={`fas ${player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
             </button>
             <button className="control-btn" onClick={player.next}><i className="fas fa-step-forward"></i></button>
-            <button className="control-btn" onClick={() => player.setRepeat(!player.repeat)} style={player.repeat ? { color: '#00b4d8' } : undefined}><i className="fas fa-repeat"></i></button>
+            <button className="control-btn" onClick={() => player.setPlayMode(player.playMode === 'single' ? 'list' : 'single')} style={player.playMode === 'single' ? { color: '#00b4d8' } : undefined}><i className="fas fa-repeat"></i></button>
           </div>
 
           <div className="progress-container" onClick={seekFromEvent} style={{ cursor: 'pointer' }}>

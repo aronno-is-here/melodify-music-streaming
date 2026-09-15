@@ -34,6 +34,8 @@ export function PlayerProvider({ children }) {
   const playModeRef = useRef('list');
   const nextRef = useRef(null);
   const playSongRef = useRef(null);
+  const transitioningRef = useRef(false);
+  const targetSongRef = useRef(null);
   const stateRef = useRef({ list: [], index: -1, isPlaying: false, volume: 50, muted: false });
   stateRef.current.list = list;
   stateRef.current.index = index;
@@ -96,6 +98,8 @@ export function PlayerProvider({ children }) {
     setList(newList);
     setIndex(i);
     errorCountRef.current = 0;
+    transitioningRef.current = true;
+    targetSongRef.current = song;
 
     if (song.youtube_id) {
       if (audioRef.current) {
@@ -164,6 +168,8 @@ export function PlayerProvider({ children }) {
         },
         onStateChange: (e) => {
           if (e.data === window.YT.PlayerState.PLAYING) {
+            transitioningRef.current = false;
+            targetSongRef.current = null;
             setIsPlaying(true);
             startPolling();
           } else if (e.data === window.YT.PlayerState.PAUSED) {
@@ -171,6 +177,7 @@ export function PlayerProvider({ children }) {
             stopPolling();
           } else if (e.data === window.YT.PlayerState.ENDED) {
             stopPolling();
+            if (transitioningRef.current) return;
             if (playModeRef.current === 'single') {
               try {
                 ytRef.current?.seekTo(0, true);
