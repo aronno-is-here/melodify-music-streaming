@@ -15,7 +15,7 @@ export default function Admin() {
   }, []);
   const { user, logout } = useAuth();
   const [section, setSection] = useState('dashboard');
-  const [stats, setStats] = useState({ users: 0, plays: 0, revenue: 0 });
+  const [stats, setStats] = useState({ users: 0, songs: 0, plays: 0, revenue: 0, activeSubs: 0, pendingReports: 0, recentPlays: [] });
   const [users, setUsers] = useState([]);
   const [songs, setSongs] = useState([]);
   const [reports, setReports] = useState([]);
@@ -25,9 +25,11 @@ export default function Admin() {
   const [editingSong, setEditingSong] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadAll = async () => {
-    setLoading(true);
+  const loadAll = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     const [s, u, sg, r, sub] = await Promise.all([
       api.get('/api/admin/stats'),
       api.get('/api/admin/users'),
@@ -41,10 +43,13 @@ export default function Admin() {
     if (r.success) setReports(r.reports);
     if (sub.success) setSubscriptions(sub.subscriptions);
     setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
     loadAll();
+    const interval = setInterval(() => loadAll(true), 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const showMessage = (msg, isError = false) => {
@@ -129,14 +134,43 @@ export default function Admin() {
 
   const addSong = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = await api.post('/api/songs/upload', formData);
-    if (data.success) {
-      showMessage('Song added successfully!');
-      e.target.reset();
-      loadAll();
+    const form = e.target;
+    const formData = new FormData(form);
+    const hasYouTubeId = formData.get('youtube_id')?.trim();
+    const hasSongFile = formData.get('song_file')?.size > 0;
+
+    if (!hasYouTubeId && !hasSongFile) {
+      showMessage('Please provide either a YouTube ID or upload a song file', true);
+      return;
+    }
+
+    if (hasYouTubeId) {
+      const body = {
+        title: formData.get('title'),
+        artist: formData.get('artist'),
+        genre: formData.get('genre'),
+        duration: formData.get('duration') || '3:00',
+        youtube_id: hasYouTubeId,
+        release_date: formData.get('release_date') || undefined,
+        poster_url: formData.get('poster_url')?.trim() || undefined,
+      };
+      const data = await api.post('/api/songs', body);
+      if (data.success) {
+        showMessage('Song added successfully!');
+        form.reset();
+        loadAll();
+      } else {
+        showMessage(data.error || 'Failed to add song', true);
+      }
     } else {
-      showMessage(data.error || 'Failed to add song', true);
+      const data = await api.post('/api/songs/upload', formData);
+      if (data.success) {
+        showMessage('Song uploaded successfully!');
+        form.reset();
+        loadAll();
+      } else {
+        showMessage(data.error || 'Failed to upload song', true);
+      }
     }
   };
 
@@ -180,13 +214,39 @@ export default function Admin() {
 
           {section === 'dashboard' && (
             <div id="dashboard" className="card">
-              <h2>Dashboard</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
-                <div className="card"><h3>Total Users</h3><p style={{ fontSize: 32, fontWeight: 'bold' }}>{stats.users}</p></div>
-                <div className="card"><h3>Total Songs</h3><p style={{ fontSize: 32, fontWeight: 'bold' }}>{songs.length}</p></div>
-                <div className="card"><h3>Plays</h3><p style={{ fontSize: 32, fontWeight: 'bold' }}>{stats.plays}</p></div>
-                <div className="card"><h3>Revenue</h3><p style={{ fontSize: 32, fontWeight: 'bold' }}>${stats.revenue}</p></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                <h2>Dashboard</h2>
+                <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 15 }}>
+                <div className="card stat-card"><h3>Users</h3><p className="stat-value">{stats.users}</p></div>
+                <div className="card stat-card"><h3>Songs</h3><p className="stat-value">{stats.songs || songs.length}</p></div>
+                <div className="card stat-card"><h3>Plays</h3><p className="stat-value">{stats.plays}</p></div>
+                <div className="card stat-card"><h3>Revenue</h3><p className="stat-value">${stats.revenue}</p></div>
+                <div className="card stat-card"><h3>Active Subs</h3><p className="stat-value">{stats.activeSubs}</p></div>
+                <div className="card stat-card"><h3>Pending Reports</h3><p className="stat-value">{stats.pendingReports}</p></div>
+              </div>
+              {stats.recentPlays && stats.recentPlays.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <h3 style={{ color: 'var(--sky-blue)', marginBottom: 10 }}>Recent Plays</h3>
+                  <table>
+                    <thead>
+                      <tr><th>User</th><th>Song</th><th>When</th></tr>
+                    </thead>
+                    <tbody>
+                      {stats.recentPlays.map((play, i) => (
+                        <tr key={i}>
+                          <td>{play.user?.name || play.user?.email || 'Unknown'}</td>
+                          <td>{play.song?.title || 'Unknown'} - {play.song?.artist || ''}</td>
+                          <td>{play.playedAt ? new Date(play.playedAt).toLocaleString() : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -233,11 +293,12 @@ export default function Admin() {
             <div id="music" className="card">
               <h2>Music Catalog</h2>
               <form onSubmit={addSong} style={{ marginBottom: 20 }}>
-                <div className="form-group"><label>Title</label><input type="text" name="title" required /></div>
-                <div className="form-group"><label>Artist</label><input type="text" name="artist" required /></div>
+                <div className="form-group"><label>Title *</label><input type="text" name="title" required /></div>
+                <div className="form-group"><label>Artist *</label><input type="text" name="artist" required /></div>
                 <div className="form-group">
-                  <label>Genre</label>
+                  <label>Genre *</label>
                   <select name="genre" required>
+                    <option value="">Select genre</option>
                     <option value="Pop">Pop</option>
                     <option value="Rock">Rock</option>
                     <option value="Bengali">Bengali</option>
@@ -245,12 +306,18 @@ export default function Admin() {
                     <option value="Romantic">Romantic</option>
                     <option value="Metal">Metal</option>
                     <option value="Melodious">Melodious</option>
+                    <option value="Love">Love</option>
+                    <option value="Happy">Happy</option>
                   </select>
                 </div>
                 <div className="form-group"><label>Duration</label><input type="text" name="duration" placeholder="3:45" /></div>
-                <div className="form-group"><label>Song File (MP3/WAV)</label><input type="file" name="song_file" accept=".mp3,.wav" required /></div>
+                <div className="form-group"><label>Release Date</label><input type="date" name="release_date" className="date-input" /></div>
+                <div className="form-divider"><span>Add via YouTube</span></div>
+                <div className="form-group"><label>YouTube ID</label><input type="text" name="youtube_id" placeholder="e.g. dQw4w9WgXcQ" /></div>
+                <div className="form-group"><label>Poster URL (optional)</label><input type="url" name="poster_url" placeholder="https://img.youtube.com/vi/ID/hqdefault.jpg" /></div>
+                <div className="form-divider"><span>— OR Upload File —</span></div>
+                <div className="form-group"><label>Song File (MP3/WAV)</label><input type="file" name="song_file" accept=".mp3,.wav" /></div>
                 <div className="form-group"><label>Poster Image (JPG/PNG)</label><input type="file" name="poster_file" accept=".jpg,.jpeg,.png" /></div>
-                <div className="form-group"><label>Release Date</label><input type="date" name="release_date" /></div>
                 <button type="submit" className="btn">Add Song</button>
               </form>
               {editingSong && (

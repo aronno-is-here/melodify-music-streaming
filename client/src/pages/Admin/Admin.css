@@ -202,6 +202,9 @@ th {
 .form-group label {
   display: block;
   margin-bottom: 5px;
+  color: var(--sky-blue);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .form-group input,
@@ -213,6 +216,60 @@ th {
   border: 1px solid var(--gray);
   border-radius: 4px;
   color: var(--white);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: var(--sky-blue);
+  outline: none;
+}
+
+.date-input {
+  color-scheme: dark;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+.form-divider {
+  text-align: center;
+  margin: 15px 0;
+  position: relative;
+  color: var(--gray);
+  font-size: 13px;
+}
+
+.form-divider::before,
+.form-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: var(--gray);
+}
+
+.form-divider::before { left: 0; }
+.form-divider::after { right: 0; }
+
+.stat-card {
+  text-align: center;
+  padding: 15px !important;
+}
+
+.stat-card h3 {
+  color: var(--gray);
+  font-size: 13px;
+  font-weight: 400;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--sky-blue);
 }
 
 .message {

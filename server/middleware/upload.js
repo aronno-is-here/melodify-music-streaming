@@ -12,10 +12,8 @@ const baseDir = isProd ? '/tmp' : uploadsRoot;
 const audioDir = path.join(baseDir, 'songs', 'uploads');
 const posterDir = path.join(baseDir, 'posters');
 
-if (!isProd) {
-  fs.mkdirSync(audioDir, { recursive: true });
-  fs.mkdirSync(posterDir, { recursive: true });
-}
+fs.mkdirSync(audioDir, { recursive: true });
+fs.mkdirSync(posterDir, { recursive: true });
 
 const sanitize = (name) => name.replace(/[^A-Za-z0-9\-_\.]/g, '_');
 

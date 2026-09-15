@@ -79,6 +79,27 @@ router.post('/upload', protect, adminOnly, upload.fields([{ name: 'song_file', m
   }
 });
 
+router.post('/', protect, adminOnly, async (req, res) => {
+  try {
+    const { title, artist, genre, duration, youtube_id, poster_url, release_date } = req.body;
+    if (!title || !artist || !genre) {
+      return res.json({ success: false, error: 'Title, artist, and genre are required' });
+    }
+    const song = await Song.create({
+      title,
+      artist,
+      genre,
+      duration: duration || '3:00',
+      youtube_id: youtube_id || '',
+      poster_url: poster_url || (youtube_id ? `https://img.youtube.com/vi/${youtube_id}/hqdefault.jpg` : 'https://picsum.photos/150/150?random'),
+      release_date: release_date || new Date(),
+    });
+    res.json({ success: true, message: 'Song created successfully', song });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.put('/:id', protect, adminOnly, async (req, res) => {
   try {
     const { title, artist, genre, duration, release_date } = req.body;

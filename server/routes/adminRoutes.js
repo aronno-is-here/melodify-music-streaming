@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/User.js';
+import Song from '../models/Song.js';
 import Report from '../models/Report.js';
 import Subscription from '../models/Subscription.js';
 import PlayHistory from '../models/PlayHistory.js';
@@ -13,8 +14,14 @@ import { escapeRegex } from '../utils/escapeRegex.js';
 
 router.get('/stats', async (req, res) => {
   try {
-    const users = await User.countDocuments();
-    const plays = await PlayHistory.countDocuments();
+    const [users, songs, plays, activeSubs, pendingReports, recentPlays] = await Promise.all([
+      User.countDocuments(),
+      Song.countDocuments(),
+      PlayHistory.countDocuments(),
+      Subscription.countDocuments({ status: 'active' }),
+      Report.countDocuments({ status: 'pending' }),
+      PlayHistory.find().sort({ playedAt: -1 }).limit(5).populate('song', 'title artist').populate('user', 'name email'),
+    ]);
     const revenueAgg = await Subscription.aggregate([
       { $match: { status: 'active' } },
       { $group: { _id: null, total: { $sum: '$amount' } } },
@@ -22,7 +29,7 @@ router.get('/stats', async (req, res) => {
     const revenue = revenueAgg.length > 0 ? revenueAgg[0].total : 0;
     res.json({
       success: true,
-      stats: { users, plays, revenue },
+      stats: { users, songs, plays, revenue, activeSubs, pendingReports, recentPlays },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
