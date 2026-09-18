@@ -2,8 +2,9 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import cssRaw from './Admin.css?raw';
+import KaraokeForm from './KaraokeForm.jsx';
 
-const SECTIONS = ['dashboard', 'users', 'music', 'moderation', 'subscriptions'];
+const SECTIONS = ['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions'];
 
 export default function Admin() {
   useLayoutEffect(() => {
@@ -20,6 +21,7 @@ export default function Admin() {
   const [songs, setSongs] = useState([]);
   const [reports, setReports] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [karaokeTracks, setKaraokeTracks] = useState([]);
   const [message, setMessage] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [editingSong, setEditingSong] = useState(null);
@@ -30,18 +32,20 @@ export default function Admin() {
   const loadAll = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
-    const [s, u, sg, r, sub] = await Promise.all([
+    const [s, u, sg, r, sub, kar] = await Promise.all([
       api.get('/api/admin/stats'),
       api.get('/api/admin/users'),
       api.get('/api/songs?limit=100'),
       api.get('/api/admin/reports'),
       api.get('/api/admin/subscriptions'),
+      api.get('/api/karaoke/all'),
     ]);
     if (s.success) setStats(s.stats);
     if (u.success) setUsers(u.users);
     if (sg.success) setSongs(sg.songs);
     if (r.success) setReports(r.reports);
     if (sub.success) setSubscriptions(sub.subscriptions);
+    if (kar.success) setKaraokeTracks(kar.karaoke);
     setLoading(false);
     setRefreshing(false);
   };
@@ -87,6 +91,17 @@ export default function Admin() {
       setSongs((prev) => prev.filter((s) => s._id !== id));
     } else {
       showMessage(data.error || 'Failed to delete song', true);
+    }
+  };
+
+  const deleteKaraoke = async (id) => {
+    if (!confirm('Are you sure you want to delete this karaoke track?')) return;
+    const data = await api.del(`/api/karaoke/${id}`);
+    if (data.success) {
+      showMessage('Karaoke track deleted');
+      setKaraokeTracks((prev) => prev.filter((k) => k._id !== id));
+    } else {
+      showMessage(data.error || 'Failed to delete karaoke track', true);
     }
   };
 
@@ -353,6 +368,50 @@ export default function Admin() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {section === 'karaoke' && (
+            <div id="karaoke" className="card">
+              <h2>Karaoke Tracks Management</h2>
+              <p style={{ color: '#b3b3b3', marginBottom: 16, fontSize: 13 }}>
+                Manage backing tracks available in Melodify Studio for karaoke recording.
+              </p>
+
+              <div className="form-divider">Add New Karaoke Track</div>
+              <KaraokeForm onSuccess={(k) => { setKaraokeTracks((prev) => [k, ...prev]); showMessage('Karaoke track added'); }} onError={(e) => showMessage(e, true)} />
+
+              <div className="form-divider">Existing Karaoke Tracks ({karaokeTracks.length})</div>
+              {karaokeTracks.length === 0 ? (
+                <p>No karaoke tracks yet</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr><th>Title</th><th>Artist</th><th>Genre</th><th>Duration</th><th>Available</th><th>Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {karaokeTracks.map((k) => (
+                      <tr key={k._id}>
+                        <td>{k.title}</td>
+                        <td>{k.artist}</td>
+                        <td>{k.genre}</td>
+                        <td>{k.duration}</td>
+                        <td>{k.available ? 'Yes' : 'No'}</td>
+                        <td>
+                          <button className="btn" onClick={async () => {
+                            const data = await api.put(`/api/karaoke/${k._id}`, { available: !k.available });
+                            if (data.success) {
+                              setKaraokeTracks((prev) => prev.map((t) => t._id === k._id ? { ...t, available: !t.available } : t));
+                              showMessage(`Karaoke track ${k.available ? 'hidden' : 'shown'} in Studio`);
+                            }
+                          }}>{k.available ? 'Hide' : 'Show'}</button>
+                          <button className="btn btn-danger" onClick={() => deleteKaraoke(k._id)} style={{ marginLeft: 5 }}>Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
 
