@@ -27,7 +27,7 @@ export default function MelodifyStudio() {
   const { user } = useAuth();
   const player = usePlayer();
 
-  const [songs, setSongs] = useState([]);
+  const [karaokeTracks, setKaraokeTracks] = useState([]);
   const [songQuery, setSongQuery] = useState('');
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [selectedSong, setSelectedSong] = useState(null);
@@ -67,14 +67,14 @@ export default function MelodifyStudio() {
   const previewAudioRef = useRef(null);
 
   useEffect(() => {
-    const fetchSongs = async () => {
-      const data = await api.get('/api/songs?limit=100');
+    const fetchKaraoke = async () => {
+      const data = await api.get('/api/karaoke?limit=100');
       if (data.success) {
-        setSongs(data.songs);
-        setFilteredSongs(data.songs);
+        setKaraokeTracks(data.karaoke);
+        setFilteredSongs(data.karaoke);
       }
     };
-    fetchSongs();
+    fetchKaraoke();
     return () => {
       cleanupRecording();
       if (previewAudioRef.current) {
@@ -86,12 +86,12 @@ export default function MelodifyStudio() {
 
   useEffect(() => {
     if (!songQuery.trim()) {
-      setFilteredSongs(songs);
+      setFilteredSongs(karaokeTracks);
     } else {
       const q = songQuery.toLowerCase();
-      setFilteredSongs(songs.filter((s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)));
+      setFilteredSongs(karaokeTracks.filter((s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)));
     }
-  }, [songQuery, songs]);
+  }, [songQuery, karaokeTracks]);
 
   useEffect(() => {
     if (selectedSong && selectedSong.lyrics) {
@@ -292,26 +292,23 @@ export default function MelodifyStudio() {
     try {
       const formData = new FormData();
       formData.append('audio', recordBlob, 'recording.webm');
+      formData.append('karaokeId', selectedSong._id);
+      formData.append('title', postTitle || `${user?.name} - ${selectedSong.title}`);
+      formData.append('caption', postCaption);
+      formData.append('duration', String(recordTime));
+      formData.append('effects', JSON.stringify({ ...effects, preset: activePreset }));
+      formData.append('visibility', postVisibility);
 
-      const uploadData = await api.post('/api/media', formData);
-      if (!uploadData.success) {
-        setPublishMsg('Failed to upload recording: ' + (uploadData.error || 'Unknown error'));
-        setPublishing(false);
-        return;
-      }
+      const token = localStorage.getItem('melodify_token');
+      const res = await fetch('/api/recordings', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const result = await res.json();
 
-      const postData = {
-        songId: selectedSong._id,
-        title: postTitle || `${user?.name} - ${selectedSong.title}`,
-        caption: postCaption,
-        audioUrl: uploadData.audioUrl,
-        duration: recordTime,
-        visibility: postVisibility,
-      };
-
-      const result = await api.post('/api/posts', postData);
       if (result.success) {
-        setPublishMsg('Performance published successfully!');
+        setPublishMsg('Recording saved successfully!');
         setStep(STEPS.SELECT);
         setSelectedSong(null);
         setRecordBlob(null);
@@ -319,10 +316,10 @@ export default function MelodifyStudio() {
         setPostTitle('');
         setPostCaption('');
       } else {
-        setPublishMsg('Failed to publish: ' + (result.error || 'Unknown error'));
+        setPublishMsg('Failed to save recording: ' + (result.error || 'Unknown error'));
       }
     } catch (err) {
-      setPublishMsg('Publish failed: ' + err.message);
+      setPublishMsg('Save failed: ' + err.message);
     }
     setPublishing(false);
   };
@@ -587,8 +584,13 @@ export default function MelodifyStudio() {
             </div>
 
             {publishMsg && (
-              <div className={`studio-publish-msg ${publishMsg.includes('success') ? 'success' : 'error'}`}>
+              <div className={`studio-publish-msg ${publishMsg.includes('successfully') ? 'success' : 'error'}`}>
                 {publishMsg}
+                {publishMsg.includes('successfully') && (
+                  <div style={{ marginTop: 8, fontSize: 12 }}>
+                    <Link to="/profile" style={{ color: '#00b4d8' }}>View in Profile</Link>
+                  </div>
+                )}
               </div>
             )}
 
