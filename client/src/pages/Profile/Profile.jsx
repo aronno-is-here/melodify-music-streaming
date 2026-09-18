@@ -27,6 +27,9 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [msg, setMsg] = useState('');
+  const [recordings, setRecordings] = useState([]);
+  const [recordingsLoading, setRecordingsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (user) {
@@ -36,6 +39,14 @@ export default function Profile() {
       setCountry(user.country || '');
       setBio(user.bio || '');
       setLibraryVisibility(user.libraryVisibility || 'private');
+
+      const fetchRecordings = async () => {
+        setRecordingsLoading(true);
+        const data = await api.get('/api/recordings');
+        if (data.success) setRecordings(data.recordings);
+        setRecordingsLoading(false);
+      };
+      fetchRecordings();
     }
   }, [user]);
 
@@ -91,6 +102,27 @@ export default function Profile() {
       setSettingsOpen(false);
     } else {
       setMsg(data.error || 'Update failed');
+    }
+  };
+
+  const deleteRecording = async (id) => {
+    if (!confirm('Are you sure you want to delete this recording?')) return;
+    const data = await api.del(`/api/recordings/${id}`);
+    if (data.success) {
+      setRecordings((prev) => prev.filter((r) => r._id !== id));
+      setMsg('Recording deleted');
+    } else {
+      setMsg(data.error || 'Failed to delete recording');
+    }
+  };
+
+  const publishRecording = async (id) => {
+    const data = await api.post(`/api/recordings/${id}/publish`, {});
+    if (data.success) {
+      setRecordings((prev) => prev.map((r) => r._id === id ? { ...r, publishedAsPost: true } : r));
+      setMsg('Recording published to feed!');
+    } else {
+      setMsg(data.error || 'Failed to publish');
     }
   };
 
@@ -150,42 +182,115 @@ export default function Profile() {
           </div>
 
           {msg && (
-            <div style={{ padding: 10, marginBottom: 15, borderRadius: 4, background: '#4caf50', color: '#fff' }}>{msg}</div>
+            <div style={{ padding: 10, marginBottom: 15, borderRadius: 4, background: msg.includes('success') || msg.includes('deleted') || msg.includes('published') ? '#4caf50' : '#dc3545', color: '#fff' }}>{msg}</div>
           )}
 
-          <section className="section">
-            <h2>Personal Information</h2>
-            <div className="user-details">
-              <div className="detail-item">
-                <label>Full Name</label>
-                <span>{user.name}</span>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 4 }}>
+            <button
+              onClick={() => setActiveTab('overview')}
+              style={{ flex: 1, padding: '10px 16px', border: 'none', borderRadius: 6, background: activeTab === 'overview' ? 'rgba(0,180,216,0.15)' : 'transparent', color: activeTab === 'overview' ? '#00b4d8' : '#b3b3b3', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('recordings')}
+              style={{ flex: 1, padding: '10px 16px', border: 'none', borderRadius: 6, background: activeTab === 'recordings' ? 'rgba(0,180,216,0.15)' : 'transparent', color: activeTab === 'recordings' ? '#00b4d8' : '#b3b3b3', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              My Recordings ({recordings.length})
+            </button>
+          </div>
+
+          {activeTab === 'overview' && (
+            <section className="section">
+              <h2>Personal Information</h2>
+              <div className="user-details">
+                <div className="detail-item">
+                  <label>Full Name</label>
+                  <span>{user.name}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Email</label>
+                  <span>{user.email}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Date of Birth</label>
+                  <span>{user.dob ? String(user.dob).slice(0, 10) : '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Gender</label>
+                  <span>{user.gender}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Country</label>
+                  <span>{user.country || '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Bio</label>
+                  <span>{user.bio || 'No bio yet'}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Song Library</label>
+                  <span style={{ textTransform: 'capitalize' }}>{user.libraryVisibility || 'private'}</span>
+                </div>
               </div>
-              <div className="detail-item">
-                <label>Email</label>
-                <span>{user.email}</span>
-              </div>
-              <div className="detail-item">
-                <label>Date of Birth</label>
-                <span>{user.dob ? String(user.dob).slice(0, 10) : '-'}</span>
-              </div>
-              <div className="detail-item">
-                <label>Gender</label>
-                <span>{user.gender}</span>
-              </div>
-              <div className="detail-item">
-                <label>Country</label>
-                <span>{user.country || '-'}</span>
-              </div>
-              <div className="detail-item">
-                <label>Bio</label>
-                <span>{user.bio || 'No bio yet'}</span>
-              </div>
-              <div className="detail-item">
-                <label>Song Library</label>
-                <span style={{ textTransform: 'capitalize' }}>{user.libraryVisibility || 'private'}</span>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
+
+          {activeTab === 'recordings' && (
+            <section className="section">
+              <h2>My Karaoke Recordings</h2>
+              {recordingsLoading ? (
+                <p style={{ color: '#b3b3b3' }}>Loading recordings...</p>
+              ) : recordings.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#b3b3b3' }}>
+                  <i className="fa-solid fa-microphone-lines" style={{ fontSize: 36, display: 'block', marginBottom: 12, color: 'rgba(255,255,255,0.15)' }}></i>
+                  <p>No recordings yet</p>
+                  <a href="/studio" style={{ color: '#00b4d8', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>Go to Melodify Studio</a>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {recordings.map((rec) => (
+                    <div key={rec._id} style={{ background: '#1a1a1a', borderRadius: 10, padding: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                        {rec.karaoke?.poster_url && (
+                          <img src={rec.karaoke.poster_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }} />
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 15, fontWeight: 600 }}>{rec.title}</div>
+                          <div style={{ fontSize: 12, color: '#b3b3b3' }}>
+                            {rec.karaoke?.title} - {rec.karaoke?.artist}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                            {rec.effects?.preset && `Effect: ${rec.effects.preset} · `}
+                            {rec.duration > 0 ? `${Math.floor(rec.duration / 60)}:${String(rec.duration % 60).padStart(2, '0')}` : ''}
+                            {rec.publishedAsPost ? ' · Published' : ''}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 11, color: '#888', textTransform: 'capitalize' }}>{rec.visibility}</span>
+                      </div>
+                      <audio controls src={rec.audioUrl} style={{ width: '100%', height: 36, borderRadius: 8 }}></audio>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        {!rec.publishedAsPost && (
+                          <button
+                            onClick={() => publishRecording(rec._id)}
+                            style={{ padding: '6px 14px', borderRadius: 16, border: 'none', background: '#00b4d8', color: '#000', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            Publish to Feed
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteRecording(rec._id)}
+                          style={{ padding: '6px 14px', borderRadius: 16, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#ff6b6b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </main>
       </div>
 
