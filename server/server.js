@@ -20,6 +20,8 @@ import postRoutes from './routes/postRoutes.js';
 import likeRoutes from './routes/likeRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
+import karaokeRoutes from './routes/karaokeRoutes.js';
+import recordingRoutes from './routes/recordingRoutes.js';
 
 dotenv.config();
 
@@ -101,6 +103,8 @@ app.use('/api/posts', postRoutes);
 app.use('/api/likes', likeRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/karaoke', karaokeRoutes);
+app.use('/api/recordings', recordingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Melodify API is running' }));
