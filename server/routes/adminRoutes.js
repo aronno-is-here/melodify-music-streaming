@@ -22,14 +22,45 @@ router.get('/stats', async (req, res) => {
       Report.countDocuments({ status: 'pending' }),
       PlayHistory.find().sort({ playedAt: -1 }).limit(5).populate('song', 'title artist').populate('user', 'name email'),
     ]);
-    const revenueAgg = await Subscription.aggregate([
-      { $match: { status: 'active' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } },
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const [totalRevenueAgg, monthlyRevenueAgg, lastMonthRevenueAgg, planBreakdown, totalSubsCount] = await Promise.all([
+      Subscription.aggregate([
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Subscription.aggregate([
+        { $match: { createdAt: { $gte: startOfMonth }, status: 'active' } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Subscription.aggregate([
+        { $match: { createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }, status: 'active' } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Subscription.aggregate([
+        { $match: { status: 'active' } },
+        { $group: { _id: '$plan', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+      ]),
+      Subscription.countDocuments(),
     ]);
-    const revenue = revenueAgg.length > 0 ? revenueAgg[0].total : 0;
+
+    const revenue = totalRevenueAgg.length > 0 ? totalRevenueAgg[0].total : 0;
+    const monthlyRevenue = monthlyRevenueAgg.length > 0 ? monthlyRevenueAgg[0].total : 0;
+    const lastMonthRevenue = lastMonthRevenueAgg.length > 0 ? lastMonthRevenueAgg[0].total : 0;
+    const monthlySubs = monthlyRevenueAgg.length > 0 ? monthlyRevenueAgg[0].count : 0;
+    const revenueByPlan = {};
+    planBreakdown.forEach((p) => { revenueByPlan[p._id || 'Unknown'] = { revenue: p.total, subs: p.count }; });
+
     res.json({
       success: true,
-      stats: { users, songs, plays, revenue, activeSubs, pendingReports, recentPlays },
+      stats: {
+        users, songs, plays, revenue, activeSubs, pendingReports, recentPlays,
+        monthlyRevenue, lastMonthRevenue, monthlySubs,
+        totalSubs: totalSubsCount, revenueByPlan,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

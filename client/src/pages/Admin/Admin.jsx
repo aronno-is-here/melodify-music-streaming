@@ -16,7 +16,7 @@ export default function Admin() {
   }, []);
   const { user, logout } = useAuth();
   const [section, setSection] = useState('dashboard');
-  const [stats, setStats] = useState({ users: 0, songs: 0, plays: 0, revenue: 0, activeSubs: 0, pendingReports: 0, recentPlays: [] });
+  const [stats, setStats] = useState({ users: 0, songs: 0, plays: 0, revenue: 0, activeSubs: 0, pendingReports: 0, recentPlays: [], monthlyRevenue: 0, lastMonthRevenue: 0, monthlySubs: 0, totalSubs: 0, revenueByPlan: {} });
   const [users, setUsers] = useState([]);
   const [songs, setSongs] = useState([]);
   const [reports, setReports] = useState([]);
@@ -239,10 +239,50 @@ export default function Admin() {
                 <div className="card stat-card"><h3>Users</h3><p className="stat-value">{stats.users}</p></div>
                 <div className="card stat-card"><h3>Songs</h3><p className="stat-value">{stats.songs || songs.length}</p></div>
                 <div className="card stat-card"><h3>Plays</h3><p className="stat-value">{stats.plays}</p></div>
-                <div className="card stat-card"><h3>Revenue</h3><p className="stat-value">${stats.revenue}</p></div>
                 <div className="card stat-card"><h3>Active Subs</h3><p className="stat-value">{stats.activeSubs}</p></div>
                 <div className="card stat-card"><h3>Pending Reports</h3><p className="stat-value">{stats.pendingReports}</p></div>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 15, marginTop: 20 }}>
+                <div className="card stat-card" style={{ borderLeft: '3px solid #4caf50' }}>
+                  <h3>Total Revenue</h3>
+                  <p className="stat-value" style={{ color: '#4caf50' }}>${stats.revenue}</p>
+                  <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{stats.totalSubs || 0} total subscriptions</p>
+                </div>
+                <div className="card stat-card" style={{ borderLeft: '3px solid #00b4d8' }}>
+                  <h3>This Month</h3>
+                  <p className="stat-value" style={{ color: '#00b4d8' }}>${stats.monthlyRevenue}</p>
+                  <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{stats.monthlySubs || 0} new subs</p>
+                </div>
+                <div className="card stat-card" style={{ borderLeft: '3px solid #888' }}>
+                  <h3>Last Month</h3>
+                  <p className="stat-value">${stats.lastMonthRevenue}</p>
+                  <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                    {stats.monthlyRevenue > stats.lastMonthRevenue ? (
+                      <span style={{ color: '#4caf50' }}>+{stats.lastMonthRevenue > 0 ? Math.round(((stats.monthlyRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100) : 100}% vs last month</span>
+                    ) : stats.monthlyRevenue < stats.lastMonthRevenue ? (
+                      <span style={{ color: '#ff6b6b' }}>-{stats.lastMonthRevenue > 0 ? Math.round(((stats.lastMonthRevenue - stats.monthlyRevenue) / stats.lastMonthRevenue) * 100) : 100}% vs last month</span>
+                    ) : (
+                      <span>Same as last month</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {Object.keys(stats.revenueByPlan || {}).length > 0 && (
+                <div style={{ marginTop: 15 }}>
+                  <h3 style={{ color: 'var(--sky-blue)', marginBottom: 10 }}>Revenue by Plan</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                    {Object.entries(stats.revenueByPlan).map(([plan, data]) => (
+                      <div key={plan} className="card" style={{ padding: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{plan}</div>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: '#00b4d8' }}>${data.revenue}</div>
+                        <div style={{ fontSize: 11, color: '#888' }}>{data.subs} active subscriber{data.subs !== 1 ? 's' : ''}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {stats.recentPlays && stats.recentPlays.length > 0 && (
                 <div style={{ marginTop: 20 }}>
                   <h3 style={{ color: 'var(--sky-blue)', marginBottom: 10 }}>Recent Plays</h3>
