@@ -414,6 +414,7 @@ export default function Dashboard() {
           )}
         </div>
         <nav className="header-nav">
+          <Link to="/feed" className="header-nav-link">FEED</Link>
           <Link to="/premium" className="header-nav-link">PREMIUM</Link>
           <Link to="/studio" className="header-nav-link header-nav-studio">MELODIFY STUDIO</Link>
         </nav>

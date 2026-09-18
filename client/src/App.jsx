@@ -13,6 +13,7 @@ import SongDetails from './pages/SongDetails/SongDetails.jsx';
 import Premium from './pages/Premium/Premium.jsx';
 import MelodifyStudio from './pages/MelodifyStudio/MelodifyStudio.jsx';
 import UserProfile from './pages/UserProfile/UserProfile.jsx';
+import Feed from './pages/Feed/Feed.jsx';
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -75,6 +76,14 @@ export default function App() {
         element={
           <Protected>
             <UserProfile />
+          </Protected>
+        }
+      />
+      <Route
+        path="/feed"
+        element={
+          <Protected>
+            <Feed />
           </Protected>
         }
       />
