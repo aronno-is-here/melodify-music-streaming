@@ -10,8 +10,13 @@ const userSchema = new mongoose.Schema(
     country: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     passwordChangedAt: { type: Date, default: null },
+    bio: { type: String, default: '', maxlength: 500 },
+    avatar: { type: String, default: '' },
+    libraryVisibility: { type: String, enum: ['public', 'private'], default: 'private' },
   },
   { timestamps: true }
 );
+
+userSchema.index({ name: 'text', email: 'text' });
 
 export default mongoose.model('User', userSchema);

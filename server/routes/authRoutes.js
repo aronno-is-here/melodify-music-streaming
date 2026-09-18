@@ -63,7 +63,7 @@ router.post('/signup/step3', async (req, res) => {
     }
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ email, password: hashed, name, dob, gender, country });
-    return res.json({ success: true, token: signToken(user), user: { id: user._id, email: user.email, name: user.name, role: user.role } });
+    return res.json({ success: true, token: signToken(user), user: { id: user._id, email: user.email, name: user.name, role: user.role, bio: user.bio || '', avatar: user.avatar || '', libraryVisibility: user.libraryVisibility || 'private' } });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -80,7 +80,7 @@ router.post('/login', async (req, res) => {
     if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
       return res.json({ success: false, error: 'Invalid email or password.' });
     }
-    return res.json({ success: true, token: signToken(user), user: { id: user._id, email: user.email, name: user.name, role: user.role } });
+    return res.json({ success: true, token: signToken(user), user: { id: user._id, email: user.email, name: user.name, role: user.role, bio: user.bio || '', avatar: user.avatar || '', libraryVisibility: user.libraryVisibility || 'private' } });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -89,7 +89,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', protect, (req, res) => {
   res.json({
     success: true,
-    user: { id: req.user._id, email: req.user.email, name: req.user.name, dob: req.user.dob, gender: req.user.gender, country: req.user.country, role: req.user.role },
+    user: { id: req.user._id, email: req.user.email, name: req.user.name, dob: req.user.dob, gender: req.user.gender, country: req.user.country, role: req.user.role, bio: req.user.bio || '', avatar: req.user.avatar || '', libraryVisibility: req.user.libraryVisibility || 'private' },
   });
 });
 

@@ -14,6 +14,12 @@ import historyRoutes from './routes/historyRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import lyricsRoutes from './routes/lyricsRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import followRoutes from './routes/followRoutes.js';
+import postRoutes from './routes/postRoutes.js';
+import likeRoutes from './routes/likeRoutes.js';
+import commentRoutes from './routes/commentRoutes.js';
+import mediaRoutes from './routes/mediaRoutes.js';
 
 dotenv.config();
 
@@ -75,6 +81,7 @@ app.use(async (req, res, next) => {
 
 // Static assets
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
+app.use('/assets/recordings', express.static(path.join(__dirname, '..', 'assets', 'recordings')));
 
 // Routes with rate limiters
 app.use('/api/auth/login', authLimiter);
@@ -88,6 +95,12 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/lyrics', lyricsRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/follows', followRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/likes', likeRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/media', mediaRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Melodify API is running' }));
