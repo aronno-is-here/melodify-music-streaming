@@ -172,6 +172,11 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Not authorized' });
     }
 
+    if (recording.audioUrl && recording.audioUrl.startsWith('/assets/recordings/')) {
+      const filePath = path.join(baseDir, 'recordings', path.basename(recording.audioUrl));
+      fs.unlink(filePath, () => {});
+    }
+
     await Recording.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (error) {
@@ -196,7 +201,7 @@ router.post('/:id/publish', protect, async (req, res) => {
 
     const post = await Post.create({
       author: req.user._id,
-      song: recording.karaoke._id,
+      karaoke: recording.karaoke._id,
       title: recording.title,
       caption: caption || recording.caption || '',
       audioUrl: recording.audioUrl,

@@ -106,7 +106,7 @@ export default function Feed() {
 
   const sharePost = async (post) => {
     const shareUrl = `${window.location.origin}/user/${post.author?._id}`;
-    const shareText = `Check out ${post.author?.name}'s karaoke performance of "${post.song?.title}" on Melodify!`;
+    const shareText = `Check out ${post.author?.name}'s karaoke performance of "${post.song?.title || post.karaoke?.title}" on Melodify!`;
 
     if (navigator.share) {
       try {
@@ -181,12 +181,12 @@ export default function Feed() {
                   </div>
 
                   <div className="feed-post-song">
-                    {post.song?.poster_url && (
-                      <img className="feed-post-song-img" src={post.song.poster_url} alt="" />
+                    {(post.song?.poster_url || post.karaoke?.poster_url) && (
+                      <img className="feed-post-song-img" src={post.song?.poster_url || post.karaoke?.poster_url} alt="" />
                     )}
                     <div className="feed-post-song-info">
                       <span className="feed-post-song-title">{post.title}</span>
-                      <span className="feed-post-song-name">{post.song?.title} - {post.song?.artist}</span>
+                      <span className="feed-post-song-name">{post.song?.title || post.karaoke?.title} - {post.song?.artist || post.karaoke?.artist}</span>
                     </div>
                   </div>
 

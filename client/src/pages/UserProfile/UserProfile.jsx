@@ -280,12 +280,12 @@ export default function UserProfile() {
                 {profile.posts.map((post) => (
                   <div key={post._id} className="up-post-card">
                     <div className="up-post-header">
-                      {post.song?.poster_url && (
-                        <img className="up-post-song-img" src={post.song.poster_url} alt="" />
-                      )}
+                      {post.song?.poster_url || post.karaoke?.poster_url ? (
+                        <img className="up-post-song-img" src={post.song?.poster_url || post.karaoke?.poster_url} alt="" />
+                      ) : null}
                       <div>
                         <span className="up-post-title">{post.title}</span>
-                        <span className="up-post-song-name">{post.song?.title} - {post.song?.artist}</span>
+                        <span className="up-post-song-name">{post.song?.title || post.karaoke?.title} - {post.song?.artist || post.karaoke?.artist}</span>
                       </div>
                     </div>
                     {post.caption && <p className="up-post-caption">{post.caption}</p>}

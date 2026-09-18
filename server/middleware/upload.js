@@ -19,7 +19,7 @@ const sanitize = (name) => name.replace(/[^A-Za-z0-9\-_\.]/g, '_');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, file.fieldname === 'song_file' ? audioDir : posterDir);
+    cb(null, (file.fieldname === 'song_file' || file.fieldname === 'audio_file') ? audioDir : posterDir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -30,11 +30,10 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  if (file.fieldname === 'song_file') {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, ['.mp3', '.wav'].includes(ext));
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (file.fieldname === 'song_file' || file.fieldname === 'audio_file') {
+    cb(null, ['.mp3', '.wav', '.webm', '.m4a', '.ogg'].includes(ext));
   } else if (file.fieldname === 'poster_file') {
-    const ext = path.extname(file.originalname).toLowerCase();
     cb(null, ['.jpg', '.jpeg', '.png'].includes(ext));
   } else {
     cb(null, true);

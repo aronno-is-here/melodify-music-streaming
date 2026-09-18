@@ -42,6 +42,7 @@ router.get('/:id', async (req, res) => {
   try {
     const k = await Karaoke.findById(req.params.id);
     if (!k) return res.status(404).json({ success: false, error: 'Karaoke track not found' });
+    if (!k.available) return res.status(404).json({ success: false, error: 'Karaoke track not found' });
     res.json({ success: true, karaoke: k });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -89,7 +90,7 @@ router.post('/upload', protect, adminOnly, upload.fields([
       genre,
       duration,
       file_path: `assets/songs/uploads/${audioFilename}`,
-      poster_url: posterFilename ? `assets/posters/${posterFilename}` : 'https://picsum.photos/150/150?random',
+      poster_url: posterFilename ? `/assets/posters/${posterFilename}` : 'https://picsum.photos/150/150?random',
     });
     res.json({ success: true, message: 'Karaoke track uploaded', karaoke: k });
   } catch (error) {
