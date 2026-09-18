@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
@@ -55,6 +55,13 @@ export default function Dashboard() {
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [lcPanelOpen, setLcPanelOpen] = useState(false);
 
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState([]);
+  const [userSearching, setUserSearching] = useState(false);
+  const [userSearchOpen, setUserSearchOpen] = useState(false);
+  const userSearchTimerRef = useRef(null);
+  const userSearchRef = useRef(null);
+
   const fetchSongs = async () => {
     const data = await api.get('/api/songs');
     if (data.success) {
@@ -100,6 +107,37 @@ export default function Dashboard() {
       setFilteredSongs(list);
     }
   }, [search, songs]);
+
+  useEffect(() => {
+    if (!userSearchQuery.trim()) {
+      setUserSearchResults([]);
+      setUserSearchOpen(false);
+      return;
+    }
+    if (userSearchQuery.trim().length < 2) return;
+
+    if (userSearchTimerRef.current) clearTimeout(userSearchTimerRef.current);
+    userSearchTimerRef.current = setTimeout(async () => {
+      setUserSearching(true);
+      setUserSearchOpen(true);
+      const data = await api.get(`/api/users/search?q=${encodeURIComponent(userSearchQuery.trim())}`);
+      if (data.success) setUserSearchResults(data.users);
+      else setUserSearchResults([]);
+      setUserSearching(false);
+    }, 300);
+
+    return () => { if (userSearchTimerRef.current) clearTimeout(userSearchTimerRef.current); };
+  }, [userSearchQuery]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userSearchRef.current && !userSearchRef.current.contains(e.target)) {
+        setUserSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const recordPlay = (song) => {
     if (!song?._id) return;
@@ -338,9 +376,46 @@ export default function Dashboard() {
         <div className="logo">
           MELOD<span>IFY</span>
         </div>
+        <div className="header-search" ref={userSearchRef}>
+          <i className="fa-solid fa-magnifying-glass header-search-icon"></i>
+          <input
+            className="header-search-input"
+            type="text"
+            placeholder="Search users..."
+            value={userSearchQuery}
+            onChange={(e) => setUserSearchQuery(e.target.value)}
+            onFocus={() => userSearchQuery.trim().length >= 2 && setUserSearchOpen(true)}
+          />
+          {userSearchOpen && (
+            <div className="header-search-dropdown">
+              {userSearching ? (
+                <div className="header-search-status">Searching...</div>
+              ) : userSearchResults.length === 0 ? (
+                <div className="header-search-status">No users found</div>
+              ) : (
+                userSearchResults.map((u) => (
+                  <Link
+                    key={u._id}
+                    to={`/user/${u._id}`}
+                    className="header-search-item"
+                    onClick={() => { setUserSearchOpen(false); setUserSearchQuery(''); }}
+                  >
+                    <div className="header-search-avatar">
+                      {u.avatar ? <img src={u.avatar} alt={u.name} /> : u.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="header-search-info">
+                      <span className="header-search-name">{u.name}</span>
+                      <span className="header-search-email">{u.email}</span>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          )}
+        </div>
         <nav className="header-nav">
           <Link to="/premium" className="header-nav-link">PREMIUM</Link>
-          <Link to="/studio" className="header-nav-link">MELODIFY STUDIO</Link>
+          <Link to="/studio" className="header-nav-link header-nav-studio">MELODIFY STUDIO</Link>
         </nav>
       </header>
       <div className="profile-container">

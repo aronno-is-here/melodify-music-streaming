@@ -16,10 +16,13 @@ export default function Profile() {
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [dob, setDob] = useState(user?.dob ? String(user.dob).slice(0, 10) : '');
   const [gender, setGender] = useState(user?.gender || '');
   const [country, setCountry] = useState(user?.country || '');
+  const [bio, setBio] = useState(user?.bio || '');
+  const [libraryVisibility, setLibraryVisibility] = useState(user?.libraryVisibility || 'private');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,6 +34,8 @@ export default function Profile() {
       setDob(user.dob ? String(user.dob).slice(0, 10) : '');
       setGender(user.gender || '');
       setCountry(user.country || '');
+      setBio(user.bio || '');
+      setLibraryVisibility(user.libraryVisibility || 'private');
     }
   }, [user]);
 
@@ -48,6 +53,7 @@ export default function Profile() {
     setMsg('');
     const data = await api.put('/api/auth/me', { name, dob, gender, country });
     if (data.success) {
+      await api.put('/api/users/me/settings', { bio });
       await refreshUser();
       setMsg('Profile updated successfully');
       setEditOpen(false);
@@ -72,6 +78,19 @@ export default function Profile() {
       setConfirmPassword('');
     } else {
       setMsg(data.error || 'Password change failed');
+    }
+  };
+
+  const saveSettings = async (e) => {
+    e.preventDefault();
+    setMsg('');
+    const data = await api.put('/api/users/me/settings', { bio, libraryVisibility });
+    if (data.success) {
+      await refreshUser();
+      setMsg('Settings updated successfully');
+      setSettingsOpen(false);
+    } else {
+      setMsg(data.error || 'Update failed');
     }
   };
 
@@ -101,7 +120,7 @@ export default function Profile() {
               <a href="#" onClick={(e) => { e.preventDefault(); setPasswordOpen(true); }}>Change Password</a>
             </li>
             <li>
-              <a href="#" onClick={(e) => e.preventDefault()}>Privacy Settings</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setSettingsOpen(true); }}>Privacy & Settings</a>
             </li>
             <li>
               <a href="#" onClick={(e) => e.preventDefault()}>Account</a>
@@ -157,6 +176,14 @@ export default function Profile() {
                 <label>Country</label>
                 <span>{user.country || '-'}</span>
               </div>
+              <div className="detail-item">
+                <label>Bio</label>
+                <span>{user.bio || 'No bio yet'}</span>
+              </div>
+              <div className="detail-item">
+                <label>Song Library</label>
+                <span style={{ textTransform: 'capitalize' }}>{user.libraryVisibility || 'private'}</span>
+              </div>
             </div>
           </section>
         </main>
@@ -204,6 +231,10 @@ export default function Profile() {
                 <option value="Brazil">Brazil</option>
               </select>
             </div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="bio">Bio</label>
+              <textarea id="bio" rows="3" maxLength="500" placeholder="Tell us about yourself..." value={bio} onChange={(e) => setBio(e.target.value)} style={{ width: '100%', padding: '10px', background: '#2a2a2a', border: '1px solid #b3b3b3', borderRadius: '20px', color: '#fff', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit' }}></textarea>
+            </div>
             <div className="form-buttons">
               <button type="button" className="form-btn cancel-btn" onClick={() => setEditOpen(false)}>Cancel</button>
               <button type="submit" className="form-btn save-btn">Save Changes</button>
@@ -233,6 +264,31 @@ export default function Profile() {
             <div className="form-buttons">
               <button type="button" className="form-btn cancel-btn" onClick={() => setPasswordOpen(false)}>Cancel</button>
               <button type="submit" className="form-btn save-btn">Change Password</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Privacy & Settings Modal */}
+      <div id="settingsModal" className={`modal${settingsOpen ? ' active' : ''}`}>
+        <div className="modal-content">
+          <span className="close" onClick={() => setSettingsOpen(false)}>&times;</span>
+          <h2>Privacy & Settings</h2>
+          <form className="form-grid" onSubmit={saveSettings}>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="settingsBio">Bio</label>
+              <textarea id="settingsBio" rows="3" maxLength="500" placeholder="Tell others about yourself..." value={bio} onChange={(e) => setBio(e.target.value)} style={{ width: '100%', padding: '10px', background: '#2a2a2a', border: '1px solid #b3b3b3', borderRadius: '20px', color: '#fff', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit' }}></textarea>
+            </div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="libraryVis">Song Library Visibility</label>
+              <select id="libraryVis" value={libraryVisibility} onChange={(e) => setLibraryVisibility(e.target.value)} style={{ width: '100%', padding: '10px', background: '#2a2a2a', border: '1px solid #b3b3b3', borderRadius: '20px', color: '#fff', fontSize: '14px' }}>
+                <option value="private">Private - Only you can see your library</option>
+                <option value="public">Public - Anyone can see your library</option>
+              </select>
+            </div>
+            <div className="form-buttons">
+              <button type="button" className="form-btn cancel-btn" onClick={() => setSettingsOpen(false)}>Cancel</button>
+              <button type="submit" className="form-btn save-btn">Save Settings</button>
             </div>
           </form>
         </div>
