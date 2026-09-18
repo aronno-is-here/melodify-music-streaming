@@ -29,7 +29,7 @@ export default function MelodifyStudio() {
 
   const [karaokeTracks, setKaraokeTracks] = useState([]);
   const [songQuery, setSongQuery] = useState('');
-  const [filteredSongs, setFilteredSongs] = useState([]);
+  const [searching, setSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [step, setStep] = useState(STEPS.SELECT);
 
@@ -67,13 +67,6 @@ export default function MelodifyStudio() {
   const previewAudioRef = useRef(null);
 
   useEffect(() => {
-    const fetchKaraoke = async () => {
-      const data = await api.get('/api/karaoke?limit=100');
-      if (data.success) {
-        setKaraokeTracks(data.karaoke);
-        setFilteredSongs(data.karaoke);
-      }
-    };
     fetchKaraoke();
     return () => {
       cleanupRecording();
@@ -85,13 +78,23 @@ export default function MelodifyStudio() {
   }, []);
 
   useEffect(() => {
-    if (!songQuery.trim()) {
-      setFilteredSongs(karaokeTracks);
-    } else {
-      const q = songQuery.toLowerCase();
-      setFilteredSongs(karaokeTracks.filter((s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)));
-    }
-  }, [songQuery, karaokeTracks]);
+    const timer = setTimeout(() => {
+      fetchKaraoke(songQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [songQuery]);
+
+  const fetchKaraoke = async (q = '') => {
+    setSearching(true);
+    try {
+      const params = q ? `/api/karaoke?q=${encodeURIComponent(q)}&limit=50` : '/api/karaoke?limit=50';
+      const data = await api.get(params);
+      if (data.success) {
+        setKaraokeTracks(data.karaoke);
+      }
+    } catch {}
+    setSearching(false);
+  };
 
   useEffect(() => {
     if (selectedSong && selectedSong.lyrics) {
@@ -358,40 +361,50 @@ export default function MelodifyStudio() {
                 <i className="fa-solid fa-magnifying-glass"></i>
                 <input
                   type="text"
-                  placeholder="Search songs by title or artist..."
+                  placeholder="Search karaoke tracks by title or artist..."
                   value={songQuery}
                   onChange={(e) => setSongQuery(e.target.value)}
                 />
               </div>
 
-              <div className="studio-song-grid">
-                {filteredSongs.map((song) => (
-                  <div
-                    key={song._id}
-                    className="studio-song-card"
-                    onClick={() => selectSong(song)}
-                  >
-                    <div className="studio-song-poster">
-                      <img
-                        src={song.poster_url || 'https://picsum.photos/120/120?random'}
-                        alt={song.title}
-                        onError={(e) => { e.target.src = 'https://picsum.photos/120/120?random'; }}
-                      />
-                      <div className="studio-song-overlay">
-                        <i className="fa-solid fa-microphone-lines"></i>
+              {searching ? (
+                <div className="studio-empty-small">
+                  <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: 18, marginBottom: 8 }}></i>
+                  <p>Searching karaoke tracks...</p>
+                </div>
+              ) : karaokeTracks.length === 0 ? (
+                <div className="studio-empty-small">
+                  <i className="fa-solid fa-music" style={{ fontSize: 28, marginBottom: 8, color: 'rgba(255,255,255,0.15)' }}></i>
+                  {songQuery.trim() ? (
+                    <p>No karaoke track found for "{songQuery}"</p>
+                  ) : (
+                    <p>No karaoke tracks available yet. Ask an admin to upload some.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="studio-song-grid">
+                  {karaokeTracks.map((song) => (
+                    <div
+                      key={song._id}
+                      className="studio-song-card"
+                      onClick={() => selectSong(song)}
+                    >
+                      <div className="studio-song-poster">
+                        <img
+                          src={song.poster_url || 'https://picsum.photos/120/120?random'}
+                          alt={song.title}
+                          onError={(e) => { e.target.src = 'https://picsum.photos/120/120?random'; }}
+                        />
+                        <div className="studio-song-overlay">
+                          <i className="fa-solid fa-microphone-lines"></i>
+                        </div>
+                      </div>
+                      <div className="studio-song-info">
+                        <span className="studio-song-title">{song.title}</span>
+                        <span className="studio-song-artist">{song.artist}</span>
                       </div>
                     </div>
-                    <div className="studio-song-info">
-                      <span className="studio-song-title">{song.title}</span>
-                      <span className="studio-song-artist">{song.artist}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {filteredSongs.length === 0 && (
-                <div className="studio-empty-small">
-                  <p>No songs found matching "{songQuery}"</p>
+                  ))}
                 </div>
               )}
             </div>
