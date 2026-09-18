@@ -34,6 +34,8 @@ export default function UserProfile() {
   const [listLoading, setListLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [recordings, setRecordings] = useState([]);
+  const [recordingsLoading, setRecordingsLoading] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -51,6 +53,17 @@ export default function UserProfile() {
   }, [id]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const fetchRecordings = async () => {
+      setRecordingsLoading(true);
+      const data = await api.get(`/api/recordings/user/${id}`);
+      if (data.success) setRecordings(data.recordings);
+      setRecordingsLoading(false);
+    };
+    fetchRecordings();
+  }, [id, profile]);
 
   const handleFollow = async () => {
     if (followLoading) return;
@@ -168,6 +181,12 @@ export default function UserProfile() {
           >
             Posts
           </button>
+          <button
+            className={`up-tab ${activeTab === 'recordings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('recordings')}
+          >
+            Recordings
+          </button>
         </div>
 
         {activeTab === 'overview' && (
@@ -282,6 +301,43 @@ export default function UserProfile() {
               <div className="up-empty">
                 <i className="fa-solid fa-microphone-lines"></i>
                 <p>No posts yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'recordings' && (
+          <div className="up-section">
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Karaoke Recordings</h3>
+            {recordingsLoading ? (
+              <div className="up-empty"><p>Loading recordings...</p></div>
+            ) : recordings.length === 0 ? (
+              <div className="up-empty">
+                <i className="fa-solid fa-microphone-lines"></i>
+                <p>No karaoke recordings yet</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {recordings.map((rec) => (
+                  <div key={rec._id} style={{ background: '#1a1a1a', borderRadius: 10, padding: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                      {rec.karaoke?.poster_url && (
+                        <img src={rec.karaoke.poster_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }} />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 15, fontWeight: 600 }}>{rec.title}</div>
+                        <div style={{ fontSize: 12, color: '#b3b3b3' }}>
+                          {rec.karaoke?.title} - {rec.karaoke?.artist}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                          {rec.effects?.preset && `Effect: ${rec.effects.preset}`}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 11, color: '#888', textTransform: 'capitalize' }}>{rec.visibility}</span>
+                    </div>
+                    <audio controls src={rec.audioUrl} style={{ width: '100%', height: 36, borderRadius: 8 }}></audio>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -218,7 +218,7 @@ export default function Admin() {
             {SECTIONS.map((s) => (
               <li key={s}>
                 <a className={section === s ? 'active' : ''} onClick={() => setSection(s)}>
-                  {s.charAt(0).toUpperCase() + s.slice(1).replace('moderation', ' Content Moderation')}
+                  {s === 'karaoke' ? 'Melodify Studio' : s.charAt(0).toUpperCase() + s.slice(1).replace('moderation', ' Content Moderation')}
                 </a>
               </li>
             ))}
