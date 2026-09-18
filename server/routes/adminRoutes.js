@@ -30,6 +30,7 @@ router.get('/stats', async (req, res) => {
 
     const [totalRevenueAgg, monthlyRevenueAgg, lastMonthRevenueAgg, planBreakdown, totalSubsCount] = await Promise.all([
       Subscription.aggregate([
+        { $match: { status: 'active' } },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
       Subscription.aggregate([
@@ -44,7 +45,7 @@ router.get('/stats', async (req, res) => {
         { $match: { status: 'active' } },
         { $group: { _id: '$plan', total: { $sum: '$amount' }, count: { $sum: 1 } } },
       ]),
-      Subscription.countDocuments(),
+      Subscription.countDocuments({ status: 'active' }),
     ]);
 
     const revenue = totalRevenueAgg.length > 0 ? totalRevenueAgg[0].total : 0;
