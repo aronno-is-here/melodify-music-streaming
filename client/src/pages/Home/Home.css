@@ -960,3 +960,198 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 1280px) {
+  .trending-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .home-header {
+    padding: 0 24px;
+  }
+
+  .home-section {
+    padding: 80px 24px;
+  }
+
+  .hero-section {
+    padding: 120px 24px 80px;
+  }
+
+  .featured-song-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 32px;
+  }
+
+  .featured-song-artwork {
+    width: 220px;
+    height: 220px;
+  }
+
+  .featured-song-info {
+    align-items: center;
+  }
+
+  .featured-song-meta {
+    justify-content: center;
+  }
+
+  .studio-promo {
+    flex-direction: column;
+    text-align: center;
+    gap: 40px;
+  }
+
+  .studio-promo-desc {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .studio-promo-features {
+    align-items: center;
+  }
+
+  .trending-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .community-promo {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .premium-promo {
+    padding: 40px;
+  }
+
+  .premium-promo-plans {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-header {
+    padding: 0 16px;
+    height: 64px;
+  }
+
+  .home-nav {
+    display: none;
+  }
+
+  .home-section {
+    padding: 64px 16px;
+  }
+
+  .hero-section {
+    padding: 100px 16px 64px;
+  }
+
+  .hero-headline {
+    letter-spacing: -1px;
+  }
+
+  .hero-description {
+    font-size: 16px;
+  }
+
+  .hero-cta-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hero-cta-primary,
+  .hero-cta-secondary {
+    width: 100%;
+    justify-content: center;
+    max-width: 280px;
+  }
+
+  .hero-stats {
+    gap: 20px;
+  }
+
+  .hero-stat-number {
+    font-size: 22px;
+  }
+
+  .hero-scroll-indicator {
+    display: none;
+  }
+
+  .trending-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .community-promo {
+    grid-template-columns: 1fr;
+  }
+
+  .featured-song-artwork {
+    width: 180px;
+    height: 180px;
+  }
+
+  .featured-song-card {
+    padding: 24px;
+  }
+
+  .studio-promo-visual {
+    width: 200px;
+    height: 200px;
+  }
+
+  .studio-wave-ring-1 { width: 120px; height: 120px; }
+  .studio-wave-ring-2 { width: 160px; height: 160px; }
+  .studio-wave-ring-3 { width: 200px; height: 200px; }
+
+  .premium-promo {
+    padding: 28px;
+  }
+
+  .premium-promo-plans {
+    flex-direction: column;
+  }
+
+  .home-footer-inner {
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .home-footer-links {
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .home-footer {
+    padding: 40px 16px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .trending-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .hero-stats {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .hero-stat-divider {
+    display: none;
+  }
+
+  .home-section-title {
+    font-size: 28px;
+  }
+
+  .final-cta-title {
+    font-size: 26px;
+  }
+}
