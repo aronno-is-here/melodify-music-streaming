@@ -12,11 +12,11 @@ export function FloatingRing({ position, scale = 1, speed = 1 }) {
   useFrame((state) => {
     if (!ring.current) return;
     const time = state.clock.getElapsedTime();
-    ring.current.rotation.x = initialRotation[0] + time * 0.08 * speed;
-    ring.current.rotation.y = initialRotation[1] + time * 0.06 * speed;
-    ring.current.rotation.z = initialRotation[2] + time * 0.04 * speed;
-    ring.current.position.y = position[1] + Math.sin(time * 0.3 * speed) * 0.3;
-    ring.current.position.x = position[0] + Math.cos(time * 0.2 * speed) * 0.2;
+    ring.current.rotation.x = initialRotation[0] + time * 0.06 * speed;
+    ring.current.rotation.y = initialRotation[1] + time * 0.04 * speed;
+    ring.current.rotation.z = initialRotation[2] + time * 0.03 * speed;
+    ring.current.position.y = position[1] + Math.sin(time * 0.2 * speed) * 0.4;
+    ring.current.position.x = position[0] + Math.cos(time * 0.15 * speed) * 0.25;
   });
 
   return (
@@ -40,10 +40,10 @@ export function OrbitalMesh({ position }) {
   useFrame((state) => {
     if (!mesh.current) return;
     const time = state.clock.getElapsedTime();
-    mesh.current.rotation.x = time * 0.05;
-    mesh.current.rotation.y = time * 0.08;
-    mesh.current.position.x = initialPos[0] + Math.sin(time * 0.15) * 0.5;
-    mesh.current.position.y = initialPos[1] + Math.cos(time * 0.12) * 0.3;
+    mesh.current.rotation.x = time * 0.03;
+    mesh.current.rotation.y = time * 0.05;
+    mesh.current.position.x = initialPos[0] + Math.sin(time * 0.1) * 0.6;
+    mesh.current.position.y = initialPos[1] + Math.cos(time * 0.08) * 0.4;
   });
 
   return (
