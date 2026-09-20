@@ -34,8 +34,9 @@ credentials*
 auth.json
 *service-account*.json
 
-# Vite build output
+# Vite build output & temp files
 client/dist/
+client/vite.config.js.timestamp-*
 
 .vercel
 
