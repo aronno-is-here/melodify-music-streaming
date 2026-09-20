@@ -109,9 +109,19 @@ npm run dev
 
 ## GitHub Collaborator — Commit as Contributor
 
-- When the user asks to "commit for mimi" or similar, use the credentials stored in `.credentials.json` (gitignored).
-- **Workflow:** read `.credentials.json` → set remote with token → commit as collaborator → push → clean remote URL.
+- When the user asks to "commit for mimi" or "commit for ehsanul", read the credentials from `.credentials.json` (gitignored).
+- **Workflow:** read `.credentials.json` → set user config + remote with token → commit as collaborator → push → clean remote URL.
 - The repo is `aronno-is-here/melodify-music-streaming` on GitHub.
+- Branches: `mimi` (for mimibintesharif), `ehsanul` (for mmostaba21372-web), `choa` (for choaIslam).
+
+### Branch Workflow for Contributors
+1. **Switch to the contributor's branch** (`mimi`, `ehsanul`, or `choa`)
+2. **Make the changes** on that branch
+3. **Commit** with the contributor's author info
+4. **Push** to their branch using their PAT
+5. **Merge** the branch into `main` (fast-forward or merge commit)
+6. **Push main** to origin
+7. **Clean** the remote URL (remove token)
 
 ## Commit Policy — NEVER commit
 
