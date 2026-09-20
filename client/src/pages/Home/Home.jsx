@@ -1,5 +1,12 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { api } from '../../api/client.js';
+import MusicBackground3D from '../../components/home/MusicBackground3D.jsx';
+import AmbientOverlay from '../../components/home/AmbientOverlay.jsx';
+import HeroSection from '../../components/home/HeroSection.jsx';
+import SectionReveal from '../../components/home/SectionReveal.jsx';
+import { useScrollProgress } from '../../hooks/useScrollProgress.js';
 import cssRaw from './Home.css?raw';
 
 export default function Home() {
@@ -10,239 +17,314 @@ export default function Home() {
     document.head.appendChild(style);
     return () => style.remove();
   }, []);
+
+  const { user } = useAuth();
+  const scrollProgress = useScrollProgress();
+  const [songs, setSongs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSongs = async () => {
+      try {
+        const data = await api.get('/api/songs?limit=6');
+        if (data.success) setSongs(data.songs || []);
+      } catch {
+        setSongs([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSongs();
+  }, []);
+
+  const featuredSong = songs[0] || null;
+  const trendingSongs = songs.slice(1, 6);
+
+  const handleImgError = (e) => {
+    e.target.src = '/default-poster.jpg';
+  };
+
   return (
-    <>
-      {/* Header */}
-      <header>
-        <div className="container">
-          <nav>
-            <div className="logo">
+    <div className="home-page">
+      <MusicBackground3D scrollProgress={scrollProgress} />
+      <AmbientOverlay scrollProgress={scrollProgress} />
+
+      <div className="home-content">
+        {/* NAVBAR */}
+        <header className="home-header">
+          <div className="home-header-inner">
+            <Link to="/" className="home-logo">
               MELOD<span>IFY</span>
-            </div>
-            <ul className="auth-links">
-              <li>
-                <Link to="/signup" className="btn">
-                  Sign Up
-                </Link>
-              </li>
-              <li>
-                <Link to="/login" className="btn">
-                  Login
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="hero">
-        <div className="container">
-          <div className="hero-content">
-            <h1>Stream Your Favorite Music Anytime, Anywhere</h1>
-            <p>
-              Discover millions of songs, download for offline listening, and
-              enjoy personalized recommendations powered by AI.
-            </p>
-            <Link to="/signup" className="btn">
-              Get Started
             </Link>
+            <nav className="home-nav">
+              <Link to="/premium" className="home-nav-link">Premium</Link>
+              <Link to="/studio" className="home-nav-link">Studio</Link>
+              <Link to="/feed" className="home-nav-link">Community</Link>
+            </nav>
+            <div className="home-auth">
+              {user ? (
+                <Link to="/dashboard" className="home-btn home-btn-primary">
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link to="/login" className="home-btn home-btn-ghost">Log In</Link>
+                  <Link to="/signup" className="home-btn home-btn-primary">Sign Up</Link>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </header>
 
-      {/* Features Section */}
-      <section className="features">
-        <div className="container">
-          <div className="section-title">
-            <h2>Amazing Features</h2>
-            <p>
-              Melodify offers everything you need for the perfect music streaming
-              experience
+        {/* HERO */}
+        <HeroSection />
+
+        {/* FEATURED MUSIC */}
+        <SectionReveal className="home-section">
+          <div className="home-section-inner">
+            <div className="home-section-label">Featured</div>
+            <h2 className="home-section-title">Now Playing</h2>
+            {featuredSong ? (
+              <div className="featured-song-card">
+                <div className="featured-song-artwork">
+                  <img
+                    src={featuredSong.poster_url || '/default-poster.jpg'}
+                    alt={featuredSong.title}
+                    loading="lazy"
+                    onError={handleImgError}
+                  />
+                  <div className="featured-song-glow" />
+                </div>
+                <div className="featured-song-info">
+                  <span className="featured-song-badge">Featured Track</span>
+                  <h3 className="featured-song-title">{featuredSong.title}</h3>
+                  <p className="featured-song-artist">{featuredSong.artist}</p>
+                  <div className="featured-song-meta">
+                    <span><i className="fas fa-music" /> {featuredSong.genre}</span>
+                    {featuredSong.duration && (
+                      <span><i className="fas fa-clock" /> {Math.floor(featuredSong.duration / 60)}:{String(featuredSong.duration % 60).padStart(2, '0')}</span>
+                    )}
+                  </div>
+                  <Link to={user ? `/song/${featuredSong._id}` : '/signup'} className="home-btn home-btn-primary featured-song-cta">
+                    <i className="fas fa-play" /> {user ? 'Play Now' : 'Start Listening'}
+                  </Link>
+                </div>
+              </div>
+            ) : !loading ? (
+              <div className="home-empty-state">
+                <i className="fas fa-music" />
+                <p>Music library loading soon</p>
+              </div>
+            ) : null}
+          </div>
+        </SectionReveal>
+
+        {/* TRENDING */}
+        <SectionReveal className="home-section" delay={100}>
+          <div className="home-section-inner">
+            <div className="home-section-label">Discover</div>
+            <h2 className="home-section-title">Trending Now</h2>
+            {trendingSongs.length > 0 ? (
+              <div className="trending-grid">
+                {trendingSongs.map((song, i) => (
+                  <Link
+                    key={song._id}
+                    to={user ? `/song/${song._id}` : '/signup'}
+                    className="trending-card"
+                  >
+                    <div className="trending-card-artwork">
+                      <img
+                        src={song.poster_url || '/default-poster.jpg'}
+                        alt={song.title}
+                        loading="lazy"
+                        onError={handleImgError}
+                      />
+                      <div className="trending-card-overlay">
+                        <div className="trending-card-play">
+                          <i className="fas fa-play" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="trending-card-info">
+                      <h4 className="trending-card-title">{song.title}</h4>
+                      <p className="trending-card-artist">{song.artist}</p>
+                    </div>
+                    <div className="trending-card-index">{String(i + 1).padStart(2, '0')}</div>
+                  </Link>
+                ))}
+              </div>
+            ) : !loading ? (
+              <div className="home-empty-state">
+                <i className="fas fa-compact-disc" />
+                <p>Discover tracks once you sign in</p>
+              </div>
+            ) : null}
+          </div>
+        </SectionReveal>
+
+        {/* STUDIO / KARAOKE */}
+        <SectionReveal className="home-section" delay={150}>
+          <div className="home-section-inner">
+            <div className="studio-promo">
+              <div className="studio-promo-visual">
+                <div className="studio-wave-ring studio-wave-ring-1" />
+                <div className="studio-wave-ring studio-wave-ring-2" />
+                <div className="studio-wave-ring studio-wave-ring-3" />
+                <div className="studio-mic-icon">
+                  <i className="fas fa-microphone-alt" />
+                </div>
+              </div>
+              <div className="studio-promo-content">
+                <div className="home-section-label">Create</div>
+                <h2 className="home-section-title">Melodify Studio</h2>
+                <p className="studio-promo-desc">
+                  Sing along with real-time synced lyrics, apply professional
+                  vocal effects, and publish your recordings to the Melodify
+                  community. Your stage, your voice.
+                </p>
+                <ul className="studio-promo-features">
+                  <li><i className="fas fa-microphone" /> Professional vocal recording</li>
+                  <li><i className="fas fa-sliders-h" /> Studio effects & presets</li>
+                  <li><i className="fas fa-share-alt" /> Publish & share recordings</li>
+                </ul>
+                <Link to={user ? '/studio' : '/signup'} className="home-btn home-btn-primary">
+                  <i className="fas fa-headphones" /> Open Studio
+                </Link>
+              </div>
+            </div>
+          </div>
+        </SectionReveal>
+
+        {/* COMMUNITY */}
+        <SectionReveal className="home-section" delay={100}>
+          <div className="home-section-inner">
+            <div className="home-section-label">Community</div>
+            <h2 className="home-section-title">From the Community</h2>
+            <p className="home-section-subtitle">
+              Real recordings from Melodify artists around the world
             </p>
-          </div>
-
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">🎵</div>
-              <h3>Unlimited Streaming</h3>
-              <p>
-                Access to millions of songs from artists all around the world with
-                no interruptions.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">📥</div>
-              <h3>Offline Listening</h3>
-              <p>
-                Download your favorite tracks and playlists to listen without an
-                internet connection.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">🔍</div>
-              <h3>Smart Search</h3>
-              <p>
-                Find songs by lyrics, melody, or just humming. Our AI will
-                identify the song for you.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">🤖</div>
-              <h3>AI Recommendations</h3>
-              <p>
-                Personalized playlists and recommendations based on your listening
-                habits.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">🎤</div>
-              <h3>Karaoke Mode</h3>
-              <p>
-                Sing along with real-time lyrics and record your own versions of
-                songs.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">🎸</div>
-              <h3>Guitar Chords</h3>
-              <p>
-                Learn to play your favorite songs with interactive chord displays.
-              </p>
+            <div className="community-promo">
+              <div className="community-card">
+                <div className="community-card-icon">
+                  <i className="fas fa-users" />
+                </div>
+                <h3>Discover Artists</h3>
+                <p>Browse public profiles and find new talent in the Melodify community.</p>
+                <Link to={user ? '/feed' : '/signup'} className="home-btn home-btn-ghost">
+                  Explore Feed
+                </Link>
+              </div>
+              <div className="community-card">
+                <div className="community-card-icon">
+                  <i className="fas fa-record-vinyl" />
+                </div>
+                <h3>Public Recordings</h3>
+                <p>Listen to community karaoke recordings and find your next favorite cover.</p>
+                <Link to={user ? '/feed' : '/signup'} className="home-btn home-btn-ghost">
+                  Listen Now
+                </Link>
+              </div>
+              <div className="community-card">
+                <div className="community-card-icon">
+                  <i className="fas fa-heart" />
+                </div>
+                <h3>Connect & Follow</h3>
+                <p>Follow creators, like posts, and build your music network.</p>
+                <Link to={user ? '/feed' : '/signup'} className="home-btn home-btn-ghost">
+                  Join In
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </SectionReveal>
 
-      {/* How It Works Section */}
-      <section className="how-it-works">
-        <div className="container">
-          <div className="section-title">
-            <h2>How It Works</h2>
-            <p>Get started with Melodify in just a few simple steps</p>
+        {/* PREMIUM */}
+        <SectionReveal className="home-section" delay={100}>
+          <div className="home-section-inner">
+            <div className="premium-promo">
+              <div className="premium-promo-bg" />
+              <div className="premium-promo-content">
+                <div className="home-section-label home-section-label--premium">Premium</div>
+                <h2 className="home-section-title">Elevate Your Experience</h2>
+                <p className="premium-promo-desc">
+                  Unlock priority features, ad-free listening, and exclusive
+                  content with Melodify Premium. Choose the plan that fits you.
+                </p>
+                <div className="premium-promo-plans">
+                  <div className="premium-mini-plan">
+                    <span className="premium-mini-name">Individual</span>
+                    <span className="premium-mini-price">Best for one</span>
+                  </div>
+                  <div className="premium-mini-plan">
+                    <span className="premium-mini-name">Student</span>
+                    <span className="premium-mini-price">Discounted</span>
+                  </div>
+                  <div className="premium-mini-plan">
+                    <span className="premium-mini-name">Duo</span>
+                    <span className="premium-mini-price">For two</span>
+                  </div>
+                </div>
+                <Link to="/premium" className="home-btn home-btn-premium">
+                  View Plans
+                </Link>
+              </div>
+            </div>
           </div>
+        </SectionReveal>
 
-          <div className="steps">
-            <div className="step">
-              <div className="step-number">1</div>
-              <h3>Create an Account</h3>
-              <p>Sign up for free and set up your profile in seconds.</p>
+        {/* FINAL CTA */}
+        <SectionReveal className="home-section" delay={100}>
+          <div className="home-section-inner">
+            <div className="final-cta">
+              <h2 className="final-cta-title">Ready to Feel the Music?</h2>
+              <p className="final-cta-desc">
+                Join Melodify and enter a world of premium music streaming,
+                creative tools, and a vibrant community.
+              </p>
+              <Link to={user ? '/dashboard' : '/signup'} className="home-btn home-btn-primary home-btn-lg">
+                {user ? 'Go to Dashboard' : 'Get Started Free'}
+              </Link>
             </div>
+          </div>
+        </SectionReveal>
 
-            <div className="step">
-              <div className="step-number">2</div>
-              <h3>Choose Your Plan</h3>
-              <p>Select from our free or premium subscription options.</p>
-            </div>
-
-            <div className="step">
-              <div className="step-number">3</div>
-              <h3>Explore Music</h3>
-              <p>
-                Browse our extensive library or let us recommend music for you.
+        {/* FOOTER */}
+        <footer className="home-footer">
+          <div className="home-footer-inner">
+            <div className="home-footer-brand">
+              <div className="home-logo home-logo--footer">
+                MELOD<span>IFY</span>
+              </div>
+              <p className="home-footer-tagline">
+                The premium music streaming experience. Stream, create, and
+                connect with music lovers worldwide.
               </p>
             </div>
-
-            <div className="step">
-              <div className="step-number">4</div>
-              <h3>Enjoy Anywhere</h3>
-              <p>Listen on your phone, computer, or other devices.</p>
+            <div className="home-footer-links">
+              <div className="home-footer-col">
+                <h4>Product</h4>
+                <Link to="/premium">Premium</Link>
+                <Link to="/studio">Studio</Link>
+                <Link to="/feed">Community</Link>
+              </div>
+              <div className="home-footer-col">
+                <h4>Account</h4>
+                <Link to="/login">Log In</Link>
+                <Link to="/signup">Sign Up</Link>
+                <Link to="/profile">Profile</Link>
+              </div>
+              <div className="home-footer-col">
+                <h4>Legal</h4>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="cta">
-        <div className="container">
-          <h2>Ready to Start Your Musical Journey?</h2>
-          <p>
-            Join millions of users enjoying unlimited music streaming with
-            Melodify. No credit card required to start.
-          </p>
-          <Link to="/signup" className="btn">
-            Sign Up Free
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer>
-        <div className="container">
-          <div className="footer-content">
-            <div className="footer-column">
-              <h3>Melodify</h3>
-              <p>
-                The ultimate music streaming experience with AI-powered features
-                and unlimited access to your favorite songs.
-              </p>
-            </div>
-
-            <div className="footer-column">
-              <h3>Company</h3>
-              <ul className="footer-links">
-                <li>
-                  <a href="#">About Us</a>
-                </li>
-                <li>
-                  <a href="#">Careers</a>
-                </li>
-                <li>
-                  <a href="#">Press</a>
-                </li>
-                <li>
-                  <a href="#">Blog</a>
-                </li>
-              </ul>
-            </div>
-
-            <div className="footer-column">
-              <h3>Support</h3>
-              <ul className="footer-links">
-                <li>
-                  <a href="#">Help Center</a>
-                </li>
-                <li>
-                  <a href="#">Contact Us</a>
-                </li>
-                <li>
-                  <a href="#">Privacy Policy</a>
-                </li>
-                <li>
-                  <a href="#">Terms of Service</a>
-                </li>
-              </ul>
-            </div>
-
-            <div className="footer-column">
-              <h3>Download App</h3>
-              <ul className="footer-links">
-                <li>
-                  <a href="#">iOS</a>
-                </li>
-                <li>
-                  <a href="#">Android</a>
-                </li>
-                <li>
-                  <a href="#">Windows</a>
-                </li>
-                <li>
-                  <a href="#">Mac</a>
-                </li>
-              </ul>
-            </div>
+          <div className="home-footer-bottom">
+            <p>&copy; 2026 Melodify. All rights reserved.</p>
           </div>
-
-          <div className="copyright">
-            <p>© 2025 Melodify. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-    </>
+        </footer>
+      </div>
+    </div>
   );
 }
