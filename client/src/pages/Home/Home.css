@@ -1187,3 +1187,15 @@
     transform: none;
   }
 }
+
+/* ---- FOCUS STATES ---- */
+.home-btn:focus-visible,
+.hero-cta-primary:focus-visible,
+.hero-cta-secondary:focus-visible,
+.home-nav-link:focus-visible,
+.home-logo:focus-visible,
+.trending-card:focus-visible,
+.community-card:focus-visible {
+  outline: 2px solid var(--home-sky);
+  outline-offset: 2px;
+}
