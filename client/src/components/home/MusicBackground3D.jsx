@@ -21,14 +21,16 @@ function Scene({ scrollProgress }) {
 function WebGLFallback() {
   return (
     <div
+      aria-hidden="true"
       style={{
         position: 'absolute',
         inset: 0,
         background:
-          'radial-gradient(ellipse at 30% 20%, rgba(0,180,216,0.15) 0%, transparent 50%), ' +
-          'radial-gradient(ellipse at 70% 60%, rgba(80,64,160,0.1) 0%, transparent 50%), ' +
-          'radial-gradient(ellipse at 50% 80%, rgba(0,180,216,0.08) 0%, transparent 40%), ' +
-          '#0a0a0a',
+          'radial-gradient(ellipse at 25% 15%, rgba(0,180,216,0.12) 0%, transparent 50%), ' +
+          'radial-gradient(ellipse at 75% 55%, rgba(80,64,160,0.08) 0%, transparent 50%), ' +
+          'radial-gradient(ellipse at 50% 85%, rgba(0,180,216,0.06) 0%, transparent 40%), ' +
+          'radial-gradient(circle at 60% 20%, rgba(0,212,255,0.04) 0%, transparent 35%), ' +
+          '#0a0a0f',
       }}
     />
   );
@@ -66,12 +68,15 @@ export default function MusicBackground3D({ scrollProgress = 0 }) {
       <Suspense fallback={<WebGLFallback />}>
         <Canvas
           camera={{ position: [0, 0, 6], fov: 60 }}
-          dpr={[1, 1.5]}
+          dpr={[1, 1.2]}
           gl={{
             antialias: false,
             alpha: true,
             powerPreference: 'high-performance',
+            stencil: false,
+            depth: false,
           }}
+          frameloop="always"
           style={{ background: 'transparent' }}
         >
           <Scene scrollProgress={scrollProgress} />
