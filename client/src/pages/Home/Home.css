@@ -112,3 +112,60 @@
   align-items: center;
   gap: 12px;
 }
+
+/* ---- BUTTONS ---- */
+.home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.home-btn-primary {
+  background: var(--home-sky);
+  color: #0a0a0f;
+}
+
+.home-btn-primary:hover {
+  background: var(--home-sky-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(0,180,216,0.25);
+}
+
+.home-btn-ghost {
+  background: transparent;
+  color: var(--home-text-secondary);
+  border: 1px solid var(--home-border);
+}
+
+.home-btn-ghost:hover {
+  color: var(--home-text);
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+}
+
+.home-btn-premium {
+  background: linear-gradient(135deg, var(--home-premium-gold), #c4943f);
+  color: #0a0a0f;
+  font-weight: 700;
+}
+
+.home-btn-premium:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 24px rgba(212,168,83,0.3);
+}
+
+.home-btn-lg {
+  padding: 14px 32px;
+  font-size: 15px;
+  border-radius: 10px;
+}
