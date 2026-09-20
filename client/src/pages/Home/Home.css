@@ -1155,3 +1155,35 @@
     font-size: 26px;
   }
 }
+
+/* ---- REDUCED MOTION ---- */
+@media (prefers-reduced-motion: reduce) {
+  .section-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .hero-scroll-line {
+    animation: none;
+  }
+
+  .studio-wave-ring {
+    animation: none;
+  }
+
+  .skeleton-block,
+  .skeleton-line {
+    animation: none;
+  }
+
+  .trending-card:hover .trending-card-artwork img,
+  .trending-card:hover,
+  .community-card:hover,
+  .home-btn:hover,
+  .hero-cta-primary:hover,
+  .hero-cta-secondary:hover,
+  .featured-song-card:hover {
+    transform: none;
+  }
+}
