@@ -1199,3 +1199,12 @@
   outline: 2px solid var(--home-sky);
   outline-offset: 2px;
 }
+
+/* ---- SECTION GRADIENT TRANSITIONS ---- */
+.home-section:nth-child(odd) {
+  background: linear-gradient(180deg, transparent 0%, rgba(0,180,216,0.015) 50%, transparent 100%);
+}
+
+.home-section:nth-child(even) {
+  background: linear-gradient(180deg, transparent 0%, rgba(80,64,160,0.01) 50%, transparent 100%);
+}
