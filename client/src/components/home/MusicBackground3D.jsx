@@ -26,11 +26,11 @@ function WebGLFallback() {
         position: 'absolute',
         inset: 0,
         background:
-          'radial-gradient(ellipse at 25% 15%, rgba(0,180,216,0.12) 0%, transparent 50%), ' +
-          'radial-gradient(ellipse at 75% 55%, rgba(80,64,160,0.08) 0%, transparent 50%), ' +
-          'radial-gradient(ellipse at 50% 85%, rgba(0,180,216,0.06) 0%, transparent 40%), ' +
-          'radial-gradient(circle at 60% 20%, rgba(0,212,255,0.04) 0%, transparent 35%), ' +
-          '#0a0a0f',
+          'radial-gradient(ellipse at 25% 15%, rgba(0,180,216,0.08) 0%, transparent 50%), ' +
+          'radial-gradient(ellipse at 75% 55%, rgba(80,64,160,0.06) 0%, transparent 50%), ' +
+          'radial-gradient(ellipse at 50% 85%, rgba(0,180,216,0.04) 0%, transparent 40%), ' +
+          'radial-gradient(circle at 60% 20%, rgba(0,212,255,0.03) 0%, transparent 35%), ' +
+          '#050507',
       }}
     />
   );
