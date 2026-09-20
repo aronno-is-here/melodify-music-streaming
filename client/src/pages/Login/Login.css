@@ -112,6 +112,30 @@ body {
   outline: none;
 }
 
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  width: 100%;
+  padding: 10px 40px 10px 10px;
+  border: 1px solid var(--gray);
+  border-radius: 20px;
+  background-color: var(--accent-black);
+  color: var(--white);
+  font-size: 14px;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--gray);
+  font-size: 18px;
+}
+
 .continue-btn {
   width: 100%;
   padding: 12px;

@@ -107,6 +107,12 @@ npm run dev
 - Update the README in the same commit as the code change (or a commit immediately after).
 - If a feature is removed or renamed, remove/update its README entry too.
 
+## GitHub Collaborator — Commit as Contributor
+
+- When the user asks to "commit for mimi" or similar, use the credentials stored in `.credentials.json` (gitignored).
+- **Workflow:** read `.credentials.json` → set remote with token → commit as collaborator → push → clean remote URL.
+- The repo is `aronno-is-here/melodify-music-streaming` on GitHub.
+
 ## Commit Policy — NEVER commit
 
 - `.env` files (any location, any variant: `.env`, `.env.local`, `.env.*` — only `.env.example` allowed)
