@@ -4,12 +4,13 @@ import * as THREE from 'three';
 
 export default function ParticleField({ count = 800, scrollProgress = 0 }) {
   const mesh = useRef();
-  const { viewport } = useThree();
+  const { viewport, size } = useThree();
 
   const [positions, sizes, colors] = useMemo(() => {
-    const isMobile = viewport.width < 10;
-    const actualCount = isMobile ? Math.floor(count * 0.4) : count;
-    const spread = isMobile ? 12 : 20;
+    const isMobile = size.width < 768 || viewport.width < 10;
+    const isTablet = size.width < 1200 && !isMobile;
+    const actualCount = isMobile ? Math.floor(count * 0.3) : isTablet ? Math.floor(count * 0.6) : count;
+    const spread = isMobile ? 10 : isTablet ? 15 : 20;
     const pos = new Float32Array(actualCount * 3);
     const siz = new Float32Array(actualCount);
     const col = new Float32Array(actualCount * 3);
@@ -40,8 +41,9 @@ export default function ParticleField({ count = 800, scrollProgress = 0 }) {
     const posArr = mesh.current.geometry.attributes.position.array;
     const sizArr = mesh.current.geometry.attributes.size.array;
     const len = posArr.length / 3;
+    const step = size.width < 768 ? 3 : 1;
 
-    for (let i = 0; i < len; i++) {
+    for (let i = 0; i < len; i += step) {
       const i3 = i * 3;
       posArr[i3 + 1] += Math.sin(time * 0.15 + i * 0.02) * 0.002;
       posArr[i3] += Math.cos(time * 0.1 + i * 0.015) * 0.001;
