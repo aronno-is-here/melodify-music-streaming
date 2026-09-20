@@ -6,6 +6,16 @@ export default function HeroSection() {
 
   return (
     <section className="hero-section" aria-label="Melodify hero">
+      <div className="hero-image-bg" aria-hidden="true">
+        <img
+          src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
+          alt=""
+          className="hero-image"
+          loading="eager"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+        <div className="hero-image-overlay" />
+      </div>
       <div className="hero-content-wrapper">
         <div className="hero-badge" aria-hidden="true">Music Reimagined</div>
         <h1 className="hero-headline">
