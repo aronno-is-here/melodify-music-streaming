@@ -40,6 +40,10 @@ export default function Home() {
   const featuredSong = songs[0] || null;
   const trendingSongs = songs.slice(1, 6);
 
+  const handleImgError = (e) => {
+    e.target.src = '/default-poster.jpg';
+  };
+
   return (
     <div className="home-page">
       <MusicBackground3D scrollProgress={scrollProgress} />
@@ -87,6 +91,7 @@ export default function Home() {
                     src={featuredSong.poster_url || '/default-poster.jpg'}
                     alt={featuredSong.title}
                     loading="lazy"
+                    onError={handleImgError}
                   />
                   <div className="featured-song-glow" />
                 </div>
@@ -132,6 +137,7 @@ export default function Home() {
                         src={song.poster_url || '/default-poster.jpg'}
                         alt={song.title}
                         loading="lazy"
+                        onError={handleImgError}
                       />
                       <div className="trending-card-overlay">
                         <div className="trending-card-play">
