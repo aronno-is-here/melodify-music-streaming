@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 
 const SECTION_COLORS = [
-  { pos: '20% 10%', color: 'rgba(0,180,216,0.10)', size: 60 },
-  { pos: '80% 30%', color: 'rgba(80,64,160,0.07)', size: 50 },
-  { pos: '30% 55%', color: 'rgba(0,180,216,0.05)', size: 55 },
-  { pos: '70% 75%', color: 'rgba(100,60,180,0.06)', size: 45 },
-  { pos: '50% 95%', color: 'rgba(0,140,180,0.04)', size: 60 },
+  { pos: '20% 10%', color: 'rgba(0,180,216,0.07)', size: 60 },
+  { pos: '80% 30%', color: 'rgba(80,64,160,0.05)', size: 50 },
+  { pos: '30% 55%', color: 'rgba(0,180,216,0.04)', size: 55 },
+  { pos: '70% 75%', color: 'rgba(100,60,180,0.04)', size: 45 },
+  { pos: '50% 95%', color: 'rgba(0,140,180,0.03)', size: 60 },
 ];
 
 export default function AmbientOverlay({ scrollProgress = 0 }) {
