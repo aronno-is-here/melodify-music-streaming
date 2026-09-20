@@ -37,8 +37,7 @@ export default function Home() {
     loadSongs();
   }, []);
 
-  const featuredSong = songs[0] || null;
-  const trendingSongs = songs.slice(1, 6);
+  const trendingSongs = songs.slice(0, 6);
 
   const handleImgError = (e) => {
     e.target.src = '/default-poster.jpg';
@@ -78,46 +77,6 @@ export default function Home() {
 
         {/* HERO */}
         <HeroSection />
-
-        {/* FEATURED MUSIC */}
-        <SectionReveal className="home-section">
-          <div className="home-section-inner">
-            <div className="home-section-label">Featured</div>
-            <h2 className="home-section-title">Now Playing</h2>
-            {featuredSong ? (
-              <div className="featured-song-card">
-                <div className="featured-song-artwork">
-                  <img
-                    src={featuredSong.poster_url || '/default-poster.jpg'}
-                    alt={featuredSong.title}
-                    loading="lazy"
-                    onError={handleImgError}
-                  />
-                  <div className="featured-song-glow" />
-                </div>
-                <div className="featured-song-info">
-                  <span className="featured-song-badge">Featured Track</span>
-                  <h3 className="featured-song-title">{featuredSong.title}</h3>
-                  <p className="featured-song-artist">{featuredSong.artist}</p>
-                  <div className="featured-song-meta">
-                    <span><i className="fas fa-music" /> {featuredSong.genre}</span>
-                    {featuredSong.duration && (
-                      <span><i className="fas fa-clock" /> {Math.floor(featuredSong.duration / 60)}:{String(featuredSong.duration % 60).padStart(2, '0')}</span>
-                    )}
-                  </div>
-                  <Link to={user ? `/song/${featuredSong._id}` : '/signup'} className="home-btn home-btn-primary featured-song-cta">
-                    <i className="fas fa-play" /> {user ? 'Play Now' : 'Start Listening'}
-                  </Link>
-                </div>
-              </div>
-            ) : !loading ? (
-              <div className="home-empty-state">
-                <i className="fas fa-music" />
-                <p>Music library loading soon</p>
-              </div>
-            ) : null}
-          </div>
-        </SectionReveal>
 
         {/* TRENDING */}
         <SectionReveal className="home-section" delay={100}>
