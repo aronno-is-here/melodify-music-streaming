@@ -908,3 +908,55 @@
   font-size: 13px;
   color: var(--home-text-muted);
 }
+
+/* ---- EMPTY STATE ---- */
+.home-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px;
+  color: var(--home-text-muted);
+}
+
+.home-empty-state i {
+  font-size: 36px;
+  opacity: 0.3;
+}
+
+.home-empty-state p {
+  font-size: 14px;
+}
+
+/* ---- SKELETON LOADING ---- */
+.skeleton-block {
+  background: linear-gradient(90deg, var(--home-bg-card) 25%, var(--home-bg-card-hover) 50%, var(--home-bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--home-bg-card) 25%, var(--home-bg-card-hover) 50%, var(--home-bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-card {
+  background: var(--home-bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--home-border);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
