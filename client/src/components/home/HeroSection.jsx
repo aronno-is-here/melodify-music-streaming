@@ -35,7 +35,7 @@ export default function HeroSection() {
             <span>{user ? 'Dashboard' : 'Explore Music'}</span>
           </Link>
           <Link to="/premium" className="hero-cta-secondary">
-            <i className="fas fa-play" aria-hidden="true" />
+            <svg width="12" height="13" viewBox="0 0 12 13" fill="none" aria-hidden="true"><path d="M2 1.5 10 6.5 2 11.5Z" stroke="currentColor" strokeLinejoin="round" /></svg>
             <span>Watch Video</span>
           </Link>
         </div>

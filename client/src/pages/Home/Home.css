@@ -353,25 +353,26 @@
 .hero-cta-group {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .hero-cta-primary {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 13px 28px;
-  background: var(--home-sky);
-  color: #0a0a0f;
-  font-size: 14px;
-  font-weight: 700;
-  border-radius: 10px;
+  min-height: 44px;
+  padding: 0 24px;
+  background: linear-gradient(110deg, #7041ff, #3d69ff);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 999px;
   text-decoration: none;
   transition: all 0.25s ease;
 }
 
 .hero-cta-primary:hover {
-  background: var(--home-cyan);
+  background: linear-gradient(110deg, #8458ff, #4f7aff);
   transform: translateY(-1px);
   box-shadow: 0 6px 24px rgba(0,180,216,0.3);
 }
@@ -384,13 +385,14 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 13px 28px;
-  background: rgba(255,255,255,0.06);
-  color: #d0d0da;
-  font-size: 14px;
-  font-weight: 600;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 10px;
+  min-height: 44px;
+  padding: 0 23px;
+  background: rgba(2,8,20,0.55);
+  color: #d9ebff;
+  font-size: 13px;
+  font-weight: 400;
+  border: 1px solid #536caa;
+  border-radius: 999px;
   text-decoration: none;
   transition: all 0.25s ease;
 }
