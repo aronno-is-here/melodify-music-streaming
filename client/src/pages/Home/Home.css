@@ -6,19 +6,19 @@
 .home-page {
   --home-width: 1170px;
   --home-gutter: 24px;
-  --home-bg: #050507;
-  --home-bg-card: #0c0c18;
+  --home-bg: #02050a;
+  --home-bg-card: #061122;
   --home-bg-card-hover: #12122a;
   --home-sky: #00b4d8;
   --home-cyan: #00d4ff;
   --home-indigo: #5040a0;
   --home-purple: #6c3fc5;
   --home-violet: #8b5cf6;
-  --home-text: #e8e8ec;
-  --home-text-secondary: #8a8a9a;
-  --home-text-muted: #5a5a6a;
-  --home-border: rgba(255,255,255,0.06);
-  --home-border-light: rgba(255,255,255,0.08);
+  --home-text: #f4f7ff;
+  --home-text-secondary: #c1d7f4;
+  --home-text-muted: #a8c4e7;
+  --home-border: rgba(110,153,216,0.22);
+  --home-border-light: rgba(110,153,216,0.3);
   color: var(--home-text);
   color-scheme: dark;
   isolation: isolate;
@@ -26,6 +26,16 @@
   min-height: 100vh;
   background: var(--home-bg);
   overflow-x: hidden;
+  font-family: 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.home-page :where(h1, h2, h3, h4, p) {
+  margin-top: 0;
+}
+
+.home-page a {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .home-content {

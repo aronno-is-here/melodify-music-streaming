@@ -149,10 +149,10 @@ ADMIN_PASSWORD=your-strong-password
 - Homepage layout uses a shared 1170px desktop content width with fluid 24px gutters.
 - **Homepage** — reference-led redesign with page-scoped CSS injected on mount. The injection strips a leading U+FEFF defensively so the root selector, dark color scheme, and theme variables resolve even with BOM-emitting editors.
 - Homepage implementation checkpoints are numbered `01/50`–`50/50` on `ehsanul`, after baseline `6a16a8e97e72a52cf563efe32d49c0646238bdb1`. Resume from the latest numbered commit and preserve any uncommitted work.
-- **Dark theme** — Spotify-style black (#121212) with sky-blue accents (#00b4d8)
+- **Homepage palette** — near-black/navy surfaces, pale-blue secondary text, and blue/violet accents. Typography and color scope remain local to the homepage.
 - Responsive 3-column layout (Library | Songs | Now Playing)
 - Hover animations, smooth transitions, custom scrollbars
-- CSS carried over **verbatim** from the original pages — design unchanged
+- Other pages retain their independent page styles.
 
 ---
 
