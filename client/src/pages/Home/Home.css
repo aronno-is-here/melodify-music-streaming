@@ -296,12 +296,13 @@
 }
 
 .hero-eyebrow {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 3px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0.15px;
   text-transform: uppercase;
-  color: #b0b0c0;
-  margin-bottom: 20px;
+  color: #f3f6ff;
+  margin-bottom: 8px;
 }
 
 .hero-headline {
