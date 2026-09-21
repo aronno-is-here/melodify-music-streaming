@@ -58,8 +58,8 @@ export default function Home() {
               <Waveform />
               <span className="home-logo-text">Melodify</span>
             </Link>
-            <nav className="home-nav">
-              <Link to="/" className="home-nav-link home-nav-link--active">Home</Link>
+            <nav className="home-nav" aria-label="Main navigation">
+              <Link to="/" className="home-nav-link home-nav-link--active" aria-current="page">Home</Link>
               <Link to="/premium" className="home-nav-link">Premium</Link>
               <Link to="/studio" className="home-nav-link">Studio</Link>
               <Link to="/feed" className="home-nav-link">Feed</Link>

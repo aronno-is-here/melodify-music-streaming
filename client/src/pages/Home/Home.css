@@ -100,17 +100,19 @@
 /* Nav links */
 .home-nav {
   display: flex;
-  gap: 36px;
+  gap: 42px;
+  margin-left: 38px;
+  margin-right: auto;
 }
 
 .home-nav-link {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: #9090a0;
+  color: #f1f5ff;
   text-decoration: none;
   transition: color 0.25s ease;
   position: relative;
-  padding-bottom: 4px;
+  padding-block: 8px;
 }
 
 .home-nav-link:hover {
@@ -124,11 +126,11 @@
 .home-nav-link--active::after {
   content: '';
   position: absolute;
-  bottom: -2px;
+  bottom: 0;
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--home-sky);
+  background: linear-gradient(90deg, #9362ff, #426dff);
   border-radius: 1px;
 }
 
