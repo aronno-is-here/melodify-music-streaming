@@ -421,36 +421,44 @@
 /* Section header with accent bar */
 .home-section-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 28px;
+  margin-bottom: 9px;
 }
 
 .home-section-header-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  position: relative;
+  padding-left: 14px;
+}
+
+.home-section-header-left .home-section-subtitle {
+  margin-left: -14px;
 }
 
 .home-section-accent {
+  position: absolute;
+  left: 0;
+  top: 2px;
   width: 4px;
-  height: 36px;
-  background: var(--home-sky);
+  height: 18px;
+  background: linear-gradient(#8f5fff, #306eff);
   border-radius: 2px;
-  margin-top: 4px;
+  margin-top: 0;
   flex-shrink: 0;
 }
 
 .home-section-title {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 18px;
+  line-height: 23px;
+  font-weight: 600;
   color: var(--home-text);
   letter-spacing: -0.3px;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .home-section-subtitle {
-  font-size: 14px;
+  font-size: 12px;
+  line-height: 18px;
   color: var(--home-text-muted);
   margin-bottom: 0;
 }
@@ -459,7 +467,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--home-text-muted);
   text-decoration: none;
