@@ -263,7 +263,7 @@
   object-fit: cover;
   object-position: center 32%;
   transform: scaleX(-1);
-  filter: grayscale(1) brightness(0.65) contrast(1.2);
+  filter: grayscale(1) brightness(0.52) contrast(1.25);
   mask-image: linear-gradient(90deg, transparent, #000 18%, #000 77%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 77%, transparent);
   display: block;
@@ -283,7 +283,7 @@
   bottom: -2px;
   left: 0;
   right: 0;
-  height: 100px;
+  height: 38px;
   background: linear-gradient(to bottom, transparent, var(--home-bg));
   z-index: 1;
   pointer-events: none;
@@ -409,7 +409,7 @@
 
 /* ---- SECTION BASE ---- */
 .home-section {
-  padding: 48px 0;
+  padding: 22px 0 0;
   position: relative;
 }
 
