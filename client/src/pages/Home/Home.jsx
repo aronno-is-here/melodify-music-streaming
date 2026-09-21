@@ -129,8 +129,8 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="trending-card-info">
-                      <h4 className="trending-card-title">{song.title}</h4>
-                      <p className="trending-card-artist">{song.artist}</p>
+                      <h4 className="trending-card-title" title={song.title}>{song.title}</h4>
+                      <p className="trending-card-artist" title={song.artist}>{song.artist}</p>
                       <span className="trending-card-duration">{formatDuration(song.duration)}</span>
                     </div>
                   </Link>

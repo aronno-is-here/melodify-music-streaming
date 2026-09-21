@@ -163,6 +163,7 @@ ADMIN_PASSWORD=your-strong-password
 - Trending has an 18px heading, short violet/blue accent, compact subtitle, and vertically centered View All action.
 - Trending keeps six equal desktop cards and reserves a compact loading grid while `/api/songs?limit=6` resolves.
 - Each card uses 66px inset artwork. `client/public/home/poster-fallback.svg` is a local fallback with a one-shot error guard.
+- Song metadata uses compact title/artist/duration rows; long names truncate visually while retaining their full tooltip text.
 - Hero photography: [Andrea Piacquadio / Pexels, photo 3771823](https://www.pexels.com/photo/3771823/), a headphone listener. The previously supplied Unsplash URL resolves to a microphone and is intentionally replaced. The reference screenshot remains local-only.
 - `components/home/Waveform.jsx` supplies a reusable blue/violet SVG brand mark with collision-free gradient IDs.
 - **Homepage** — reference-led redesign with page-scoped CSS injected on mount. The injection strips a leading U+FEFF defensively so the root selector, dark color scheme, and theme variables resolve even with BOM-emitting editors.

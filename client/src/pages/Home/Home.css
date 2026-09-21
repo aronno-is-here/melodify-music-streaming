@@ -564,32 +564,37 @@
 }
 
 .trending-card-info {
-  padding: 12px 14px 14px;
+  padding: 8px 0 0;
+  min-width: 0;
 }
 
 .trending-card-title {
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 17px;
   font-weight: 600;
   color: var(--home-text);
-  margin-bottom: 3px;
+  margin-bottom: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .trending-card-artist {
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 17px;
   color: var(--home-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 2px;
+  margin-bottom: 0;
+  padding-right: 24px;
 }
 
 .trending-card-duration {
   font-size: 11px;
+  line-height: 17px;
+  font-variant-numeric: tabular-nums;
   color: var(--home-text-muted);
-  opacity: 0.7;
 }
 
 /* ---- PROMO CARDS ---- */
