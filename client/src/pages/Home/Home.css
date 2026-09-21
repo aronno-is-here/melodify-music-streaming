@@ -344,10 +344,10 @@
 
 .hero-description {
   font-size: 15px;
-  line-height: 1.7;
-  color: #a0a0b0;
-  max-width: 480px;
-  margin-bottom: 36px;
+  line-height: 1.43;
+  color: #cbe6ff;
+  max-width: 380px;
+  margin-bottom: 20px;
 }
 
 .hero-cta-group {
