@@ -239,6 +239,19 @@
   position: absolute;
   inset: 0;
   z-index: 0;
+  background:
+    radial-gradient(ellipse at 86% 50%, #074fad 0%, transparent 48%),
+    radial-gradient(ellipse at 57% 25%, #7121a4 0%, transparent 35%),
+    #02091e;
+}
+
+.hero-image-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, #12103f 30%, #bb34ed 55%, #086cff 79%, #11246d);
+  mix-blend-mode: color;
+  pointer-events: none;
 }
 
 .hero-image {
@@ -250,6 +263,7 @@
   object-fit: cover;
   object-position: center 32%;
   transform: scaleX(-1);
+  filter: grayscale(1) brightness(0.65) contrast(1.2);
   mask-image: linear-gradient(90deg, transparent, #000 18%, #000 77%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 77%, transparent);
   display: block;
