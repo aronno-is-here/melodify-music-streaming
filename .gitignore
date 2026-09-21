@@ -42,3 +42,9 @@ client/vite.config.js.timestamp-*
 
 # Credentials file
 All Credentials.txt
+
+# Reference images (local only)
+Reference_Homepage.png
+
+# Credentials — NEVER commit
+.credentials.json

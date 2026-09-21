@@ -2,11 +2,7 @@ import { useLayoutEffect, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
-import MusicBackground3D from '../../components/home/MusicBackground3D.jsx';
-import AmbientOverlay from '../../components/home/AmbientOverlay.jsx';
 import HeroSection from '../../components/home/HeroSection.jsx';
-import SectionReveal from '../../components/home/SectionReveal.jsx';
-import { useScrollProgress } from '../../hooks/useScrollProgress.js';
 import cssRaw from './Home.css?raw';
 
 export default function Home() {
@@ -19,7 +15,6 @@ export default function Home() {
   }, []);
 
   const { user } = useAuth();
-  const scrollProgress = useScrollProgress();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,34 +38,51 @@ export default function Home() {
     e.target.src = '/default-poster.jpg';
   };
 
+  const formatDuration = (sec) => {
+    if (!sec) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
   return (
     <div className="home-page">
-      <MusicBackground3D scrollProgress={scrollProgress} />
-      <AmbientOverlay scrollProgress={scrollProgress} />
-
       <div className="home-content">
+
         {/* NAVBAR */}
         <header className="home-header">
           <div className="home-header-inner">
             <Link to="/" className="home-logo">
-              MELOD<span>IFY</span>
+              <svg className="home-logo-icon" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+                <rect x="2" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
+                <rect x="7" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
+                <rect x="12" y="2" width="3" height="24" rx="1.5" fill="currentColor"/>
+                <rect x="17" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
+                <rect x="22" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
+              </svg>
+              <span className="home-logo-text">Melodify</span>
             </Link>
             <nav className="home-nav">
+              <Link to="/" className="home-nav-link home-nav-link--active">Home</Link>
               <Link to="/premium" className="home-nav-link">Premium</Link>
               <Link to="/studio" className="home-nav-link">Studio</Link>
-              <Link to="/feed" className="home-nav-link">Community</Link>
+              <Link to="/feed" className="home-nav-link">Feed</Link>
             </nav>
-            <div className="home-auth">
-              {user ? (
-                <Link to="/dashboard" className="home-btn home-btn-primary">
-                  Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link to="/login" className="home-btn home-btn-ghost">Log In</Link>
-                  <Link to="/signup" className="home-btn home-btn-primary">Sign Up</Link>
-                </>
-              )}
+            <div className="home-right">
+              <div className="home-search">
+                <i className="fas fa-search home-search-icon" />
+                <input type="text" placeholder="Search songs, artists, or albums..." className="home-search-input" />
+              </div>
+              <button className="home-icon-btn" aria-label="Notifications">
+                <i className="fas fa-bell" />
+              </button>
+              <Link to={user ? '/profile' : '/login'} className="home-avatar">
+                {user ? (
+                  <span className="home-avatar-text">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                ) : (
+                  <i className="fas fa-user" />
+                )}
+              </Link>
             </div>
           </div>
         </header>
@@ -78,14 +90,24 @@ export default function Home() {
         {/* HERO */}
         <HeroSection />
 
-        {/* TRENDING */}
-        <SectionReveal className="home-section" delay={100}>
+        {/* TRENDING NOW */}
+        <section className="home-section">
           <div className="home-section-inner">
-            <div className="home-section-label">Discover</div>
-            <h2 className="home-section-title">Trending Now</h2>
+            <div className="home-section-header">
+              <div className="home-section-header-left">
+                <div className="home-section-accent" />
+                <div>
+                  <h2 className="home-section-title">Trending Now</h2>
+                  <p className="home-section-subtitle">The most loved tracks this week</p>
+                </div>
+              </div>
+              <Link to={user ? '/dashboard' : '/signup'} className="home-view-all">
+                View All <i className="fas fa-chevron-right" />
+              </Link>
+            </div>
             {trendingSongs.length > 0 ? (
               <div className="trending-grid">
-                {trendingSongs.map((song, i) => (
+                {trendingSongs.map((song) => (
                   <Link
                     key={song._id}
                     to={user ? `/song/${song._id}` : '/signup'}
@@ -98,17 +120,15 @@ export default function Home() {
                         loading="lazy"
                         onError={handleImgError}
                       />
-                      <div className="trending-card-overlay">
-                        <div className="trending-card-play">
-                          <i className="fas fa-play" />
-                        </div>
+                      <div className="trending-card-play">
+                        <i className="fas fa-play" />
                       </div>
                     </div>
                     <div className="trending-card-info">
                       <h4 className="trending-card-title">{song.title}</h4>
                       <p className="trending-card-artist">{song.artist}</p>
+                      <span className="trending-card-duration">{formatDuration(song.duration)}</span>
                     </div>
-                    <div className="trending-card-index">{String(i + 1).padStart(2, '0')}</div>
                   </Link>
                 ))}
               </div>
@@ -119,168 +139,128 @@ export default function Home() {
               </div>
             ) : null}
           </div>
-        </SectionReveal>
+        </section>
 
-        {/* STUDIO / KARAOKE */}
-        <SectionReveal className="home-section" delay={150}>
+        {/* FEATURE PROMOTION CARDS */}
+        <section className="home-section">
           <div className="home-section-inner">
-            <div className="studio-promo">
-              <div className="studio-promo-visual">
-                <div className="studio-wave-ring studio-wave-ring-1" />
-                <div className="studio-wave-ring studio-wave-ring-2" />
-                <div className="studio-wave-ring studio-wave-ring-3" />
-                <div className="studio-mic-icon">
-                  <i className="fas fa-microphone-alt" />
+            <div className="promo-grid">
+              {/* Studio Card */}
+              <div className="promo-card promo-card-studio">
+                <div className="promo-card-bg promo-card-bg-studio" />
+                <div className="promo-card-content">
+                  <h3 className="promo-card-title">Melodify Studio</h3>
+                  <p className="promo-card-subtitle">Create. Record. Share.</p>
+                  <p className="promo-card-desc">
+                    Bring your music to life with our professional studio tools and creative community.
+                  </p>
+                  <Link to={user ? '/studio' : '/signup'} className="promo-card-btn">
+                    Explore Studio <i className="fas fa-arrow-right" />
+                  </Link>
                 </div>
               </div>
-              <div className="studio-promo-content">
-                <div className="home-section-label">Create</div>
-                <h2 className="home-section-title">Melodify Studio</h2>
-                <p className="studio-promo-desc">
-                  Sing along with real-time synced lyrics, apply professional
-                  vocal effects, and publish your recordings to the Melodify
-                  community. Your stage, your voice.
-                </p>
-                <ul className="studio-promo-features">
-                  <li><i className="fas fa-microphone" /> Professional vocal recording</li>
-                  <li><i className="fas fa-sliders-h" /> Studio effects & presets</li>
-                  <li><i className="fas fa-share-alt" /> Publish & share recordings</li>
-                </ul>
-                <Link to={user ? '/studio' : '/signup'} className="home-btn home-btn-primary">
-                  <i className="fas fa-headphones" /> Open Studio
-                </Link>
+              {/* Premium Card */}
+              <div className="promo-card promo-card-premium">
+                <div className="promo-card-bg promo-card-bg-premium" />
+                <div className="promo-card-content">
+                  <div className="promo-card-crown">
+                    <i className="fas fa-crown" />
+                  </div>
+                  <h3 className="promo-card-title">Go Premium</h3>
+                  <p className="promo-card-subtitle">More music. More freedom.</p>
+                  <p className="promo-card-desc">
+                    Ad-free listening, higher quality audio, and exclusive content.
+                  </p>
+                  <Link to="/premium" className="promo-card-btn">
+                    Upgrade Now <i className="fas fa-arrow-right" />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
-        </SectionReveal>
+        </section>
 
         {/* COMMUNITY */}
-        <SectionReveal className="home-section" delay={100}>
+        <section className="home-section">
           <div className="home-section-inner">
-            <div className="home-section-label">Community</div>
-            <h2 className="home-section-title">From the Community</h2>
-            <p className="home-section-subtitle">
-              Real recordings from Melodify artists around the world
-            </p>
-            <div className="community-promo">
-              <div className="community-card">
-                <div className="community-card-icon">
-                  <i className="fas fa-users" />
+            <div className="community-container">
+              <div className="community-header">
+                <div className="community-header-left">
+                  <h2 className="home-section-title">Join Our Community</h2>
+                  <p className="home-section-subtitle" style={{ marginBottom: 0 }}>
+                    Real people. Real music. Real connections.
+                  </p>
                 </div>
-                <h3>Discover Artists</h3>
-                <p>Browse public profiles and find new talent in the Melodify community.</p>
-                <Link to={user ? '/feed' : '/signup'} className="home-btn home-btn-ghost">
-                  Explore Feed
-                </Link>
+                <div className="community-header-right">
+                  <div className="community-avatars">
+                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #6c3fc5, #00b4d8)' }}>
+                      <i className="fas fa-user" />
+                    </div>
+                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #e040a0, #6c3fc5)' }}>
+                      <i className="fas fa-user" />
+                    </div>
+                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #00b4d8, #00d4ff)' }}>
+                      <i className="fas fa-user" />
+                    </div>
+                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #d4a853, #e040a0)' }}>
+                      <i className="fas fa-user" />
+                    </div>
+                  </div>
+                  <Link to={user ? '/feed' : '/signup'} className="home-view-all">
+                    Explore Feed <i className="fas fa-chevron-right" />
+                  </Link>
+                </div>
               </div>
-              <div className="community-card">
-                <div className="community-card-icon">
-                  <i className="fas fa-record-vinyl" />
+              <div className="community-grid">
+                <div className="community-image">
+                  <img src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop" alt="Live performance" loading="lazy" onError={handleImgError} />
                 </div>
-                <h3>Public Recordings</h3>
-                <p>Listen to community karaoke recordings and find your next favorite cover.</p>
-                <Link to={user ? '/feed' : '/signup'} className="home-btn home-btn-ghost">
-                  Listen Now
-                </Link>
-              </div>
-              <div className="community-card">
-                <div className="community-card-icon">
-                  <i className="fas fa-heart" />
+                <div className="community-image">
+                  <img src="https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=300&fit=crop" alt="Music studio" loading="lazy" onError={handleImgError} />
                 </div>
-                <h3>Connect & Follow</h3>
-                <p>Follow creators, like posts, and build your music network.</p>
-                <Link to={user ? '/feed' : '/signup'} className="home-btn home-btn-ghost">
-                  Join In
-                </Link>
+                <div className="community-image">
+                  <img src="https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=400&h=300&fit=crop" alt="Vinyl records" loading="lazy" onError={handleImgError} />
+                </div>
+                <div className="community-image">
+                  <img src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=300&fit=crop" alt="Concert crowd" loading="lazy" onError={handleImgError} />
+                </div>
+                <div className="community-image">
+                  <img src="https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop" alt="Headphones" loading="lazy" onError={handleImgError} />
+                </div>
+                <div className="community-image">
+                  <img src="https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=300&fit=crop" alt="DJ setup" loading="lazy" onError={handleImgError} />
+                </div>
               </div>
             </div>
           </div>
-        </SectionReveal>
-
-        {/* PREMIUM */}
-        <SectionReveal className="home-section" delay={100}>
-          <div className="home-section-inner">
-            <div className="premium-promo">
-              <div className="premium-promo-bg" />
-              <div className="premium-promo-content">
-                <div className="home-section-label home-section-label--premium">Premium</div>
-                <h2 className="home-section-title">Elevate Your Experience</h2>
-                <p className="premium-promo-desc">
-                  Unlock priority features, ad-free listening, and exclusive
-                  content with Melodify Premium. Choose the plan that fits you.
-                </p>
-                <div className="premium-promo-plans">
-                  <div className="premium-mini-plan">
-                    <span className="premium-mini-name">Individual</span>
-                    <span className="premium-mini-price">Best for one</span>
-                  </div>
-                  <div className="premium-mini-plan">
-                    <span className="premium-mini-name">Student</span>
-                    <span className="premium-mini-price">Discounted</span>
-                  </div>
-                  <div className="premium-mini-plan">
-                    <span className="premium-mini-name">Duo</span>
-                    <span className="premium-mini-price">For two</span>
-                  </div>
-                </div>
-                <Link to="/premium" className="home-btn home-btn-premium">
-                  View Plans
-                </Link>
-              </div>
-            </div>
-          </div>
-        </SectionReveal>
-
-        {/* FINAL CTA */}
-        <SectionReveal className="home-section" delay={100}>
-          <div className="home-section-inner">
-            <div className="final-cta">
-              <h2 className="final-cta-title">Ready to Feel the Music?</h2>
-              <p className="final-cta-desc">
-                Join Melodify and enter a world of premium music streaming,
-                creative tools, and a vibrant community.
-              </p>
-              <Link to={user ? '/dashboard' : '/signup'} className="home-btn home-btn-primary home-btn-lg">
-                {user ? 'Go to Dashboard' : 'Get Started Free'}
-              </Link>
-            </div>
-          </div>
-        </SectionReveal>
+        </section>
 
         {/* FOOTER */}
         <footer className="home-footer">
           <div className="home-footer-inner">
-            <div className="home-footer-brand">
-              <div className="home-logo home-logo--footer">
-                MELOD<span>IFY</span>
-              </div>
-              <p className="home-footer-tagline">
-                The premium music streaming experience. Stream, create, and
-                connect with music lovers worldwide.
-              </p>
-            </div>
+            <Link to="/" className="home-logo home-logo--footer">
+              <svg className="home-logo-icon" width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+                <rect x="2" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
+                <rect x="7" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
+                <rect x="12" y="2" width="3" height="24" rx="1.5" fill="currentColor"/>
+                <rect x="17" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
+                <rect x="22" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
+              </svg>
+              <span className="home-logo-text">Melodify</span>
+            </Link>
             <div className="home-footer-links">
-              <div className="home-footer-col">
-                <h4>Product</h4>
-                <Link to="/premium">Premium</Link>
-                <Link to="/studio">Studio</Link>
-                <Link to="/feed">Community</Link>
-              </div>
-              <div className="home-footer-col">
-                <h4>Account</h4>
-                <Link to="/login">Log In</Link>
-                <Link to="/signup">Sign Up</Link>
-                <Link to="/profile">Profile</Link>
-              </div>
-              <div className="home-footer-col">
-                <h4>Legal</h4>
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
-              </div>
+              <Link to="/about">About</Link>
+              <Link to="/help">Help</Link>
+              <Link to="/terms">Terms</Link>
+              <Link to="/privacy">Privacy</Link>
             </div>
-          </div>
-          <div className="home-footer-bottom">
-            <p>&copy; 2026 Melodify. All rights reserved.</p>
+            <div className="home-footer-social">
+              <a href="#" aria-label="YouTube"><i className="fab fa-youtube" /></a>
+              <a href="#" aria-label="Instagram"><i className="fab fa-instagram" /></a>
+              <a href="#" aria-label="X"><i className="fab fa-x-twitter" /></a>
+              <a href="#" aria-label="Discord"><i className="fab fa-discord" /></a>
+            </div>
+            <p className="home-footer-copy">&copy; 2025 Melodify. All rights reserved.</p>
           </div>
         </footer>
       </div>
