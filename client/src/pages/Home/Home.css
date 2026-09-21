@@ -541,26 +541,27 @@
 
 .trending-card-play {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  width: 36px;
-  height: 36px;
+  bottom: 11px;
+  right: 11px;
+  width: 29px;
+  height: 29px;
   border-radius: 50%;
-  background: var(--home-sky);
+  background: linear-gradient(135deg, #172b55, #0e1832);
+  border: 1px solid #7a95d5;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0a0a0f;
+  color: #ffffff;
   font-size: 13px;
-  opacity: 0;
-  transform: translateY(4px);
+  opacity: 1;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-.trending-card:hover .trending-card-play {
-  opacity: 1;
-  transform: translateY(0);
+.trending-card:hover .trending-card-play,
+.trending-card:focus-visible .trending-card-play {
+  background: #513ea3;
+  border-color: #b7afff;
 }
 
 .trending-card-info {

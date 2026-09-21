@@ -124,15 +124,15 @@ export default function Home() {
                         height="66"
                         onError={handleImgError}
                       />
-                      <div className="trending-card-play">
-                        <i className="fas fa-play" />
-                      </div>
                     </div>
                     <div className="trending-card-info">
                       <h4 className="trending-card-title" title={song.title}>{song.title}</h4>
                       <p className="trending-card-artist" title={song.artist}>{song.artist}</p>
                       <span className="trending-card-duration">{formatDuration(song.duration)}</span>
                     </div>
+                    <span className="trending-card-play" aria-hidden="true">
+                      <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><path d="m2 1 7 5-7 5z" /></svg>
+                    </span>
                   </Link>
                 ))}
               </div>
