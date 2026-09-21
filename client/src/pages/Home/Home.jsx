@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import HeroSection from '../../components/home/HeroSection.jsx';
+import Waveform from '../../components/home/Waveform.jsx';
 import cssRaw from './Home.css?raw';
 
 export default function Home() {
@@ -54,13 +55,7 @@ export default function Home() {
         <header className="home-header">
           <div className="home-header-inner">
             <Link to="/" className="home-logo">
-              <svg className="home-logo-icon" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-                <rect x="2" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
-                <rect x="7" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
-                <rect x="12" y="2" width="3" height="24" rx="1.5" fill="currentColor"/>
-                <rect x="17" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
-                <rect x="22" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
-              </svg>
+              <Waveform />
               <span className="home-logo-text">Melodify</span>
             </Link>
             <nav className="home-nav">

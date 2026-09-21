@@ -80,20 +80,21 @@
 .home-logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   text-decoration: none;
   flex-shrink: 0;
 }
 
 .home-logo-icon {
   color: var(--home-cyan);
+  flex-shrink: 0;
 }
 
 .home-logo-text {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #ffffff;
-  letter-spacing: 0.5px;
+  letter-spacing: -0.6px;
 }
 
 /* Nav links */
