@@ -70,9 +70,12 @@ export default function Home() {
                 <input type="search" aria-label="Search songs, artists, or albums" placeholder="Search songs, artists, or albums..." className="home-search-input" />
               </div>
               <button className="home-icon-btn" aria-label="Notifications">
-                <i className="fas fa-bell" />
+                <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                  <path d="M5 17h14l-2-3V9a5 5 0 0 0-4-5V2h-2v2a5 5 0 0 0-4 5v5z" strokeLinejoin="round" />
+                  <path d="M10 20a2 2 0 0 0 4 0" />
+                </svg>
               </button>
-              <Link to={user ? '/profile' : '/login'} className="home-avatar">
+              <Link to={user ? '/profile' : '/login'} className="home-avatar" aria-label={user ? 'Your profile' : 'Sign in'}>
                 {user ? (
                   <span className="home-avatar-text">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
                 ) : (
