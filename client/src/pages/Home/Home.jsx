@@ -67,7 +67,7 @@ export default function Home() {
             <div className="home-right">
               <div className="home-search">
                 <i className="fas fa-search home-search-icon" />
-                <input type="text" placeholder="Search songs, artists, or albums..." className="home-search-input" />
+                <input type="search" aria-label="Search songs, artists, or albums" placeholder="Search songs, artists, or albums..." className="home-search-input" />
               </div>
               <button className="home-icon-btn" aria-label="Notifications">
                 <i className="fas fa-bell" />
