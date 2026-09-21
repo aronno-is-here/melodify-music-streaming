@@ -322,10 +322,24 @@
 }
 
 .hero-gradient-word {
-  background: linear-gradient(135deg, var(--home-purple) 0%, var(--home-violet) 50%, var(--home-sky) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #9970ff;
+}
+
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  .hero-gradient-word {
+    background: linear-gradient(100deg, #b04bfa, #6665ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-line-2 .hero-gradient-word {
+    background-image: linear-gradient(100deg, #7761ff, #19b7ee);
+  }
+}
+
+@media (forced-colors: active) {
+  .hero-gradient-word { -webkit-text-fill-color: currentColor; }
 }
 
 .hero-description {
