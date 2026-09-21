@@ -4,6 +4,8 @@
 
 /* ---- VARIABLES ---- */
 .home-page {
+  --home-width: 1170px;
+  --home-gutter: 24px;
   --home-bg: #050507;
   --home-bg-card: #0c0c18;
   --home-bg-card-hover: #12122a;
@@ -32,6 +34,14 @@
 }
 
 /* ---- NAVBAR ---- */
+.home-header-inner,
+.hero-content-wrapper,
+.home-section-inner,
+.home-footer-inner {
+  width: min(var(--home-width), calc(100% - var(--home-gutter) * 2));
+  margin-inline: auto;
+}
+
 .home-header {
   position: fixed;
   top: 0;
@@ -51,10 +61,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 40px;
+  max-width: var(--home-width);
 }
 
 /* Logo */
@@ -249,7 +256,7 @@
 .hero-content-wrapper {
   position: relative;
   z-index: 2;
-  max-width: 580px;
+  max-width: var(--home-width);
 }
 
 .hero-eyebrow {
@@ -347,12 +354,12 @@
 
 /* ---- SECTION BASE ---- */
 .home-section {
-  padding: 48px 40px;
+  padding: 48px 0;
   position: relative;
 }
 
 .home-section-inner {
-  max-width: 1320px;
+  max-width: var(--home-width);
   margin: 0 auto;
 }
 
@@ -678,12 +685,12 @@
 /* ---- FOOTER ---- */
 .home-footer {
   border-top: 1px solid var(--home-border);
-  padding: 24px 40px;
+  padding: 24px 0;
   margin-top: 16px;
 }
 
 .home-footer-inner {
-  max-width: 1320px;
+  max-width: var(--home-width);
   margin: 0 auto;
   display: flex;
   align-items: center;
