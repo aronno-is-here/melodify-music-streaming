@@ -151,6 +151,7 @@ ADMIN_PASSWORD=your-strong-password
 - Home/Premium/Studio/Feed links use compact bright labels; Home has an accessible current-page state and violet/blue underline.
 - The search field uses a compact 223 × 33px navy pill with an accessible label and readable placeholder.
 - Header actions use an outline bell and a 32px purple profile circle linking to profile or sign-in according to authentication.
+- The desktop hero is a compact 390px composition aligned to the shared content container.
 - `components/home/Waveform.jsx` supplies a reusable blue/violet SVG brand mark with collision-free gradient IDs.
 - **Homepage** — reference-led redesign with page-scoped CSS injected on mount. The injection strips a leading U+FEFF defensively so the root selector, dark color scheme, and theme variables resolve even with BOM-emitting editors.
 - Homepage implementation checkpoints are numbered `01/50`–`50/50` on `ehsanul`, after baseline `6a16a8e97e72a52cf563efe32d49c0646238bdb1`. Resume from the latest numbered commit and preserve any uncommitted work.
