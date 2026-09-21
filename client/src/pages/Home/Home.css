@@ -519,6 +519,10 @@
 
 .trending-card-artwork {
   position: relative;
+  width: 66px;
+  height: 66px;
+  flex-shrink: 0;
+  border-radius: 6px;
   aspect-ratio: 1;
   overflow: hidden;
 }

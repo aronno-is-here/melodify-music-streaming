@@ -37,7 +37,10 @@ export default function Home() {
   const trendingSongs = songs.slice(0, 6);
 
   const handleImgError = (e) => {
-    e.target.src = '/default-poster.jpg';
+    const image = e.currentTarget;
+    if (image.dataset.fallback) return;
+    image.dataset.fallback = 'true';
+    image.src = '/home/poster-fallback.svg';
   };
 
   const formatDuration = (sec) => {
@@ -114,9 +117,11 @@ export default function Home() {
                   >
                     <div className="trending-card-artwork">
                       <img
-                        src={song.poster_url || '/default-poster.jpg'}
+                        src={song.poster_url || '/home/poster-fallback.svg'}
                         alt={song.title}
                         loading="lazy"
+                        width="66"
+                        height="66"
                         onError={handleImgError}
                       />
                       <div className="trending-card-play">
