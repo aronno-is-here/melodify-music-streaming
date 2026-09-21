@@ -9,7 +9,8 @@ export default function Home() {
   useLayoutEffect(() => {
     const style = document.createElement('style');
     style.setAttribute('data-page-css', 'Home');
-    style.textContent = cssRaw;
+    // Raw imports retain a UTF-8 signature; it is a selector character in CSSOM.
+    style.textContent = cssRaw.replace(/^\uFEFF/, '');
     document.head.appendChild(style);
     return () => style.remove();
   }, []);

@@ -17,6 +17,9 @@
   --home-text-muted: #5a5a6a;
   --home-border: rgba(255,255,255,0.06);
   --home-border-light: rgba(255,255,255,0.08);
+  color: var(--home-text);
+  color-scheme: dark;
+  isolation: isolate;
   position: relative;
   min-height: 100vh;
   background: var(--home-bg);
