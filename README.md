@@ -155,6 +155,7 @@ ADMIN_PASSWORD=your-strong-password
 - Hero art is cropped into the right half, mirrored toward the text, with masked edges rather than a rectangular photo panel.
 - Blue/violet color lighting and dark tonal grading unify the listener portrait with the hero atmosphere.
 - Hero eyebrow copy uses compact 13px white lettering with restrained tracking above the headline.
+- The desktop headline is 48px and preserves exactly two lines: “Every Sound.” / “One Universe.”
 - Hero photography: [Andrea Piacquadio / Pexels, photo 3771823](https://www.pexels.com/photo/3771823/), a headphone listener. The previously supplied Unsplash URL resolves to a microphone and is intentionally replaced. The reference screenshot remains local-only.
 - `components/home/Waveform.jsx` supplies a reusable blue/violet SVG brand mark with collision-free gradient IDs.
 - **Homepage** — reference-led redesign with page-scoped CSS injected on mount. The injection strips a leading U+FEFF defensively so the root selector, dark color scheme, and theme variables resolve even with BOM-emitting editors.

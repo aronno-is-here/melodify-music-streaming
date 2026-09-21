@@ -306,16 +306,18 @@
 }
 
 .hero-headline {
-  font-size: clamp(42px, 6vw, 68px);
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -1.5px;
-  margin-bottom: 24px;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 0.99;
+  letter-spacing: -1px;
+  margin-bottom: 14px;
+  max-width: 440px;
 }
 
 .hero-line-1,
 .hero-line-2 {
   display: block;
+  white-space: nowrap;
   color: #ffffff;
 }
 
