@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import HeroSection from '../../components/home/HeroSection.jsx';
 import Waveform from '../../components/home/Waveform.jsx';
+import { formatDuration } from '../../components/home/formatDuration.js';
 import cssRaw from './Home.css?raw';
 
 export default function Home() {
@@ -41,13 +42,6 @@ export default function Home() {
     if (image.dataset.fallback) return;
     image.dataset.fallback = 'true';
     image.src = '/home/poster-fallback.svg';
-  };
-
-  const formatDuration = (sec) => {
-    if (!sec) return '0:00';
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${String(s).padStart(2, '0')}`;
   };
 
   return (
@@ -128,7 +122,7 @@ export default function Home() {
                     <div className="trending-card-info">
                       <h4 className="trending-card-title" title={song.title}>{song.title}</h4>
                       <p className="trending-card-artist" title={song.artist}>{song.artist}</p>
-                      <span className="trending-card-duration">{formatDuration(song.duration)}</span>
+                      <span className="trending-card-duration">{formatDuration(song.duration_ms ?? song.duration, song.duration_ms != null ? 'milliseconds' : 'seconds')}</span>
                     </div>
                     <span className="trending-card-play" aria-hidden="true">
                       <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><path d="m2 1 7 5-7 5z" /></svg>
