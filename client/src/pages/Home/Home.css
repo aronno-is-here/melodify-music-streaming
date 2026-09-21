@@ -58,13 +58,14 @@
   left: 0;
   right: 0;
   z-index: 100;
-  height: 64px;
+  height: 60px;
   display: flex;
   align-items: center;
-  background: rgba(5,5,7,0.8);
-  backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  background: rgba(2,7,24,0.72);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
   border-bottom: 1px solid var(--home-border-light);
+  box-shadow: 0 1px 12px rgba(13,36,113,0.12);
 }
 
 .home-header-inner {
@@ -72,6 +73,7 @@
   align-items: center;
   justify-content: space-between;
   max-width: var(--home-width);
+  gap: 24px;
 }
 
 /* Logo */
