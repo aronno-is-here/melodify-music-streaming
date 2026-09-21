@@ -136,7 +136,11 @@ export default function Home() {
                 <i className="fas fa-compact-disc" />
                 <p>Discover tracks once you sign in</p>
               </div>
-            ) : null}
+            ) : (
+              <div className="trending-grid" aria-label="Loading trending songs" aria-busy="true">
+                {Array.from({ length: 6 }, (_, index) => <div key={index} className="trending-card trending-card--loading" aria-hidden="true" />)}
+              </div>
+            )}
           </div>
         </section>
 
