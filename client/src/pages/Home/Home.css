@@ -1040,17 +1040,20 @@
 
 /* ---- FOOTER ---- */
 .home-footer {
-  border-top: 1px solid var(--home-border);
-  padding: 24px 0;
-  margin-top: 16px;
+  background: #010309;
+  border-top: 1px solid rgba(98,126,186,0.18);
+  padding: 16px 0;
+  margin-top: 12px;
 }
 
 .home-footer-inner {
   max-width: var(--home-width);
+  min-height: 40px;
   margin: 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 40px;
+  gap: 12px clamp(24px, 4vw, 56px);
 }
 
 .home-logo--footer {
@@ -1094,6 +1097,7 @@
 }
 
 .home-footer-copy {
+  margin: 0;
   font-size: 12px;
   color: var(--home-text-muted);
   white-space: nowrap;
@@ -1210,8 +1214,7 @@
   }
 
   .home-footer-inner {
-    flex-wrap: wrap;
-    gap: 20px;
+    gap: 16px 24px;
   }
 
   .home-footer-social {
