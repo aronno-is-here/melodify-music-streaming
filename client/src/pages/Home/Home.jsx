@@ -235,23 +235,23 @@ export default function Home() {
                 </div>
               </div>
               <div className="community-grid">
-                <div className="community-image">
-                  <img src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop" alt="Live performance" loading="lazy" onError={handleImgError} />
+                <div className="community-image community-image--stage">
+                  <img src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=240&fit=crop&auto=format&q=80" alt="Artist performing live on stage" loading="lazy" decoding="async" onError={handleImgError} />
                 </div>
                 <div className="community-image">
-                  <img src="https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=300&fit=crop" alt="Music studio" loading="lazy" onError={handleImgError} />
+                  <img src="https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=240&fit=crop&auto=format&q=80" alt="Music creation in a recording studio" loading="lazy" decoding="async" onError={handleImgError} />
                 </div>
                 <div className="community-image">
-                  <img src="https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=400&h=300&fit=crop" alt="Vinyl records" loading="lazy" onError={handleImgError} />
+                  <img src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=240&fit=crop&auto=format&q=80" alt="Concert lights above a live music crowd" loading="lazy" decoding="async" onError={handleImgError} />
+                </div>
+                <div className="community-image community-image--portrait">
+                  <img src="https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=320&h=320&fit=crop&crop=faces&auto=format&q=80" alt="Vocalist singing into a microphone" loading="lazy" decoding="async" onError={handleImgError} />
                 </div>
                 <div className="community-image">
-                  <img src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=300&fit=crop" alt="Concert crowd" loading="lazy" onError={handleImgError} />
+                  <img src="https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=240&fit=crop&auto=format&q=80" alt="Audience sharing a live concert" loading="lazy" decoding="async" onError={handleImgError} />
                 </div>
                 <div className="community-image">
-                  <img src="https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop" alt="Headphones" loading="lazy" onError={handleImgError} />
-                </div>
-                <div className="community-image">
-                  <img src="https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=300&fit=crop" alt="DJ setup" loading="lazy" onError={handleImgError} />
+                  <img src="https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=240&fit=crop&auto=format&q=80" alt="DJ mixing setup" loading="lazy" decoding="async" onError={handleImgError} />
                 </div>
               </div>
             </div>
