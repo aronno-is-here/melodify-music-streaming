@@ -600,7 +600,7 @@
 
 /* ---- PROMO CARDS ---- */
 .home-section.home-section-promotions {
-  padding: 36px 0 0;
+  padding: 24px 0 0;
 }
 
 .promo-grid {
@@ -1000,7 +1000,7 @@
 .community-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 0.28fr) repeat(2, minmax(0, 1fr));
-  grid-auto-rows: clamp(84px, 8vw, 104px);
+  grid-auto-rows: clamp(72px, 5vw, 88px);
   gap: 10px;
 }
 
@@ -1027,7 +1027,7 @@
   object-fit: cover;
   object-position: center;
   display: block;
-  filter: brightness(0.8) saturate(0.75) contrast(1.08);
+  filter: brightness(0.72) saturate(0.7) contrast(1.1);
 }
 
 .community-image--stage img {
