@@ -1109,18 +1109,40 @@
 
 .home-footer-social {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
 }
 
 .home-footer-social a {
-  color: var(--home-text-muted);
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 28px;
+  border-radius: 4px;
+  color: #c1d1e8;
+  font-size: 14px;
+  line-height: 1;
+  text-decoration: none;
   transition: color 0.2s ease;
 }
 
-.home-footer-social a:hover {
+.home-footer-social i,
+.home-footer-social svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.home-footer-social a:hover,
+.home-footer-social a:focus-visible {
   color: #ffffff;
+}
+
+.home-footer-social a:focus-visible {
+  outline: 2px solid #a9b7ec;
+  outline-offset: 3px;
 }
 
 .home-footer-copy {

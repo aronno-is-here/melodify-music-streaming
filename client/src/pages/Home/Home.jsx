@@ -272,10 +272,14 @@ export default function Home() {
               <Link to="/privacy">Privacy</Link>
             </nav>
             <div className="home-footer-social">
-              <a href="#" aria-label="YouTube"><i className="fab fa-youtube" /></a>
-              <a href="#" aria-label="Instagram"><i className="fab fa-instagram" /></a>
-              <a href="#" aria-label="X"><i className="fab fa-x-twitter" /></a>
-              <a href="#" aria-label="Discord"><i className="fab fa-discord" /></a>
+              <a href="#" aria-label="YouTube" title="YouTube"><i className="fab fa-youtube" aria-hidden="true" /></a>
+              <a href="#" aria-label="Instagram" title="Instagram"><i className="fab fa-instagram" aria-hidden="true" /></a>
+              <a href="#" aria-label="X" title="X">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+                  <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.64 7.584H.47l8.6-9.835L0 1.154h7.594l5.243 6.932 6.064-6.933Zm-1.29 19.49h2.039L6.487 3.24H4.3Z" />
+                </svg>
+              </a>
+              <a href="#" aria-label="Discord" title="Discord"><i className="fab fa-discord" aria-hidden="true" /></a>
             </div>
             <p className="home-footer-copy">&copy; 2025 Melodify. All rights reserved.</p>
           </div>
