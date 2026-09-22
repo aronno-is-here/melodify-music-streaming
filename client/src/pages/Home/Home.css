@@ -898,11 +898,15 @@
 }
 
 /* ---- COMMUNITY ---- */
+.home-section.home-section-community {
+  padding: 16px 0 0;
+}
+
 .community-container {
-  background: var(--home-bg-card);
-  border: 1px solid var(--home-border);
-  border-radius: 16px;
-  padding: 28px 32px 28px;
+  background: linear-gradient(120deg, #030810, #02050a);
+  border: 1px solid rgba(98,126,186,0.35);
+  border-radius: 12px;
+  padding: 16px 12px 12px;
   overflow: hidden;
 }
 
@@ -1148,7 +1152,7 @@
   }
 
   .community-container {
-    padding: 20px;
+    padding: 12px;
   }
 
   .home-footer-inner {

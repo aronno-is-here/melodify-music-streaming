@@ -196,7 +196,7 @@ export default function Home() {
         </section>
 
         {/* COMMUNITY */}
-        <section className="home-section">
+        <section className="home-section home-section-community">
           <div className="home-section-inner">
             <div className="community-container">
               <div className="community-header">
