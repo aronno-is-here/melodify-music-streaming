@@ -638,7 +638,7 @@
   position: absolute;
   inset: 0;
   background: url('/home/studio-waves.svg') right center / 76% 100% no-repeat;
-  opacity: 0.65;
+  opacity: 0.48;
   mask-image: linear-gradient(90deg, transparent 28%, #000 85%);
   -webkit-mask-image: linear-gradient(90deg, transparent 28%, #000 85%);
   pointer-events: none;
@@ -686,7 +686,7 @@
 
 .promo-card-studio .promo-card-content {
   align-self: start;
-  padding: 16px 18px 14px;
+  padding: 16px 18px 12px;
 }
 
 .promo-card-studio .promo-card-title {
@@ -705,21 +705,32 @@
   color: #aec8ed;
   font-weight: 400;
   max-width: 272px;
+  margin-bottom: 12px;
   text-wrap: pretty;
 }
 
 .promo-card-studio .promo-card-btn {
+  gap: 7px;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  white-space: nowrap;
   border-radius: 999px;
-  border-color: #6854c4;
-  background: linear-gradient(110deg, #21134c, #0c1532);
+  border-color: #7563c7;
+  background: linear-gradient(110deg, #191340, #0b132d);
   color: #f4f2ff;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .promo-card-studio .promo-card-btn:hover,
 .promo-card-studio .promo-card-btn:focus-visible {
-  background: #2b2056;
+  background: #251c49;
   border-color: #ae9af7;
+}
+
+.promo-card-studio .promo-card-btn:focus-visible {
+  outline: 2px solid #b6a7f4;
+  outline-offset: 3px;
 }
 
 .promo-card-bg-premium {

@@ -167,7 +167,10 @@ export default function Home() {
                     Bring your music to life with our professional studio tools and creative community.
                   </p>
                   <Link to={user ? '/studio' : '/signup'} className="promo-card-btn">
-                    Explore Studio <i className="fas fa-arrow-right" />
+                    Explore Studio
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+                      <path d="M2 6h8M6 2l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </Link>
                 </div>
               </article>
