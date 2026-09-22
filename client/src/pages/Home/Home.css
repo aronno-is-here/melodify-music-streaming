@@ -632,6 +632,45 @@
     url('https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=800&h=400&fit=crop') center/cover;
 }
 
+.promo-card-studio {
+  display: grid;
+  grid-template-columns: clamp(72px, 22%, 126px) minmax(0, 1fr);
+  background: linear-gradient(115deg, #100c32, #030a20 65%, #050a24);
+  border-color: rgba(111,91,212,0.4);
+}
+
+.promo-card-studio-artwork {
+  position: relative;
+  align-self: stretch;
+  min-width: 0;
+  overflow: hidden;
+  background: #110c35;
+}
+
+.promo-card-studio .promo-card-subtitle,
+.promo-card-studio .promo-card-desc {
+  color: #bdd3f6;
+  font-weight: 400;
+}
+
+.promo-card-studio .promo-card-desc {
+  max-width: 270px;
+}
+
+.promo-card-studio .promo-card-btn {
+  border-radius: 999px;
+  border-color: #6854c4;
+  background: linear-gradient(110deg, #21134c, #0c1532);
+  color: #f4f2ff;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.promo-card-studio .promo-card-btn:hover,
+.promo-card-studio .promo-card-btn:focus-visible {
+  background: #2b2056;
+  border-color: #ae9af7;
+}
+
 .promo-card-bg-premium {
   background:
     linear-gradient(135deg, rgba(5,5,7,0.7) 0%, rgba(5,5,7,0.5) 100%),

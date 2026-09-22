@@ -148,10 +148,12 @@ export default function Home() {
           <div className="home-section-inner">
             <div className="promo-grid">
               {/* Studio Card */}
-              <div className="promo-card promo-card-studio">
-                <div className="promo-card-bg promo-card-bg-studio" />
+              <article className="promo-card promo-card-studio" aria-labelledby="home-studio-title">
+                <div className="promo-card-studio-artwork" aria-hidden="true">
+                  <div className="promo-card-bg promo-card-bg-studio" />
+                </div>
                 <div className="promo-card-content">
-                  <h3 className="promo-card-title">Melodify Studio</h3>
+                  <h3 id="home-studio-title" className="promo-card-title">Melodify Studio</h3>
                   <p className="promo-card-subtitle">Create. Record. Share.</p>
                   <p className="promo-card-desc">
                     Bring your music to life with our professional studio tools and creative community.
@@ -160,7 +162,7 @@ export default function Home() {
                     Explore Studio <i className="fas fa-arrow-right" />
                   </Link>
                 </div>
-              </div>
+              </article>
               {/* Premium Card */}
               <div className="promo-card promo-card-premium">
                 <div className="promo-card-bg promo-card-bg-premium" />
