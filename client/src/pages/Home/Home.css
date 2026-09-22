@@ -947,19 +947,28 @@
 
 .community-avatars {
   display: flex;
+  align-items: center;
+  width: max-content;
 }
 
 .community-avatar-item {
+  box-sizing: border-box;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 12px;
-  border: 2px solid var(--home-bg-card);
-  margin-left: -8px;
+  overflow: hidden;
+  background: #101a2a;
+  border: 1px solid rgba(155,176,212,0.5);
+  margin-left: -4px;
+}
+
+.community-avatar-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .community-avatar-item:first-child {

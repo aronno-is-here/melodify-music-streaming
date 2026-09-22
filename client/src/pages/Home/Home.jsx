@@ -7,6 +7,13 @@ import Waveform from '../../components/home/Waveform.jsx';
 import { formatDuration } from '../../components/home/formatDuration.js';
 import cssRaw from './Home.css?raw';
 
+const communityAvatarPhotos = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&fit=crop&crop=faces&auto=format&q=80',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&fit=crop&crop=faces&auto=format&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=64&h=64&fit=crop&crop=faces&auto=format&q=80',
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=faces&auto=format&q=80',
+];
+
 export default function Home() {
   useLayoutEffect(() => {
     const style = document.createElement('style');
@@ -207,19 +214,20 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="community-header-right">
-                  <div className="community-avatars">
-                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #6c3fc5, #00b4d8)' }}>
-                      <i className="fas fa-user" />
-                    </div>
-                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #e040a0, #6c3fc5)' }}>
-                      <i className="fas fa-user" />
-                    </div>
-                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #00b4d8, #00d4ff)' }}>
-                      <i className="fas fa-user" />
-                    </div>
-                    <div className="community-avatar-item" style={{ background: 'linear-gradient(135deg, #d4a853, #e040a0)' }}>
-                      <i className="fas fa-user" />
-                    </div>
+                  <div className="community-avatars" aria-hidden="true">
+                    {communityAvatarPhotos.map((src) => (
+                      <div key={src} className="community-avatar-item">
+                        <img
+                          src={src}
+                          alt=""
+                          width="32"
+                          height="32"
+                          loading="lazy"
+                          decoding="async"
+                          onError={(event) => handleImgError(event, '/home/avatar-fallback.svg')}
+                        />
+                      </div>
+                    ))}
                   </div>
                   <Link to={user ? '/feed' : '/signup'} className="home-view-all">
                     Explore Feed <i className="fas fa-chevron-right" />
