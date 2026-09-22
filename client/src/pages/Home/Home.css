@@ -1174,24 +1174,44 @@
 }
 
 /* ---- RESPONSIVE ---- */
-@media (max-width: 1024px) {
+@media (min-width: 769px) and (max-width: 1280px) {
   .home-header-inner {
-    padding: 0 24px;
+    gap: 20px;
   }
 
-  .home-section {
-    padding: 40px 24px;
+  .home-nav {
+    gap: 28px;
+    margin-left: 16px;
+    flex-shrink: 0;
   }
 
-  .hero-section {
-    padding: 80px 24px 40px;
-    height: 55vh;
+  .home-right {
+    gap: 16px;
+    min-width: 0;
   }
 
   .home-search {
-    min-width: 200px;
+    width: clamp(160px, 18vw, 223px);
+    min-width: 0;
   }
 
+  .hero-headline {
+    font-size: clamp(38px, 3.75vw, 48px);
+  }
+
+  .hero-description {
+    max-width: min(380px, 44%);
+  }
+
+  .hero-image {
+    right: 0;
+    top: -52px;
+    width: 54%;
+    height: 560px;
+  }
+}
+
+@media (max-width: 1024px) {
   .trending-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
