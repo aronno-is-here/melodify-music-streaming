@@ -8,10 +8,12 @@ export default function HeroSection() {
     <section className="hero-section" aria-label="Melodify hero">
       <div className="hero-image-bg" aria-hidden="true">
         <img
-          src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
+          src="https://images.pexels.com/photos/3771823/pexels-photo-3771823.jpeg?auto=compress&cs=tinysrgb&w=1200"
           alt=""
           className="hero-image"
           loading="eager"
+          fetchPriority="high"
+          decoding="async"
           onError={(e) => { e.target.style.display = 'none'; }}
         />
         <div className="hero-image-overlay" />
@@ -33,7 +35,7 @@ export default function HeroSection() {
             <span>{user ? 'Dashboard' : 'Explore Music'}</span>
           </Link>
           <Link to="/premium" className="hero-cta-secondary">
-            <i className="fas fa-play" aria-hidden="true" />
+            <svg width="12" height="13" viewBox="0 0 12 13" fill="none" aria-hidden="true"><path d="M2 1.5 10 6.5 2 11.5Z" stroke="currentColor" strokeLinejoin="round" /></svg>
             <span>Watch Video</span>
           </Link>
         </div>

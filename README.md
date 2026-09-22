@@ -146,10 +146,39 @@ ADMIN_PASSWORD=your-strong-password
 
 ## 🎨 Design
 
-- **Dark theme** — Spotify-style black (#121212) with sky-blue accents (#00b4d8)
+- Homepage layout uses a shared 1170px desktop content width with fluid 24px gutters.
+- The homepage navigation is a 60px fixed glass header with a fine blue separator.
+- Home/Premium/Studio/Feed links use compact bright labels; Home has an accessible current-page state and violet/blue underline.
+- The search field uses a compact 223 × 33px navy pill with an accessible label and readable placeholder.
+- Header actions use an outline bell and a 32px purple profile circle linking to profile or sign-in according to authentication.
+- The desktop hero is a compact 390px composition aligned to the shared content container.
+- Hero art is cropped into the right half, mirrored toward the text, with masked edges rather than a rectangular photo panel.
+- Blue/violet color lighting and dark tonal grading unify the listener portrait with the hero atmosphere.
+- Hero eyebrow copy uses compact 13px white lettering with restrained tracking above the headline.
+- The desktop headline is 48px and preserves exactly two lines: “Every Sound.” / “One Universe.”
+- “Sound.” uses violet emphasis and “Universe.” transitions into blue; solid-color and forced-color fallbacks keep both words readable.
+- Hero supporting copy is constrained to 380px with pale-blue 15px text and compact three-line desktop wrapping.
+- Hero actions are 44px pills with a 16px gap: a white-on-gradient primary and a navy outlined secondary.
+- A short dark hero fade flows into Trending with a 22px section inset instead of large stacked vertical padding.
+- Trending has an 18px heading, short violet/blue accent, compact subtitle, and vertically centered View All action.
+- Trending keeps six equal desktop cards and reserves a compact loading grid while `/api/songs?limit=6` resolves.
+- Trending cards have dark navy surfaces, subtle borders, 10px corners, and stationary hover/focus feedback. The grid uses six columns above 1024px, four on small tablets, three at 768px and below, and two at 480px and below, with compact 14–10px gaps and shared container gutters.
+- Studio and Premium promotions share the Trending container, a 36px section inset, and equal-width, equal-height desktop cards separated by 16px. Compact content determines card height above a 154px minimum; cards stack below 769px without fixed-height clipping.
+- The Studio promotion is a labeled article with a narrow, decorative equipment strip beside its copy, pale-blue supporting text, and a violet-outlined pill linking to Studio or sign-up according to authentication. Its two-column composition adapts without overlaying the text on photography.
+- Studio equipment photography (Unsplash photo `1598488035139-bdbb2231ce04`) is cropped vertically and graded with purple/blue lighting and dark edge shading. Local `client/public/home/studio-waves.svg` adds subdued background lines; `studio-equipment.svg` supplies a one-shot local artwork fallback if the photo is unavailable. Both decorative SVGs are original project assets.
+- The Premium promotion uses a navy/violet surface and original local `client/public/home/premium-crown.svg` and `premium-ribbons.svg` artwork, with no third-party branded imagery. Static, right-weighted ribbon lighting sits behind the content without animation or additional dependencies. On narrow screens the ribbons dim and the decorative right-hand crown yields to the compact gold badge so the copy retains its space.
+- Each card uses 66px inset artwork. `client/public/home/poster-fallback.svg` is a local fallback with a one-shot error guard.
+- Song metadata uses compact title/artist/duration rows; long names truncate visually while retaining their full tooltip text.
+- Persistent 29px outlined play affordances sit at each card’s bottom-right; the whole card preserves existing song/sign-up navigation.
+- Durations accept API clock strings, numeric seconds, and explicitly marked milliseconds (`duration_ms` or `ms` suffix); unavailable/invalid values display an em dash. Run `node --test src/components/home/formatDuration.test.js` from `client/` for the regression checks.
+- Hero photography: [Andrea Piacquadio / Pexels, photo 3771823](https://www.pexels.com/photo/3771823/), a headphone listener. The previously supplied Unsplash URL resolves to a microphone and is intentionally replaced. The reference screenshot remains local-only.
+- `components/home/Waveform.jsx` supplies a reusable blue/violet SVG brand mark with collision-free gradient IDs.
+- **Homepage** — reference-led redesign with page-scoped CSS injected on mount. The injection strips a leading U+FEFF defensively so the root selector, dark color scheme, and theme variables resolve even with BOM-emitting editors.
+- Homepage implementation checkpoints are numbered `01/50`–`50/50` on `ehsanul`, after baseline `6a16a8e97e72a52cf563efe32d49c0646238bdb1`. Resume from the latest numbered commit and preserve any uncommitted work.
+- **Homepage palette** — near-black/navy surfaces, pale-blue secondary text, and blue/violet accents. Typography and color scope remain local to the homepage.
 - Responsive 3-column layout (Library | Songs | Now Playing)
 - Hover animations, smooth transitions, custom scrollbars
-- CSS carried over **verbatim** from the original pages — design unchanged
+- Other pages retain their independent page styles.
 
 ---
 
