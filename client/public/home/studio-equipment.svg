@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="252" height="344" viewBox="0 0 252 344" fill="none">
+  <defs>
+    <linearGradient id="room" x2="252" y2="344" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17114c"/><stop offset="1" stop-color="#02081b"/>
+    </linearGradient>
+    <radialGradient id="light">
+      <stop stop-color="#9255ff" stop-opacity=".7"/><stop offset="1" stop-color="#4521a1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="screen" x1="54" y1="90" x2="198" y2="202" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#291d7e"/><stop offset="1" stop-color="#060e2b"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#room)" d="M0 0h252v344H0z"/>
+  <ellipse cx="130" cy="139" rx="155" ry="165" fill="url(#light)"/>
+  <path d="M17 0v211M235 0v211" stroke="#4245c9" stroke-width="3"/>
+  <path d="M32 24v177m16-177v177m158-177v177m16-177v177" stroke="#211843" stroke-width="6"/>
+  <path d="M0 242l239-28 13 20L0 265z" fill="#423087" stroke="#8b66e5"/>
+  <path d="M13 265v79m214-104v104" stroke="#111331" stroke-width="9"/>
+  <rect x="49" y="88" width="157" height="117" rx="5" fill="#070c25" stroke="#9171f0" stroke-width="2"/>
+  <rect x="57" y="96" width="141" height="98" rx="2" fill="url(#screen)"/>
+  <path d="M65 148h12l5-13 6 26 7-44 8 62 8-46 7 23 8-8h59" stroke="#aa7aff" stroke-width="2"/>
+  <path d="M77 107h25m-25 7h14m74 63h22m-22 7h14" stroke="#5479ea"/>
+  <path d="M122 205v19m-22 3h49" stroke="#7160b4" stroke-width="5"/>
+  <rect x="8" y="158" width="32" height="72" rx="3" fill="#0a1028" stroke="#564387"/>
+  <circle cx="24" cy="202" r="11" stroke="#9f6bec" stroke-width="3"/>
+  <circle cx="24" cy="176" r="5" fill="#6650a8"/>
+  <rect x="213" y="149" width="31" height="69" rx="3" fill="#0a1028" stroke="#564387"/>
+  <circle cx="228" cy="192" r="10" stroke="#7774e5" stroke-width="3"/>
+  <circle cx="228" cy="166" r="5" fill="#6650a8"/>
+  <path d="M65 237l113-10 13 19-121 12z" fill="#18133f" stroke="#9b7ade"/>
+  <path d="M76 241l96-8m-91 15l92-8" stroke="#8b78c7" stroke-width="3" stroke-dasharray="4 2"/>
+  <path d="M40 135v-16a20 20 0 0 1 40 0v16" stroke="#b28aff" stroke-width="5"/>
+  <rect x="34" y="129" width="12" height="25" rx="5" fill="#633aac" stroke="#d0afff"/>
+  <rect x="74" y="129" width="12" height="25" rx="5" fill="#633aac" stroke="#d0afff"/>
+  <path d="M159 286c0-25 67-30 68-3l-4 61h-66z" fill="#070b20" stroke="#303164" stroke-width="2"/>
+</svg>

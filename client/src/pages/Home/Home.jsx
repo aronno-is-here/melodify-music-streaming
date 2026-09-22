@@ -37,11 +37,11 @@ export default function Home() {
 
   const trendingSongs = songs.slice(0, 6);
 
-  const handleImgError = (e) => {
+  const handleImgError = (e, fallback = '/home/poster-fallback.svg') => {
     const image = e.currentTarget;
     if (image.dataset.fallback) return;
     image.dataset.fallback = 'true';
-    image.src = '/home/poster-fallback.svg';
+    image.src = fallback;
   };
 
   return (
@@ -150,7 +150,15 @@ export default function Home() {
               {/* Studio Card */}
               <article className="promo-card promo-card-studio" aria-labelledby="home-studio-title">
                 <div className="promo-card-studio-artwork" aria-hidden="true">
-                  <div className="promo-card-bg promo-card-bg-studio" />
+                  <img
+                    src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&h=600&fit=crop&crop=bottom"
+                    alt=""
+                    width="126"
+                    height="172"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(event) => handleImgError(event, '/home/studio-equipment.svg')}
+                  />
                 </div>
                 <div className="promo-card-content">
                   <h3 id="home-studio-title" className="promo-card-title">Melodify Studio</h3>
