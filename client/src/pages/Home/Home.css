@@ -911,20 +911,38 @@
 }
 
 .community-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+}
+
+.community-header-left {
+  min-width: 0;
 }
 
 .community-header-left .home-section-title {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
   margin-bottom: 2px;
 }
 
+.community-header-left .home-section-subtitle {
+  font-size: 11px;
+  line-height: 16px;
+  color: #a8c4e7;
+  text-wrap: pretty;
+}
+
 .community-header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+  display: contents;
+}
+
+.community-header-right .home-view-all {
+  justify-self: end;
 }
 
 .community-avatars {
@@ -1089,10 +1107,6 @@
   .community-grid {
     grid-template-columns: repeat(4, 1fr);
   }
-
-  .community-header-right {
-    gap: 12px;
-  }
 }
 
 @media (max-width: 768px) {
@@ -1142,9 +1156,11 @@
   }
 
   .community-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .community-header-left {
+    grid-column: 1 / -1;
   }
 
   .community-grid {
