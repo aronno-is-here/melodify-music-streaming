@@ -176,6 +176,7 @@ export default function Home() {
               </article>
               {/* Premium Card */}
               <article className="promo-card promo-card-premium" aria-labelledby="home-premium-title">
+                <img className="promo-card-premium-artwork" src="/home/premium-crown.svg" alt="" width="128" height="128" loading="lazy" decoding="async" aria-hidden="true" />
                 <div className="promo-card-crown" aria-hidden="true">
                   <i className="fas fa-crown" />
                 </div>

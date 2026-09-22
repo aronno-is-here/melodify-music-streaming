@@ -621,12 +621,6 @@
   border: 1px solid var(--home-border);
 }
 
-.promo-card-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
 .promo-card-studio {
   display: grid;
   grid-template-columns: clamp(72px, 22%, 126px) minmax(0, 1fr);
@@ -737,14 +731,20 @@
   outline-offset: 3px;
 }
 
-.promo-card-bg-premium {
-  background:
-    linear-gradient(135deg, rgba(5,5,7,0.7) 0%, rgba(5,5,7,0.5) 100%),
-    url('https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=800&h=400&fit=crop') center/cover;
+.promo-card-premium {
+  background: linear-gradient(110deg, #020812 22%, #06091d 76%, #101032);
+  border-color: rgba(98,126,186,0.35);
 }
 
-.promo-card-premium {
-  background: #030916;
+.promo-card-premium-artwork {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: clamp(72px, 18%, 104px);
+  height: auto;
+  display: block;
+  transform: rotate(-8deg);
+  pointer-events: none;
 }
 
 .promo-card-premium .promo-card-content {
@@ -1094,6 +1094,10 @@
 }
 
 @media (max-width: 480px) {
+  .promo-card-premium-artwork {
+    display: none;
+  }
+
   .promo-card-premium .promo-card-content {
     padding-left: 58px;
     padding-right: 18px;
