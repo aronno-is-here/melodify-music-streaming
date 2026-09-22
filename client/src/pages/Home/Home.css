@@ -1226,26 +1226,55 @@
 }
 
 @media (max-width: 768px) {
+  .home-page {
+    --home-gutter: 16px;
+  }
+
+  .home-header {
+    height: auto;
+  }
+
   .home-header-inner {
-    padding: 0 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 8px 0;
   }
 
   .home-nav {
-    display: none;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    gap: clamp(20px, 5vw, 36px);
+    margin: 0;
+  }
+
+  .home-nav-link {
+    font-size: 12px;
+    padding-block: 6px;
+  }
+
+  .home-right {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 12px;
   }
 
   .home-search {
     display: none;
   }
 
-  .home-section {
-    padding: 32px 16px;
+  .hero-section {
+    padding: 108px 0 28px;
+    height: auto;
+    min-height: 0;
   }
 
-  .hero-section {
-    padding: 80px 16px 32px;
-    height: auto;
-    min-height: 400px;
+  .hero-image {
+    top: 16px;
+    right: -8%;
+    width: 68%;
+    height: 440px;
   }
 
   .hero-headline {
@@ -1254,11 +1283,11 @@
 
   .hero-description {
     font-size: 14px;
+    max-width: min(380px, 70%);
   }
 
   .hero-cta-group {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-wrap: wrap;
     gap: 10px;
   }
 
@@ -1267,8 +1296,14 @@
     gap: 12px;
   }
 
+  .home-section.home-section-promotions {
+    padding-top: 24px;
+  }
+
   .promo-grid {
     grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+    gap: 12px;
   }
 
   .community-header {
@@ -1293,6 +1328,10 @@
 }
 
 @media (max-width: 480px) {
+  .promo-card-studio .promo-card-content {
+    padding-inline: 12px;
+  }
+
   .promo-card-premium::before {
     background-size: 85% 70%, auto;
     opacity: 0.45;
@@ -1329,27 +1368,51 @@
   }
 
   .hero-headline {
-    font-size: 30px;
-    letter-spacing: -1px;
+    font-size: clamp(28px, 8vw, 34px);
+    letter-spacing: -0.5px;
   }
 
   .hero-eyebrow {
-    font-size: 10px;
-    letter-spacing: 2px;
+    font-size: 11px;
+    letter-spacing: 0.6px;
   }
 
-  .home-section-title {
-    font-size: 20px;
+  .hero-description {
+    max-width: 320px;
+  }
+
+  .hero-image {
+    top: 50px;
+    right: -32%;
+    width: 110%;
+    height: 400px;
+  }
+
+  .hero-cta-primary,
+  .hero-cta-secondary {
+    padding-inline: 16px;
+    font-size: 12px;
   }
 
   .home-footer-inner {
-    flex-direction: column;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+  }
+
+  .home-footer-social {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .home-footer-links {
-    flex-wrap: wrap;
-    gap: 16px;
+    grid-column: 1 / -1;
+    gap: 8px 20px;
+  }
+
+  .home-footer-copy {
+    grid-column: 1 / -1;
+    white-space: normal;
   }
 }
 
