@@ -734,10 +734,26 @@
 .promo-card-premium {
   background: linear-gradient(110deg, #020812 22%, #06091d 76%, #101032);
   border-color: rgba(98,126,186,0.35);
+  isolation: isolate;
+}
+
+.promo-card-premium::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    url('/home/premium-ribbons.svg') right bottom / 78% 100% no-repeat,
+    radial-gradient(ellipse at 87% 72%, rgba(65,41,147,0.25), transparent 54%);
+  opacity: 0.8;
+  mask-image: linear-gradient(90deg, transparent 30%, #000 78%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 78%);
+  pointer-events: none;
 }
 
 .promo-card-premium-artwork {
   position: absolute;
+  z-index: 1;
   top: 18px;
   right: 20px;
   width: clamp(72px, 18%, 104px);
@@ -766,6 +782,7 @@
 
 .promo-card-crown {
   position: absolute;
+  z-index: 1;
   top: 16px;
   left: 14px;
   display: grid;
@@ -1094,6 +1111,13 @@
 }
 
 @media (max-width: 480px) {
+  .promo-card-premium::before {
+    background-size: 85% 70%, auto;
+    opacity: 0.45;
+    mask-image: linear-gradient(90deg, transparent 40%, #000);
+    -webkit-mask-image: linear-gradient(90deg, transparent 40%, #000);
+  }
+
   .promo-card-premium-artwork {
     display: none;
   }
