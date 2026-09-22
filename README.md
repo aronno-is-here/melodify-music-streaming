@@ -162,6 +162,7 @@ ADMIN_PASSWORD=your-strong-password
 - A short dark hero fade flows into Trending with a 22px section inset instead of large stacked vertical padding.
 - Trending has an 18px heading, short violet/blue accent, compact subtitle, and vertically centered View All action.
 - Trending keeps six equal desktop cards and reserves a compact loading grid while `/api/songs?limit=6` resolves.
+- Trending cards have dark navy surfaces, subtle borders, 10px corners, and stationary hover/focus feedback. The grid uses six columns above 1024px, four on small tablets, three at 768px and below, and two at 480px and below, with compact 14–10px gaps and shared container gutters.
 - Each card uses 66px inset artwork. `client/public/home/poster-fallback.svg` is a local fallback with a one-shot error guard.
 - Song metadata uses compact title/artist/duration rows; long names truncate visually while retaining their full tooltip text.
 - Persistent 29px outlined play affordances sit at each card’s bottom-right; the whole card preserves existing song/sign-up navigation.

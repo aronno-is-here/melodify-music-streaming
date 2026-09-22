@@ -87,7 +87,7 @@ export default function Home() {
         <HeroSection />
 
         {/* TRENDING NOW */}
-        <section className="home-section">
+        <section className="home-section home-section-trending">
           <div className="home-section-inner">
             <div className="home-section-header">
               <div className="home-section-header-left">
