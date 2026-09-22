@@ -262,21 +262,15 @@ export default function Home() {
         <footer className="home-footer">
           <div className="home-footer-inner">
             <Link to="/" className="home-logo home-logo--footer">
-              <svg className="home-logo-icon" width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-                <rect x="2" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
-                <rect x="7" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
-                <rect x="12" y="2" width="3" height="24" rx="1.5" fill="currentColor"/>
-                <rect x="17" y="6" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.85"/>
-                <rect x="22" y="10" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.7"/>
-              </svg>
+              <Waveform size={26} />
               <span className="home-logo-text">Melodify</span>
             </Link>
-            <div className="home-footer-links">
+            <nav className="home-footer-links" aria-label="Footer navigation">
               <Link to="/about">About</Link>
               <Link to="/help">Help</Link>
               <Link to="/terms">Terms</Link>
               <Link to="/privacy">Privacy</Link>
-            </div>
+            </nav>
             <div className="home-footer-social">
               <a href="#" aria-label="YouTube"><i className="fab fa-youtube" /></a>
               <a href="#" aria-label="Instagram"><i className="fab fa-instagram" /></a>
