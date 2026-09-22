@@ -144,7 +144,7 @@ export default function Home() {
         </section>
 
         {/* FEATURE PROMOTION CARDS */}
-        <section className="home-section">
+        <section className="home-section home-section-promotions">
           <div className="home-section-inner">
             <div className="promo-grid">
               {/* Studio Card */}
