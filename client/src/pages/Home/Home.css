@@ -488,7 +488,7 @@
 .trending-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .trending-card {
@@ -498,12 +498,12 @@
   min-width: 0;
   min-height: 148px;
   padding: 11px;
-  background: var(--home-bg-card);
-  border: 1px solid var(--home-border);
-  border-radius: 12px;
+  background: linear-gradient(120deg, #071426, #040e1d);
+  border: 1px solid rgba(87,126,193,0.14);
+  border-radius: 10px;
   overflow: hidden;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .trending-card--loading {
@@ -511,10 +511,10 @@
   height: 148px;
 }
 
-.trending-card:hover {
-  border-color: rgba(0,180,216,0.15);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+.trending-card:hover,
+.trending-card:focus-visible {
+  border-color: rgba(124,133,239,0.55);
+  background: #101a34;
 }
 
 .trending-card-artwork {
@@ -536,7 +536,7 @@
 }
 
 .trending-card:hover .trending-card-artwork img {
-  transform: scale(1.05);
+  transform: scale(1.03);
 }
 
 .trending-card-play {
