@@ -684,14 +684,28 @@
   pointer-events: none;
 }
 
-.promo-card-studio .promo-card-subtitle,
-.promo-card-studio .promo-card-desc {
-  color: #bdd3f6;
+.promo-card-studio .promo-card-content {
+  align-self: start;
+  padding: 16px 18px 14px;
+}
+
+.promo-card-studio .promo-card-title {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.promo-card-studio .promo-card-subtitle {
+  color: #c2d7f7;
   font-weight: 400;
 }
 
 .promo-card-studio .promo-card-desc {
-  max-width: 270px;
+  color: #aec8ed;
+  font-weight: 400;
+  max-width: 272px;
+  text-wrap: pretty;
 }
 
 .promo-card-studio .promo-card-btn {
