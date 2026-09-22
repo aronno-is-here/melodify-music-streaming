@@ -175,13 +175,12 @@ export default function Home() {
                 </div>
               </article>
               {/* Premium Card */}
-              <div className="promo-card promo-card-premium">
-                <div className="promo-card-bg promo-card-bg-premium" />
+              <article className="promo-card promo-card-premium" aria-labelledby="home-premium-title">
+                <div className="promo-card-crown" aria-hidden="true">
+                  <i className="fas fa-crown" />
+                </div>
                 <div className="promo-card-content">
-                  <div className="promo-card-crown">
-                    <i className="fas fa-crown" />
-                  </div>
-                  <h3 className="promo-card-title">Go Premium</h3>
+                  <h3 id="home-premium-title" className="promo-card-title">Go Premium</h3>
                   <p className="promo-card-subtitle">More music. More freedom.</p>
                   <p className="promo-card-desc">
                     Ad-free listening, higher quality audio, and exclusive content.
@@ -190,7 +189,7 @@ export default function Home() {
                     Upgrade Now <i className="fas fa-arrow-right" />
                   </Link>
                 </div>
-              </div>
+              </article>
             </div>
           </div>
         </section>

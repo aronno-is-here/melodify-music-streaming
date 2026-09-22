@@ -606,6 +606,7 @@
 .promo-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 16px;
 }
 
@@ -689,19 +690,22 @@
   padding: 16px 18px 12px;
 }
 
-.promo-card-studio .promo-card-title {
+.promo-card-studio .promo-card-title,
+.promo-card-premium .promo-card-title {
   font-size: 18px;
   line-height: 24px;
   font-weight: 600;
   letter-spacing: -0.2px;
 }
 
-.promo-card-studio .promo-card-subtitle {
+.promo-card-studio .promo-card-subtitle,
+.promo-card-premium .promo-card-subtitle {
   color: #c2d7f7;
   font-weight: 400;
 }
 
-.promo-card-studio .promo-card-desc {
+.promo-card-studio .promo-card-desc,
+.promo-card-premium .promo-card-desc {
   color: #aec8ed;
   font-weight: 400;
   max-width: 272px;
@@ -739,6 +743,20 @@
     url('https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=800&h=400&fit=crop') center/cover;
 }
 
+.promo-card-premium {
+  background: #030916;
+}
+
+.promo-card-premium .promo-card-content {
+  align-self: start;
+  width: 100%;
+  padding: 16px clamp(88px, 24%, 138px) 12px 72px;
+}
+
+.promo-card-premium .promo-card-desc {
+  max-width: 240px;
+}
+
 .promo-card-content {
   position: relative;
   z-index: 1;
@@ -747,10 +765,18 @@
 }
 
 .promo-card-crown {
-  color: #d4a853;
-  font-size: 16px;
-  line-height: 16px;
-  margin-bottom: 4px;
+  position: absolute;
+  top: 16px;
+  left: 14px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(114,145,200,0.35);
+  border-radius: 50%;
+  color: #f0b847;
+  font-size: 22px;
+  background: #030813;
 }
 
 .promo-card-title {
@@ -1068,6 +1094,17 @@
 }
 
 @media (max-width: 480px) {
+  .promo-card-premium .promo-card-content {
+    padding-left: 58px;
+    padding-right: 18px;
+  }
+
+  .promo-card-crown {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
   .trending-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
