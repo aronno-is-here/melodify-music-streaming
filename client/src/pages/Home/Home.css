@@ -754,12 +754,12 @@
 .promo-card-premium-artwork {
   position: absolute;
   z-index: 1;
-  top: 18px;
-  right: 20px;
-  width: clamp(72px, 18%, 104px);
+  top: 14px;
+  right: 18px;
+  width: clamp(64px, 16%, 92px);
   height: auto;
   display: block;
-  transform: rotate(-8deg);
+  transform: rotate(-6deg);
   pointer-events: none;
 }
 
@@ -791,9 +791,18 @@
   height: 44px;
   border: 1px solid rgba(114,145,200,0.35);
   border-radius: 50%;
-  color: #f0b847;
+  color: #f5c15a;
   font-size: 22px;
-  background: #030813;
+  line-height: 1;
+  background: linear-gradient(145deg, #0b1326, #030813 75%);
+  pointer-events: none;
+}
+
+.promo-card-crown i {
+  display: block;
+  font-size: 1em;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .promo-card-title {
