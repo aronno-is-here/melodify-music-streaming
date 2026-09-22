@@ -769,8 +769,50 @@
   padding: 16px clamp(88px, 24%, 138px) 12px 72px;
 }
 
+.promo-card-premium .promo-card-title {
+  line-height: 22px;
+  margin-bottom: 6px;
+}
+
+.promo-card-premium .promo-card-subtitle {
+  color: #bfd3f0;
+  text-wrap: pretty;
+}
+
 .promo-card-premium .promo-card-desc {
-  max-width: 240px;
+  max-width: 224px;
+  color: #aec4e3;
+}
+
+.promo-card-premium .promo-card-btn {
+  gap: 7px;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: top;
+  border-radius: 999px;
+  border-color: #7563c7;
+  background: linear-gradient(110deg, #191340, #0b132d);
+  color: #f4f2ff;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.promo-card-premium .promo-card-btn i {
+  font-size: 10px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.promo-card-premium .promo-card-btn:hover,
+.promo-card-premium .promo-card-btn:focus-visible {
+  background: #251c49;
+  border-color: #ae9af7;
+}
+
+.promo-card-premium .promo-card-btn:focus-visible {
+  outline: 2px solid #b6a7f4;
+  outline-offset: 3px;
 }
 
 .promo-card-content {
