@@ -64,6 +64,7 @@ Melodify - Music Streaming Website/
 │   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory, ListeningEvent
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
 │   ├── utils/catalogSyncRequest.js # Pure admin catalog-sync request validator (10/43)
+│   ├── utils/listeningEventRequest.js # Pure listening-event HTTP request/result mapping (14/43)
 │   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
 │   ├── utils/resetSecurity.js     # Reset endpoint matching and safe error responses
 │   ├── utils/accessTokenFreshness.js # Access-token freshness vs passwordChangedAt
@@ -73,7 +74,7 @@ Melodify - Music Streaming Website/
 │   ├── services/catalogSyncService.js # Bounded admin catalog-sync orchestrator (10/43)
 │   ├── services/listeningEventService.js # Listening interaction recording service (13/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
-│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
+│   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events
 ├── client/                        # React + Vite frontend
 │   ├── src/pages/                 # One folder per page (React)
 │   │   ├── Home/                  # Landing page
@@ -210,6 +211,14 @@ node --test server/models/ListeningEvent.test.js
 
 ```bash
 node --test server/services/listeningEventService.test.js
+```
+
+### Authenticated listening-event API (14/43)
+
+`POST /api/listening-events` is a normal-user endpoint (`server/routes/listeningEventRoutes.js`, mounted once in `server/server.js`). Middleware chain is **`protect` only** — no `adminOnly`. User identity comes exclusively from authenticated `req.user._id`; body/query/params `user` or `userId` fields cannot select another account. The route is gated by `RECOMMENDATION_LISTENING_EVENTS_ENABLED` (01/43): when disabled it returns **503** with a fixed message **before** request parsing or any service/Song/ListeningEvent work. Order is: JWT `protect` → feature flag → pure parser → one `recordListeningEvent` call. Request bodies must be plain JSON objects containing **only** the 13 whitelisted fields (`song`, `session_id`, `event_id`, `sequence`, `event_type`, `position_seconds`, `duration_seconds`, `listened_seconds_delta`, `client_occurred_at`, `transition_reason`, `seek_from_seconds`, `seek_to_seconds`, `playback_source`); arrays, primitives, unknown keys, and identity/derived fields (`user`, `userId`, `createdAt`, `score`, `weight`, `recommendation_score`, tokens, nested `metadata`, …) are rejected as `400 invalid request body`. Exactly **one event per request** (no batch endpoint). Service outcomes map to bounded statuses: `recorded` → **201**, `duplicate` → **200**, other `rejected` → **400**, `song-not-found` → **404**, `conflict` → **409**, `failed`/unexpected → **500**; `success` is true only for recorded/duplicate. Responses expose only `{ status, reason, event_id?, session_id?, sequence?, song? }` plus a fixed message — never raw Mongo/Mongoose errors, stacks, emails, or full documents. **No PlayHistory write** and **no PlayerContext/client telemetry integration yet** (client emission arrives in 15/43). Live listening telemetry is not claimed active:
+
+```bash
+node --test server/utils/listeningEventRequest.test.js server/routes/listeningEventRoutes.test.js
 ```
 
 ## 🔑 Admin Credentials
