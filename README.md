@@ -10,6 +10,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Multi-step sign-up flow** — email → password → profile details (name, DOB, gender, country)
 - **Login / Logout** with JWT authentication and bcrypt password hashing
 - **JWT purpose separation (04/43)** — access tokens carry `token_use: "access"`; password-reset tokens carry `token_use: "password-reset"`. Each flow rejects cross-purpose, missing, unknown, or malformed purposes. Existing sessions require re-login, and older reset links must be requested again.
+- **Reset-token handling (05/43)** — reset JWTs are not logged or returned to clients; reset-route failures and reset-sensitive global errors use fixed safe responses without logging raw errors or request bodies. Purpose separation remains enforced. Secure reset-token delivery is not yet implemented; the generic forgot-password acknowledgement does not indicate actual email delivery.
 - **Song library** — search by song title or artist, browse a poster grid
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history)
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
@@ -62,6 +63,7 @@ Melodify - Music Streaming Website/
 │   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
 │   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
+│   ├── utils/resetSecurity.js     # Reset endpoint matching and safe error responses
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import { hasTokenPurpose, TOKEN_USE_ACCESS, TOKEN_USE_PASSWORD_RESET } from '../utils/tokenPurpose.js';
+import { RESET_ERROR_MESSAGE } from '../utils/resetSecurity.js';
 
 const router = express.Router();
 
@@ -144,10 +145,9 @@ router.post('/forgot-password', async (req, res) => {
       return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
     }
     const token = jwt.sign({ id: user._id, token_use: TOKEN_USE_PASSWORD_RESET }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    console.log(`Password reset token for ${email}: ${token}`);
     res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch {
+    res.status(500).json({ success: false, error: RESET_ERROR_MESSAGE });
   }
 });
 
@@ -183,8 +183,8 @@ router.post('/reset-password', async (req, res) => {
     user.passwordChangedAt = new Date();
     await user.save();
     res.json({ success: true, message: 'Password reset successful.' });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch {
+    res.status(500).json({ success: false, error: RESET_ERROR_MESSAGE });
   }
 });
 

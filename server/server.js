@@ -22,6 +22,7 @@ import commentRoutes from './routes/commentRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import karaokeRoutes from './routes/karaokeRoutes.js';
 import recordingRoutes from './routes/recordingRoutes.js';
+import { isSensitiveResetPath, getSafeResetError } from './utils/resetSecurity.js';
 
 dotenv.config();
 
@@ -116,6 +117,11 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
+  // Parser errors may contain the raw reset request body; never log or echo them.
+  if (isSensitiveResetPath(req.originalUrl)) {
+    const { status, body } = getSafeResetError(err);
+    return res.status(status).json(body);
+  }
   console.error(err);
   const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
   res.status(err.statusCode || 500).json({ success: false, error: message });
