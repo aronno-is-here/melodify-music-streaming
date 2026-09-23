@@ -59,6 +59,7 @@ Melodify - Music Streaming Website/
 │   ├── seed.js                    # Seeds MongoDB from the old SQL data
 │   ├── config/db.js               # MongoDB connection
 │   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory
+│   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend
@@ -128,6 +129,18 @@ npm start          # http://localhost:3000
 ```
 
 ---
+
+### Catalog identity foundation (03/43)
+
+`server/utils/catalogIdentity.js` trims and lowercases provider names (maximum 128 characters), trims case-preserving external IDs (maximum 256 characters), and returns a JSON-encoded pair for explicit identities. Invalid or overlong components return `null`; `youtube_id` is only a separate legacy lookup candidate and never supplies canonical metadata.
+
+`Song` defines a unique compound index on `{ source_provider: 1, external_id: 1 }`, restricted to documents where both fields satisfy `{ $type: 'string', $gt: '' }`. Its `{ youtube_id: 1 }` lookup index is non-unique with the same non-empty-string filter. These definitions exclude missing, null, and empty-string identities; this checkpoint performs no database migration, deduplication, or index execution.
+
+Run the database-free configuration, Song schema/index, and catalog identity tests from the repository root:
+
+```bash
+node --test server/config/recommendation.test.js server/models/Song.test.js server/utils/catalogIdentity.test.js
+```
 
 ## 🔑 Admin Credentials
 

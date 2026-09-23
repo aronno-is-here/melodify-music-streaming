@@ -2,6 +2,7 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Implement AI checkpoint 03/43: pure catalog identity helpers, safe partial Song identity/legacy lookup indexes, and database-free regression tests.
 - [ ] `2026-09-15` Implement the reference-matched homepage on ehsanul in 50 numbered checkpoints; verify responsive rendering, preserve player architecture, merge without squashing, and verify the existing Vercel production deployment.
 - [x] `2026-08-06` Add To-Do tracking system to AGENTS.md (track all user requests here)
 - [x] `2026-08-06` Decide MERN vs keep PHP/HTML → **DECIDED: migrate to MERN** (Node 24 on G:, XAMPP on G:, karaoke already Node; CSS carries over verbatim so design is preserved)

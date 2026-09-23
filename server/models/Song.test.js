@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import Song from './Song.js';
+import { getCatalogIdentityFromSongLike, getLegacyYoutubeLookupId } from '../utils/catalogIdentity.js';
 
 const legacySong = {
   title: 'Example Song',
@@ -155,8 +156,70 @@ test('provenance labels are bounded and do not generate timestamps', () => {
   }
 });
 
-test('Song schema adds no indexes or unique identity constraints', () => {
-  assert.deepEqual(Song.schema.indexes(), []);
+test('canonical compound index is unique only for two non-empty string identities', () => {
+  const indexes = Song.schema.indexes();
+  const identityIndex = indexes.find(([keys]) => 'source_provider' in keys);
+  assert.ok(identityIndex);
+  const [keys, options] = identityIndex;
+  assert.deepEqual(keys, { source_provider: 1, external_id: 1 });
+  assert.equal(options.unique, true);
+  assert.deepEqual(options.partialFilterExpression, {
+    source_provider: { $type: 'string', $gt: '' },
+    external_id: { $type: 'string', $gt: '' },
+  });
+  assert.notEqual(options.sparse, true);
+  assert.equal(indexes.length, 2);
+});
+
+test('partial identity filter excludes missing, empty, null, and non-string scalar metadata', () => {
+  const [, options] = Song.schema.indexes().find(([keys]) => 'source_provider' in keys);
+  // Check the scalar predicate contract, not MongoDB execution or array matching.
+  const includes = (song) => Object.entries(options.partialFilterExpression).every(([field, filter]) => (
+    typeof song[field] === filter.$type && song[field] > filter.$gt
+  ));
+  assert.equal(includes({ source_provider: 'youtube', external_id: 'id' }), true);
+  assert.equal(includes({}), false);
+  assert.equal(includes({ youtube_id: 'legacyId' }), false);
+  for (const value of [undefined, null, '', 0, 1, true, {}]) {
+    assert.equal(includes({ source_provider: value, external_id: 'id' }), false);
+    assert.equal(includes({ source_provider: 'youtube', external_id: value }), false);
+    assert.equal(includes({ source_provider: value, external_id: value }), false);
+  }
+});
+
+test('YouTube lookup index is explicitly non-unique and filters missing or empty IDs', () => {
+  const index = Song.schema.indexes().find(([keys]) => 'youtube_id' in keys);
+  assert.ok(index);
+  assert.deepEqual(index[0], { youtube_id: 1 });
+  assert.equal(index[1].unique, false);
+  assert.deepEqual(index[1].partialFilterExpression, {
+    youtube_id: { $type: 'string', $gt: '' },
+  });
+});
+
+test('no unguarded or single-field unique identity index is defined', () => {
+  for (const [keys, options] of Song.schema.indexes()) {
+    if ('youtube_id' in keys) assert.notEqual(options.unique, true);
+    if (options.unique) {
+      assert.deepEqual(keys, { source_provider: 1, external_id: 1 });
+      for (const field of Object.keys(keys)) {
+        assert.deepEqual(options.partialFilterExpression?.[field], { $type: 'string', $gt: '' });
+      }
+    }
+  }
   assert.notEqual(Song.schema.path('youtube_id').options.unique, true);
   assert.notEqual(Song.schema.path('external_id').options.unique, true);
+  assert.notEqual(Song.schema.path('source_provider').options.unique, true);
+});
+
+test('identity helpers accept hydrated songs without changing ObjectIds or legacy metadata', () => {
+  const original = new Song(legacySong).toObject();
+  const song = Song.hydrate(original);
+  assert.equal(getCatalogIdentityFromSongLike(song), null);
+  assert.equal(getLegacyYoutubeLookupId(song), legacySong.youtube_id);
+  assert.deepEqual(song.toObject(), original);
+  const canonical = new Song({ ...legacySong, source_provider: 'YouTube', external_id: 'ExplicitId' });
+  const before = canonical.toObject();
+  assert.equal(getCatalogIdentityFromSongLike(canonical), '["youtube","ExplicitId"]');
+  assert.deepEqual(canonical.toObject(), before);
 });

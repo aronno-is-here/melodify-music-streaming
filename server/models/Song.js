@@ -44,4 +44,24 @@ const songSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Only explicit, non-empty identities participate; legacy songs stay outside uniqueness.
+songSchema.index(
+  { source_provider: 1, external_id: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      source_provider: { $type: 'string', $gt: '' },
+      external_id: { $type: 'string', $gt: '' },
+    },
+  }
+);
+
+songSchema.index(
+  { youtube_id: 1 },
+  {
+    unique: false,
+    partialFilterExpression: { youtube_id: { $type: 'string', $gt: '' } },
+  }
+);
+
 export default mongoose.model('Song', songSchema);
