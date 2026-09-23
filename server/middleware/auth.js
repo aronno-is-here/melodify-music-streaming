@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { hasTokenPurpose, TOKEN_USE_ACCESS } from '../utils/tokenPurpose.js';
+import { isAccessTokenFreshAfterPasswordChange } from '../utils/accessTokenFreshness.js';
 
 export const protect = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -15,6 +16,9 @@ export const protect = async (req, res, next) => {
     const user = await User.findById(decoded.id).select('-password');
     if (!user) {
       return res.status(401).json({ success: false, error: 'User not found' });
+    }
+    if (!isAccessTokenFreshAfterPasswordChange(decoded, user.passwordChangedAt)) {
+      return res.status(401).json({ success: false, error: 'Not authorized, token failed' });
     }
     req.user = user;
     next();
