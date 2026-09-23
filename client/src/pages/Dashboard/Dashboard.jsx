@@ -139,13 +139,6 @@ export default function Dashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const recordPlay = (song) => {
-    if (!song?._id) return;
-    api.post('/api/history', { songId: song._id }).then(() => {
-      setHistory((prev) => [song, ...prev.filter((s) => s._id !== song._id)].slice(0, 20));
-    });
-  };
-
   const handleSongClick = (songIndex, songList) => {
     const list = songList || filteredSongs;
     const song = list[songIndex];
@@ -155,7 +148,6 @@ export default function Dashboard() {
       player.togglePlay();
     } else {
       player.playSong(list, songIndex);
-      recordPlay(song);
     }
   };
 
@@ -165,7 +157,6 @@ export default function Dashboard() {
       handleSongClick(idx);
     } else {
       player.playSong([song], 0);
-      recordPlay(song);
     }
   };
 
@@ -279,20 +270,17 @@ export default function Dashboard() {
       player.togglePlay();
     } else {
       player.playSong(activePlaylistSongs, rowIndex);
-      recordPlay(song);
     }
   };
 
   const playAllPlaylist = () => {
     if (activePlaylistSongs.length === 0) return;
     player.playSong(activePlaylistSongs, 0);
-    recordPlay(activePlaylistSongs[0]);
   };
 
   const playFavorites = () => {
     if (favorites.length === 0) return;
     player.playSong(favorites, 0);
-    recordPlay(favorites[0]);
   };
 
   const playFavoriteRow = (index) => {
@@ -302,7 +290,6 @@ export default function Dashboard() {
       player.togglePlay();
     } else {
       player.playSong(favorites, index);
-      recordPlay(song);
     }
   };
 

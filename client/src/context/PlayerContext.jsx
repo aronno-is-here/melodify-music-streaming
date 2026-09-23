@@ -1,4 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { api } from '../api/client.js';
+import {
+  createListeningTelemetryController,
+  LISTENING_TELEMETRY_DISABLED_MESSAGE,
+} from './listeningTelemetry.js';
 
 const PlayerContext = createContext(null);
 
@@ -44,6 +49,37 @@ export function PlayerProvider({ children }) {
   stateRef.current.muted = muted;
   playModeRef.current = playMode;
 
+  const telemetryRef = useRef(null);
+  if (!telemetryRef.current) {
+    telemetryRef.current = createListeningTelemetryController({
+      sendEvent: async (payload) => {
+        const result = await api.post('/api/listening-events', payload);
+        if (result && result.error === LISTENING_TELEMETRY_DISABLED_MESSAGE) {
+          return { disabled: true };
+        }
+        return result;
+      },
+      recordHistory: (songId) => {
+        if (!songId) return Promise.resolve();
+        if (!localStorage.getItem('melodify_token')) return Promise.resolve();
+        return api.post('/api/history', { songId }).catch(() => {});
+      },
+      makeId: () => {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+          return crypto.randomUUID();
+        }
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        let out = '';
+        for (const byte of bytes) out += byte.toString(16).padStart(2, '0');
+        return out;
+      },
+      now: () => new Date(),
+      hasAuthToken: () => Boolean(localStorage.getItem('melodify_token')),
+    });
+  }
+  const telemetry = telemetryRef.current;
+
   const currentSong = index >= 0 && list[index] ? list[index] : null;
 
   const getContainer = useCallback(() => {
@@ -68,9 +104,10 @@ export function PlayerProvider({ children }) {
         setCurrentTime(t);
         setDuration(d);
         if (d) setProgress((t / d) * 100);
+        telemetry.progress({ position: t, duration: d });
       } catch {}
     }, 250);
-  }, []);
+  }, [telemetry]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -95,6 +132,7 @@ export function PlayerProvider({ children }) {
   const playSong = useCallback((newList, i) => {
     const song = newList?.[i];
     if (!song) return;
+    telemetry.prepare(song);
     setList(newList);
     setIndex(i);
     errorCountRef.current = 0;
@@ -123,7 +161,7 @@ export function PlayerProvider({ children }) {
         audio.play().catch(() => {});
       }
     }
-  }, [loadVideo, stopPolling]);
+  }, [loadVideo, stopPolling, telemetry]);
 
   playSongRef.current = playSong;
 
@@ -167,17 +205,35 @@ export function PlayerProvider({ children }) {
           }
         },
         onStateChange: (e) => {
+          const p = ytRef.current;
+          const readPos = () => {
+            try {
+              return p && typeof p.getCurrentTime === 'function' ? p.getCurrentTime() : undefined;
+            } catch {
+              return undefined;
+            }
+          };
+          const readDur = () => {
+            try {
+              return p && typeof p.getDuration === 'function' ? p.getDuration() : undefined;
+            } catch {
+              return undefined;
+            }
+          };
           if (e.data === window.YT.PlayerState.PLAYING) {
             transitioningRef.current = false;
             targetSongRef.current = null;
             setIsPlaying(true);
             startPolling();
+            telemetry.confirmedPlay({ position: readPos(), duration: readDur() });
           } else if (e.data === window.YT.PlayerState.PAUSED) {
             setIsPlaying(false);
             stopPolling();
+            telemetry.pause({ position: readPos(), duration: readDur() });
           } else if (e.data === window.YT.PlayerState.ENDED) {
             stopPolling();
             if (transitioningRef.current) return;
+            telemetry.complete({ position: readDur(), duration: readDur() });
             if (playModeRef.current === 'single') {
               try {
                 ytRef.current?.seekTo(0, true);
@@ -201,7 +257,9 @@ export function PlayerProvider({ children }) {
         },
       },
     });
-  }, [getContainer, startPolling, stopPolling]);
+    },
+    [getContainer, startPolling, stopPolling, telemetry],
+  );
 
   useEffect(() => {
     const audio = new Audio();
@@ -209,9 +267,17 @@ export function PlayerProvider({ children }) {
     audio.addEventListener('timeupdate', () => {
       setCurrentTime(audio.currentTime);
       if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
+      telemetry.progress({
+        position: audio.currentTime,
+        duration: Number.isFinite(audio.duration) ? audio.duration : undefined,
+      });
     });
     audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
     audio.addEventListener('ended', () => {
+      telemetry.complete({
+        position: Number.isFinite(audio.duration) ? audio.duration : undefined,
+        duration: Number.isFinite(audio.duration) ? audio.duration : undefined,
+      });
       if (playModeRef.current === 'single') {
         audio.currentTime = 0;
         audio.play().catch(() => {});
@@ -219,8 +285,20 @@ export function PlayerProvider({ children }) {
         nextRef.current();
       }
     });
-    audio.addEventListener('play', () => setIsPlaying(true));
-    audio.addEventListener('pause', () => setIsPlaying(false));
+    audio.addEventListener('play', () => {
+      setIsPlaying(true);
+      telemetry.confirmedPlay({
+        position: audio.currentTime,
+        duration: Number.isFinite(audio.duration) ? audio.duration : undefined,
+      });
+    });
+    audio.addEventListener('pause', () => {
+      setIsPlaying(false);
+      telemetry.pause({
+        position: audio.currentTime,
+        duration: Number.isFinite(audio.duration) ? audio.duration : undefined,
+      });
+    });
 
     const loadYT = () => {
       if (window.YT && window.YT.Player) {
@@ -242,7 +320,7 @@ export function PlayerProvider({ children }) {
       audio.pause();
       audio.src = '';
     };
-  }, [ensurePlayer, stopPolling]);
+  }, [ensurePlayer, stopPolling, telemetry]);
 
   const togglePlay = useCallback(() => {
     const { list: l, index: i, isPlaying: playing } = stateRef.current;
@@ -321,18 +399,29 @@ export function PlayerProvider({ children }) {
       try {
         const d = p.getDuration();
         if (!d) return;
-        p.seekTo(ratio * d, true);
-        setCurrentTime(ratio * d);
+        let from;
+        try {
+          from = typeof p.getCurrentTime === 'function' ? p.getCurrentTime() : undefined;
+        } catch {
+          from = undefined;
+        }
+        const to = ratio * d;
+        telemetry.seek({ from, to, duration: d });
+        p.seekTo(to, true);
+        setCurrentTime(to);
         setProgress(ratio * 100);
       } catch {}
     } else {
       const audio = audioRef.current;
       if (!audio || !audio.duration) return;
-      audio.currentTime = ratio * audio.duration;
+      const from = audio.currentTime;
+      const to = ratio * audio.duration;
+      telemetry.seek({ from, to, duration: audio.duration });
+      audio.currentTime = to;
       setCurrentTime(audio.currentTime);
       setProgress(ratio * 100);
     }
-  }, []);
+  }, [telemetry]);
 
   const value = {
     currentSong,
