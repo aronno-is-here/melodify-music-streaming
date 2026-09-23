@@ -63,12 +63,14 @@ Melodify - Music Streaming Website/
 │   ├── config/db.js               # MongoDB connection
 │   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
+│   ├── utils/catalogSyncRequest.js # Pure admin catalog-sync request validator (10/43)
 │   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
 │   ├── utils/resetSecurity.js     # Reset endpoint matching and safe error responses
 │   ├── utils/accessTokenFreshness.js # Access-token freshness vs passwordChangedAt
 │   ├── services/youtubeCatalogClient.js # Bounded server-side YouTube Data API client (07/43)
 │   ├── services/youtubeMusicNormalizer.js # Pure YouTube candidate normalizer (08/43)
 │   ├── services/catalogUpsertService.js # Idempotent YouTube catalog upsert service (09/43)
+│   ├── services/catalogSyncService.js # Bounded admin catalog-sync orchestrator (10/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend
@@ -175,6 +177,14 @@ node --test server/services/youtubeMusicNormalizer.test.js
 
 ```bash
 node --test server/services/catalogUpsertService.test.js
+```
+
+### Admin catalog sync API (10/43)
+
+`POST /api/admin/catalog-sync` is an admin-only, feature-flagged endpoint on the existing admin router (middleware chain: `protect`, then `adminOnly`). It requires the 01/43 flag `RECOMMENDATION_CATALOG_SYNC_ENABLED=true`; when disabled it returns `503` without calling YouTube or MongoDB. The request body is exactly `{ query: string, genre?: string, language?: string, maxResults?: number }` — validated by the pure helper `server/utils/catalogSyncRequest.js` (query required/trimmed/non-empty/≤200 chars; genre ≤128 and language ≤64 after trim with empty→absent; `maxResults` integer default **5**, hard maximum **10**, values above 10 rejected rather than escalated). `server/services/catalogSyncService.js` (`createCatalogSyncService({ youtubeClient, normalizer, catalogUpsertService, catalogSyncEnabled })` → `syncCatalogSearch`) runs one bounded pipeline per request: exactly **one** `searchMusicVideos` (no `pageToken`), then at most **one** `getVideoDetails` (skipped when zero IDs), then sequential 09/43 `upsertYouTubeCandidate` calls capped at `maxResults` — no pagination, no retry, no background job. Genre/language are explicit admin context only (never derived from query/title/channel/category); when omitted, 09/43 defaults apply (`"Unknown"` genre, unset language). Upstream failures surface only as sanitized `502` responses; individual skipped/conflict/persistence-failed candidates are counted without aborting the batch. Responses return a bounded summary (`requested`, `searched`, `normalized`, `inserted`, `updated`, `adoptedLegacy`, `skipped`, `conflicts`, `failed`) plus at most 10 safe per-item entries (`videoId`, `songId`, `status`, `reason`). No admin UI, automatic pagination, scheduled sync, or real YouTube production verification exists yet:
+
+```bash
+node --test server/utils/catalogSyncRequest.test.js server/services/catalogSyncService.test.js
 ```
 
 ## 🔑 Admin Credentials

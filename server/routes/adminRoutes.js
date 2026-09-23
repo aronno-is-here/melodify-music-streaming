@@ -5,10 +5,45 @@ import Report from '../models/Report.js';
 import Subscription from '../models/Subscription.js';
 import PlayHistory from '../models/PlayHistory.js';
 import { protect, adminOnly } from '../middleware/auth.js';
+import recommendationConfig from '../config/recommendation.js';
+import { parseCatalogSyncRequest } from '../utils/catalogSyncRequest.js';
+import { createCatalogSyncService } from '../services/catalogSyncService.js';
+import { createYouTubeCatalogClient } from '../services/youtubeCatalogClient.js';
+import { normalizeYouTubeMusicCandidates } from '../services/youtubeMusicNormalizer.js';
+import { createCatalogUpsertService } from '../services/catalogUpsertService.js';
 
 const router = express.Router();
 
 router.use(protect, adminOnly);
+
+const catalogSyncService = createCatalogSyncService({
+  youtubeClient: createYouTubeCatalogClient(),
+  normalizer: { normalizeYouTubeMusicCandidates },
+  catalogUpsertService: createCatalogUpsertService(),
+  catalogSyncEnabled: recommendationConfig.catalogSyncEnabled,
+});
+
+router.post('/catalog-sync', async (req, res) => {
+  if (!recommendationConfig.catalogSyncEnabled) {
+    return res.status(503).json({ success: false, error: 'Catalog synchronization is disabled' });
+  }
+  const parsed = parseCatalogSyncRequest(req.body);
+  if (!parsed.ok) {
+    return res.status(400).json({ success: false, error: parsed.error });
+  }
+  try {
+    const data = await catalogSyncService.syncCatalogSearch(parsed.value);
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    if (error && error.code === 'CATALOG_SYNC_DISABLED') {
+      return res.status(503).json({ success: false, error: 'Catalog synchronization is disabled' });
+    }
+    if (error && error.code === 'CATALOG_SYNC_UPSTREAM') {
+      return res.status(502).json({ success: false, error: 'Catalog synchronization failed' });
+    }
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 import { escapeRegex } from '../utils/escapeRegex.js';
 
