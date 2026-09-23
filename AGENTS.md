@@ -2,6 +2,7 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Implement AI checkpoint 07/43: server-side bounded YouTube catalog client (fixed host, injected fetch, 9s timeout, sanitized errors, no retries/pagination, no sync/routes/UI) and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 06/43: reject access tokens issued before `passwordChangedAt` with a generic 401, preserve 04/43 purpose separation and 05/43 reset security, and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 05/43: remove reset-token logging, sanitize reset-route and reset-sensitive global errors, preserve purpose separation, and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 04/43: separate access and password-reset JWT purposes, reject cross-purpose and missing-purpose tokens, and pass database-free security/regression tests.

@@ -66,6 +66,7 @@ Melodify - Music Streaming Website/
 │   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
 │   ├── utils/resetSecurity.js     # Reset endpoint matching and safe error responses
 │   ├── utils/accessTokenFreshness.js # Access-token freshness vs passwordChangedAt
+│   ├── services/youtubeCatalogClient.js # Bounded server-side YouTube Data API client (07/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend
@@ -147,6 +148,16 @@ Run the database-free configuration, Song schema/index, and catalog identity tes
 ```bash
 node --test server/config/recommendation.test.js server/models/Song.test.js server/utils/catalogIdentity.test.js
 ```
+
+### YouTube catalog client (07/43)
+
+`server/services/youtubeCatalogClient.js` is a server-side YouTube Data API client with two bounded operations: `searchMusicVideos(options)` (exactly one `search.list` request per call: `part=snippet`, `type=video`, query trimmed and length-bounded, `maxResults` an integer 1–50 defaulting to 5, optional bounded `pageToken`) and `getVideoDetails(videoIds)` (exactly one `videos.list` request per call: trimmed/deduplicated/empties-removed ID batches of 1–50, `part=snippet,contentDetails,status`). The client depends only on Node's native `fetch`, uses the fixed `https://www.googleapis.com/youtube/v3` host (callers cannot supply hosts or extra API fields), and attaches `YOUTUBE_API_KEY` only to outbound request URLs — the key is read from the server environment (see `server/.env.example`), never from `VITE_*` variables, and never appears in thrown errors, logs, or responses. Importing or constructing the client never requires the key; only an attempted operation fails with the generic "YouTube catalog API is not configured" message. Every request has a 9-second `AbortController` timeout, and there are no retries, no automatic pagination, and no background timers. Failures (network, timeout, non-2xx, malformed JSON) surface as sanitized operation-level errors without upstream bodies or URLs. Tests inject `fetch` and never touch the network:
+
+```bash
+node --test server/services/youtubeCatalogClient.test.js
+```
+
+No catalog synchronization, database writes, routes, or UI exist yet; `RECOMMENDATION_CATALOG_SYNC_ENABLED` remains unwired until the future secure catalog-sync checkpoint (10/43).
 
 ## 🔑 Admin Credentials
 
