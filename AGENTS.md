@@ -2,6 +2,7 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Record standing permission to directly commit and push completed project changes to `aronno-is-here` using configured GitHub authentication.
 - [x] `2026-09-15` Implement AI checkpoint 03/43: pure catalog identity helpers, safe partial Song identity/legacy lookup indexes, and database-free regression tests.
 - [ ] `2026-09-15` Implement the reference-matched homepage on ehsanul in 50 numbered checkpoints; verify responsive rendering, preserve player architecture, merge without squashing, and verify the existing Vercel production deployment.
 - [x] `2026-08-06` Add To-Do tracking system to AGENTS.md (track all user requests here)
@@ -108,6 +109,12 @@ npm run dev
 - Keep the Features, Project Structure, and Getting Started sections in sync with the actual code.
 - Update the README in the same commit as the code change (or a commit immediately after).
 - If a feature is removed or renamed, remove/update its README entry too.
+
+## Default GitHub Workflow
+
+- The user authorizes directly committing and pushing completed project changes to `aronno-is-here/melodify-music-streaming` without asking for confirmation each time, unless a later instruction overrides this preference.
+- Use configured GitHub authentication for `aronno-is-here`; never store account passwords or tokens in project files or commit them.
+- Push the active task branch to its intended remote branch after appropriate verification and review of the changes.
 
 ## GitHub Collaborator — Commit as Contributor
 
