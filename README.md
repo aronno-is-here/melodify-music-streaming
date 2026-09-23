@@ -67,6 +67,7 @@ Melodify - Music Streaming Website/
 │   ├── utils/resetSecurity.js     # Reset endpoint matching and safe error responses
 │   ├── utils/accessTokenFreshness.js # Access-token freshness vs passwordChangedAt
 │   ├── services/youtubeCatalogClient.js # Bounded server-side YouTube Data API client (07/43)
+│   ├── services/youtubeMusicNormalizer.js # Pure YouTube candidate normalizer (08/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend
@@ -158,6 +159,14 @@ node --test server/services/youtubeCatalogClient.test.js
 ```
 
 No catalog synchronization, database writes, routes, or UI exist yet; `RECOMMENDATION_CATALOG_SYNC_ENABLED` remains unwired until the future secure catalog-sync checkpoint (10/43).
+
+### YouTube candidate normalization (08/43)
+
+`server/services/youtubeMusicNormalizer.js` turns raw 07/43 search + video-details responses into deterministic, bounded candidate objects for the future catalog upsert layer: stable YouTube source identity (`source_provider: "youtube"`, `external_id`/`youtube_id` = video ID via the shared catalog-identity helpers), trimmed titles, ISO-8601 duration parsing to `duration_seconds` plus Song-compatible display duration (`253 → "4:13"`, `3723 → "1:02:03"`), highest-quality http/https thumbnail selection (`maxres → standard → high → medium → default`, else `null`), normalized status fields (`privacy_status`, `upload_status`, `embeddable`, `live_broadcast_content`), and a conservative `catalog_eligible` flag with a fixed ineligibility-reason vocabulary. The artist field is only a clearly provisional `artist_candidate`: exact `" - Topic"` channel suffixes are stripped (source `topic-channel`), other channels pass through untouched (source `channel-title`), and video titles are never parsed for artists. Category ID `10` maps to `category: "Music"`; **genre, language, and mood are never inferred** and remain `null`/absent. `normalizeYouTubeMusicCandidates(search, details)` preserves search order, dedupes IDs, ignores unrelated details, omits searched videos lacking authoritative details, never mutates inputs, and stores no raw response bodies. Pure functions only — no MongoDB catalog import exists yet:
+
+```bash
+node --test server/services/youtubeMusicNormalizer.test.js
+```
 
 ## 🔑 Admin Credentials
 
