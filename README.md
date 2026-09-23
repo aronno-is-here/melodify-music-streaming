@@ -71,6 +71,7 @@ Melodify - Music Streaming Website/
 │   ├── services/youtubeMusicNormalizer.js # Pure YouTube candidate normalizer (08/43)
 │   ├── services/catalogUpsertService.js # Idempotent YouTube catalog upsert service (09/43)
 │   ├── services/catalogSyncService.js # Bounded admin catalog-sync orchestrator (10/43)
+│   ├── services/listeningEventService.js # Listening interaction recording service (13/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend
@@ -201,6 +202,14 @@ node --test src/pages/Admin/catalogSyncUi.test.js
 
 ```bash
 node --test server/models/ListeningEvent.test.js
+```
+
+### Listening interaction recording service (13/43)
+
+`server/services/listeningEventService.js` exposes `createListeningEventService({ ListeningEventModel, SongModel, now })` → `recordListeningEvent({ userId, event })`. **Trusted user binding:** `userId` comes only from the service argument (future `req.user` in 14/43); the event payload is whitelisted to the 12/43 fields and can never override `user`, inject `createdAt`/`updatedAt`, or persist score/weight/preference/email/JWT/IP fields. Malformed ObjectIds and missing Songs are rejected safely (`invalid-event`, `song-not-found`) with a bounded single Song lookup that never mutates or creates Songs. Event-id idempotency: a matching `{ user, event_id }` with the same core identity (song, session, sequence, type) returns `duplicate`/`duplicate-event` with zero second create; a different core identity returns `event-id-conflict`. Sequence slots occupied by another event_id return `sequence-conflict`. Session rules: first event must be sequence `0` `play-started` (`invalid-session-start`); later sequences must strictly increase (gaps allowed, renumbering never happens — lower values get `out-of-order-sequence`). Basic transitions only: `play-started` only at session start; after terminal (`completed`/`skipped`/`stopped`) only `replay-started`; `resumed` requires a prior `paused` (`invalid-transition`) — no completion-percent or early-skip logic. Cross-field checks: position/seek points may exceed duration by at most **2s** (`POSITION_DURATION_TOLERANCE_SECONDS`); `seeked` requires both seek anchors and zero listened delta, non-seek events must not carry seek fields (`invalid-seek`). Client time is optional and bounded by the injected `now()` to **+300s** future / **24h** stale (`invalid-client-time`); regression vs the previous event’s client time returns `client-time-regression`; server `createdAt` remains authoritative. Listened-delta rules: non-listening transitions (`play-started`/`resumed`/`seeked`/`replay-started`) must claim 0 (`non-listening-transition-delta`); positive claims after `paused`, above forward position advance +2s, above client wall-time +2s, or with backward position are rejected (`invalid-listened-delta`); **seek distance is never counted as listening** and paused intervals are never counted. Persistence creates exactly one document with the trusted user; E11000 performs at most one bounded recovery lookup (duplicate or conflict) with create attempts capped at 1; other DB failures return fixed `persistence-failed` without raw messages. **PlayHistory is still untouched**, and there is **no listening API endpoint or client PlayerContext tracking yet**. Tests use fake models and a deterministic clock:
+
+```bash
+node --test server/services/listeningEventService.test.js
 ```
 
 ## 🔑 Admin Credentials
