@@ -2,6 +2,7 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Implement AI checkpoint 04/43: separate access and password-reset JWT purposes, reject cross-purpose and missing-purpose tokens, and pass database-free security/regression tests.
 - [x] `2026-09-15` Record standing permission to directly commit and push completed project changes to `aronno-is-here` using configured GitHub authentication.
 - [x] `2026-09-15` Implement AI checkpoint 03/43: pure catalog identity helpers, safe partial Song identity/legacy lookup indexes, and database-free regression tests.
 - [ ] `2026-09-15` Implement the reference-matched homepage on ehsanul in 50 numbered checkpoints; verify responsive rendering, preserve player architecture, merge without squashing, and verify the existing Vercel production deployment.

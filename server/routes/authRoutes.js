@@ -3,11 +3,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
+import { hasTokenPurpose, TOKEN_USE_ACCESS, TOKEN_USE_PASSWORD_RESET } from '../utils/tokenPurpose.js';
 
 const router = express.Router();
 
 const signToken = (user) =>
-  jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, {
+  jwt.sign({ id: user._id, email: user.email, role: user.role, token_use: TOKEN_USE_ACCESS }, process.env.JWT_SECRET, {
     expiresIn: '7d',
   });
 
@@ -142,7 +143,7 @@ router.post('/forgot-password', async (req, res) => {
     if (!user) {
       return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
     }
-    const token = jwt.sign({ id: user._id, purpose: 'password-reset' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, token_use: TOKEN_USE_PASSWORD_RESET }, process.env.JWT_SECRET, { expiresIn: '1h' });
     console.log(`Password reset token for ${email}: ${token}`);
     res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
   } catch (error) {
@@ -162,7 +163,7 @@ router.post('/reset-password', async (req, res) => {
     } catch {
       return res.json({ success: false, error: 'Invalid or expired reset token.' });
     }
-    if (decoded.purpose !== 'password-reset') {
+    if (!hasTokenPurpose(decoded, TOKEN_USE_PASSWORD_RESET)) {
       return res.json({ success: false, error: 'Invalid token.' });
     }
     const user = await User.findById(decoded.id).select('+password passwordChangedAt');

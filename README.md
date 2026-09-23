@@ -9,6 +9,7 @@ A full-featured music streaming web application with user authentication, a song
 ### User Side
 - **Multi-step sign-up flow** — email → password → profile details (name, DOB, gender, country)
 - **Login / Logout** with JWT authentication and bcrypt password hashing
+- **JWT purpose separation (04/43)** — access tokens carry `token_use: "access"`; password-reset tokens carry `token_use: "password-reset"`. Each flow rejects cross-purpose, missing, unknown, or malformed purposes. Existing sessions require re-login, and older reset links must be requested again.
 - **Song library** — search by song title or artist, browse a poster grid
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history)
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
@@ -60,6 +61,7 @@ Melodify - Music Streaming Website/
 │   ├── config/db.js               # MongoDB connection
 │   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
+│   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend

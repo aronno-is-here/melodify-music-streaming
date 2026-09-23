@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { hasTokenPurpose, TOKEN_USE_ACCESS } from '../utils/tokenPurpose.js';
 
 export const protect = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -8,6 +9,9 @@ export const protect = async (req, res, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!hasTokenPurpose(decoded, TOKEN_USE_ACCESS)) {
+      return res.status(401).json({ success: false, error: 'Not authorized, token failed' });
+    }
     const user = await User.findById(decoded.id).select('-password');
     if (!user) {
       return res.status(401).json({ success: false, error: 'User not found' });
