@@ -61,7 +61,7 @@ Melodify - Music Streaming Website/
 │   ├── server.js                  # Entry point
 │   ├── seed.js                    # Seeds MongoDB from the old SQL data
 │   ├── config/db.js               # MongoDB connection
-│   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory
+│   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory, ListeningEvent
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
 │   ├── utils/catalogSyncRequest.js # Pure admin catalog-sync request validator (10/43)
 │   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
@@ -193,6 +193,14 @@ The Admin → Music Catalog section includes a manual **YouTube Catalog Sync** f
 
 ```bash
 node --test src/pages/Admin/catalogSyncUi.test.js
+```
+
+### Listening event data model (12/43)
+
+`server/models/ListeningEvent.js` is a new Mongoose model for **raw** playback interaction evidence (separate from `PlayHistory`, which still powers Recently Played and is unchanged). Each document references stable `user` and `song` ObjectIds (no `user_email`), plus required `session_id` and `event_id` strings (trimmed, non-empty, ≤128 chars) and an integer `sequence` in `0…1,000,000` for ordering within a session. `event_type` is a fixed enum of playback-lifecycle values only: `play-started`, `progress`, `paused`, `resumed`, `seeked`, `completed`, `skipped`, `stopped`, `replay-started`. Optional bounded numerics: `position_seconds` and `duration_seconds` (`0…86400`, duration exclusive of 0), `listened_seconds_delta` (`0…120` per event), and seek anchors `seek_from_seconds`/`seek_to_seconds` (`0…86400`) so future logic can exclude seek jumps from listening time. Optional `client_occurred_at` is an untrusted client Date with **no** `Date.now` default — server `createdAt`/`updatedAt` from `timestamps: true` remain authoritative. Optional finite enums: `transition_reason` (`manual-next`, `manual-previous`, `new-selection`, `track-ended`, `repeat`, `route-change`, `logout`, `player-error`, `unknown`) and `playback_source` (`dashboard`, `homepage`, `playlist`, `song-details`, `user-profile`, `unknown`). Schema indexes (metadata only; never synced to a live DB in this checkpoint): unique `{ user, event_id }` for idempotent submissions, unique `{ user, session_id, sequence }` for ordered sessions, plus `{ user, createdAt: -1 }` and `{ song, createdAt: -1 }` for chronological analytics. **No TTL.** Derived recommendation weights, completion percentages, early-skip flags, preference scores, emails, JWTs, IPs, and user agents are **not** stored as trusted client fields — they belong to later server-side derivation. There is no tracking API, PlayerContext integration, Trending logic, or live listening analytics yet:
+
+```bash
+node --test server/models/ListeningEvent.test.js
 ```
 
 ## 🔑 Admin Credentials
