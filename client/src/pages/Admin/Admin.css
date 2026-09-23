@@ -307,3 +307,117 @@ th {
     flex-direction: column;
   }
 }
+
+/* Catalog sync panel (11/43) */
+.catalog-sync-panel {
+  margin-top: 8px;
+}
+
+.catalog-sync-panel h3 {
+  color: var(--sky-blue);
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.catalog-sync-hint {
+  color: var(--gray);
+  font-size: 12px;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.catalog-sync-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.catalog-sync-feedback {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.catalog-sync-feedback.is-error {
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+}
+
+.catalog-sync-feedback.is-success {
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid #4caf50;
+  color: var(--white);
+}
+
+.catalog-sync-feedback.is-loading {
+  background: rgba(0, 180, 216, 0.1);
+  border: 1px solid var(--sky-blue);
+  color: var(--sky-blue);
+}
+
+.catalog-sync-feedback h4 {
+  color: var(--sky-blue);
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.catalog-sync-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.catalog-sync-stat {
+  background: var(--accent-black);
+  border: 1px solid var(--gray);
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.catalog-sync-stat-label {
+  color: var(--gray);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.catalog-sync-stat-value {
+  color: var(--sky-blue);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.catalog-sync-results-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  margin-top: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.catalog-sync-results {
+  margin-top: 0;
+  min-width: 480px;
+}
+
+.catalog-sync-results th,
+.catalog-sync-results td {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .catalog-sync-grid {
+    grid-template-columns: 1fr;
+  }
+  .catalog-sync-summary {
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  }
+}

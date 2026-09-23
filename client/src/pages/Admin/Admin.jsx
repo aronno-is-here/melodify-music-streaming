@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import cssRaw from './Admin.css?raw';
 import KaraokeForm from './KaraokeForm.jsx';
+import CatalogSyncPanel from './CatalogSyncPanel.jsx';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions'];
 
@@ -388,6 +389,7 @@ export default function Admin() {
                   </form>
                 </div>
               )}
+              <CatalogSyncPanel />
               <table style={{ marginTop: 20 }}>
                 <thead>
                   <tr><th>ID</th><th>Title</th><th>Artist</th><th>Genre</th><th>Duration</th><th>Actions</th></tr>

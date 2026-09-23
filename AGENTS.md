@@ -2,6 +2,7 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Implement AI checkpoint 11/43: Admin Music Catalog manual YouTube catalog-sync form (`CatalogSyncPanel` in existing music section, query/genre/language/maxResults 1–10, authenticated POST via existing API client, server-side feature-flag UX, bounded summary + per-item statuses, no auto-sync/API key/polling) and pass helper + backend regression tests + client production build.
 - [x] `2026-09-15` Implement AI checkpoint 10/43: secure bounded admin catalog-sync API (`POST /api/admin/catalog-sync` behind `protect`+`adminOnly` and `RECOMMENDATION_CATALOG_SYNC_ENABLED`, one search + one details call, maxResults ≤ 10, 09/43 idempotent upsert, sanitized upstream errors, no pagination/background sync/UI) and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 09/43: idempotent YouTube catalog upsert service (canonical identity lookup/insert, single-match legacy adoption preserving `_id`, ambiguous/conflicting conflicts, import-managed refresh whitelist, E11000 single recovery, injected clock, no destructive merges) and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 08/43: pure YouTube music candidate normalizer (canonical identity, duration/thumbnail/status parsing, provisional topic-channel artist, conservative catalog eligibility, ordered search+details merge, no genre/language/mood inference) and pass database-free regression tests.
