@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, useEffect } from 'react';
+import { useLayoutEffect, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
@@ -27,6 +27,43 @@ export default function Home() {
   const { user } = useAuth();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const menuButtonRef = useRef(null);
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+    menuButtonRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    menuRef.current?.querySelector('a')?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMobileMenu();
+      }
+    };
+    const handlePointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target) && !menuButtonRef.current?.contains(event.target)) {
+        closeMobileMenu();
+      }
+    };
+    const desktop = window.matchMedia('(min-width: 769px)');
+    const handleResize = () => {
+      if (desktop.matches) setMobileMenuOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+    desktop.addEventListener('change', handleResize);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
+      desktop.removeEventListener('change', handleResize);
+    };
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     const loadSongs = async () => {
@@ -62,17 +99,19 @@ export default function Home() {
               <Waveform />
               <span className="home-logo-text">Melodify</span>
             </Link>
-            <nav className="home-nav" aria-label="Main navigation">
-              <Link to="/" className="home-nav-link home-nav-link--active" aria-current="page">Home</Link>
-              <Link to="/premium" className="home-nav-link">Premium</Link>
-              <Link to="/studio" className="home-nav-link">Studio</Link>
-              <Link to="/feed" className="home-nav-link">Feed</Link>
-            </nav>
-            <div className="home-right">
+            <div id="home-navigation" ref={menuRef} className={`home-navigation${mobileMenuOpen ? ' home-navigation--open' : ''}`}>
+              <nav className="home-nav" aria-label="Main navigation" onClick={(event) => { if (mobileMenuOpen && event.target.closest('a')) closeMobileMenu(); }}>
+                <Link to="/" className="home-nav-link home-nav-link--active" aria-current="page">Home</Link>
+                <Link to="/premium" className="home-nav-link">Premium</Link>
+                <Link to="/studio" className="home-nav-link">Studio</Link>
+                <Link to="/feed" className="home-nav-link">Feed</Link>
+              </nav>
               <div className="home-search">
-                <i className="fas fa-search home-search-icon" />
+                <i className="fas fa-search home-search-icon" aria-hidden="true" />
                 <input type="search" aria-label="Search songs, artists, or albums" placeholder="Search songs, artists, or albums..." className="home-search-input" />
               </div>
+            </div>
+            <div className="home-right">
               <button className="home-icon-btn" aria-label="Notifications">
                 <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
                   <path d="M5 17h14l-2-3V9a5 5 0 0 0-4-5V2h-2v2a5 5 0 0 0-4 5v5z" strokeLinejoin="round" />
@@ -86,6 +125,19 @@ export default function Home() {
                   <i className="fas fa-user" />
                 )}
               </Link>
+              <button
+                ref={menuButtonRef}
+                type="button"
+                className="home-menu-toggle"
+                aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="home-navigation"
+                onClick={() => setMobileMenuOpen(open => !open)}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                  <path d={mobileMenuOpen ? 'M6 6l12 12M6 18L18 6' : 'M4 6h16M4 12h16M4 18h16'} />
+                </svg>
+              </button>
             </div>
           </div>
         </header>
