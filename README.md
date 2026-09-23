@@ -68,6 +68,7 @@ Melodify - Music Streaming Website/
 │   ├── utils/accessTokenFreshness.js # Access-token freshness vs passwordChangedAt
 │   ├── services/youtubeCatalogClient.js # Bounded server-side YouTube Data API client (07/43)
 │   ├── services/youtubeMusicNormalizer.js # Pure YouTube candidate normalizer (08/43)
+│   ├── services/catalogUpsertService.js # Idempotent YouTube catalog upsert service (09/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
 ├── client/                        # React + Vite frontend
@@ -166,6 +167,14 @@ No catalog synchronization, database writes, routes, or UI exist yet; `RECOMMEND
 
 ```bash
 node --test server/services/youtubeMusicNormalizer.test.js
+```
+
+### Idempotent catalog upsert (09/43)
+
+`server/services/catalogUpsertService.js` persists a single normalized 08/43 candidate through the factory `createCatalogUpsertService({ SongModel, now })`, which returns `{ upsertYouTubeCandidate(candidate, context) }`. Results are one of `inserted`, `updated`, `adopted-legacy`, `skipped`, or `conflict`, with a null reason or a fixed code (`ineligible`, `invalid-identity`, `missing-artist`, `ambiguous-legacy-match`, `conflicting-legacy-identity`, `persistence-failed`); database errors are never surfaced raw. Validation happens before any model or clock call: identity must be `source_provider: "youtube"` with `external_id === youtube_id`, `catalog_eligible === true` with a valid title and duration, and a non-empty `artist_candidate` for new inserts. New documents use the literal genre sentinel `"Unknown"` unless an explicit `context.genre` is supplied (`normalized_genre` only from that explicit genre, lowercased); `language` is stored only when explicitly provided — genre and language are never inferred. Existing curated fields (`title`, `artist`, `genre`, `lyrics`, `chords`, `file_path`, `release_date`) and `_id` are never overwritten; refreshes only apply the import-managed whitelist (`youtube_id`, `source_provider`, `external_id`, `poster_url`, `duration`, `duration_seconds`, `category`, `recommendation_eligible`, explicit `language`, `metadata_refreshed_at`). Lookup order: canonical identity update in place; else one `youtube_id` match with empty canonical identity is adopted on the same `_id` (`adopted-legacy`) with provenance `{ source: "youtube", reference, imported_at }`; multiple matches or a foreign canonical identity return a conflict with no mutation; zero matches use one atomic `findOneAndUpdate` upsert with at-most-one E11000 recovery re-read. The injected `now()` clock is called at most once per operation (zero on skip/conflict). No bulk sync, routes, admin UI, or destructive delete/merge methods exist yet. Tests use a fake in-memory SongModel and fixed clock — no MongoDB, no network:
+
+```bash
+node --test server/services/catalogUpsertService.test.js
 ```
 
 ## 🔑 Admin Credentials

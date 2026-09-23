@@ -2,6 +2,7 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Implement AI checkpoint 09/43: idempotent YouTube catalog upsert service (canonical identity lookup/insert, single-match legacy adoption preserving `_id`, ambiguous/conflicting conflicts, import-managed refresh whitelist, E11000 single recovery, injected clock, no destructive merges) and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 08/43: pure YouTube music candidate normalizer (canonical identity, duration/thumbnail/status parsing, provisional topic-channel artist, conservative catalog eligibility, ordered search+details merge, no genre/language/mood inference) and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 07/43: server-side bounded YouTube catalog client (fixed host, injected fetch, 9s timeout, sanitized errors, no retries/pagination, no sync/routes/UI) and pass database-free regression tests.
 - [x] `2026-09-15` Implement AI checkpoint 06/43: reject access tokens issued before `passwordChangedAt` with a generic 401, preserve 04/43 purpose separation and 05/43 reset security, and pass database-free regression tests.
