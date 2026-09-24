@@ -24,6 +24,7 @@ import karaokeRoutes from './routes/karaokeRoutes.js';
 import recordingRoutes from './routes/recordingRoutes.js';
 import listeningEventRoutes from './routes/listeningEventRoutes.js';
 import trendingRoutes from './routes/trendingRoutes.js';
+import recommendationRoutes from './routes/recommendationRoutes.js';
 import { isSensitiveResetPath, getSafeResetError } from './utils/resetSecurity.js';
 
 dotenv.config();
@@ -110,6 +111,7 @@ app.use('/api/karaoke', karaokeRoutes);
 app.use('/api/recordings', recordingRoutes);
 app.use('/api/listening-events', listeningEventRoutes);
 app.use('/api/trending', trendingRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Melodify API is running' }));
