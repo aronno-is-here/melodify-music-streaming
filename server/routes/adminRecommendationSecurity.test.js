@@ -165,7 +165,7 @@ const forbiddenAdmin = (req, res) => {
 // ROUTE STRUCTURE
 // ============================================================
 
-test('structure: routes are GET /metrics and GET /history only (no write methods)', () => {
+test('structure: routes are GET /metrics, GET /history, and GET /health only (no write methods)', () => {
   const router = createAdminRecommendationRouter({
     protectMiddleware: (req, res, next) => next(),
     adminOnlyMiddleware: (req, res, next) => next(),
@@ -186,6 +186,16 @@ test('structure: routes are GET /metrics and GET /history only (no write methods
         };
       },
     },
+    adminRecommendationHealthService: {
+      async getRecommendationRetrainingHealth() {
+        return {
+          state: 'never-run',
+          source: 'retraining-health',
+          lease: { active: false, run_id: null, expires_at: null },
+          latest: null,
+        };
+      },
+    },
   });
   const metricsLayer = router.stack.find((l) => l.route && l.route.path === '/metrics');
   assert.ok(metricsLayer);
@@ -193,6 +203,9 @@ test('structure: routes are GET /metrics and GET /history only (no write methods
   const historyLayer = router.stack.find((l) => l.route && l.route.path === '/history');
   assert.ok(historyLayer, 'expected GET /history route');
   assert.deepEqual(Object.keys(historyLayer.route.methods), ['get']);
+  const healthLayer = router.stack.find((l) => l.route && l.route.path === '/health');
+  assert.ok(healthLayer, 'expected GET /health route');
+  assert.deepEqual(Object.keys(healthLayer.route.methods), ['get']);
   const writePaths = router.stack.filter(
     (l) =>
       l.route &&
@@ -956,7 +969,10 @@ test('no evaluation recomputation: service only lists persisted runs', () => {
   assert.equal(SERVICE_SOURCE.includes('rank_'), false);
   assert.equal(SERVICE_SOURCE.includes('Date.now()'), false);
   assert.equal(ROUTE_SOURCE.includes('evaluate'), false);
-  assert.equal(ROUTE_SOURCE.includes('train'), false);
+  assert.equal(/\btrain\b/.test(ROUTE_SOURCE), false);
+  assert.equal(ROUTE_SOURCE.includes('runRetrainingPython'), false);
+  assert.equal(ROUTE_SOURCE.includes('collectRetrainingInput'), false);
+  assert.equal(ROUTE_SOURCE.includes('child_process'), false);
 });
 
 // ============================================================
@@ -1551,6 +1567,207 @@ test('history security: history and metrics remain read-only in route source', (
     '.insert',
     '.updateOne',
     'upsert',
+  ]) {
+    assert.equal(ROUTE_SOURCE.includes(token), false, token);
+  }
+});
+
+// ============================================================
+// HEALTH ENDPOINT SECURITY (43/43)
+// ============================================================
+
+function createHealthSecurityHarness({
+  serviceResult = {
+    state: 'never-run',
+    source: 'retraining-health',
+    lease: { active: false, run_id: null, expires_at: null },
+    latest: null,
+  },
+  serviceError = null,
+  protectImpl = null,
+  adminOnlyImpl = null,
+} = {}) {
+  const state = {
+    protectCalls: 0,
+    adminOnlyCalls: 0,
+    serviceCalls: [],
+  };
+  const baseProtect =
+    protectImpl ??
+    ((req, res, next) => {
+      next();
+    });
+  const baseAdmin =
+    adminOnlyImpl ??
+    ((req, res, next) => {
+      next();
+    });
+
+  const router = createAdminRecommendationRouter({
+    protectMiddleware: (req, res, next) => {
+      state.protectCalls += 1;
+      return baseProtect(req, res, next);
+    },
+    adminOnlyMiddleware: (req, res, next) => {
+      state.adminOnlyCalls += 1;
+      return baseAdmin(req, res, next);
+    },
+    adminRecommendationHealthService: {
+      async getRecommendationRetrainingHealth(args) {
+        state.serviceCalls.push(args ?? null);
+        if (serviceError) throw serviceError;
+        return serviceResult;
+      },
+    },
+  });
+
+  const layer = router.stack.find((l) => l.route && l.route.path === '/health');
+  assert.ok(layer, 'expected GET /health route');
+  const handlers = layer.route.stack.map((s) => s.handle);
+
+  const invoke = async ({
+    query = {},
+    headers = {},
+    body,
+    user = { role: 'admin' },
+  } = {}) => {
+    const req = { query, headers };
+    if (body !== undefined) req.body = body;
+    if (user !== null) req.user = user;
+    const res = createRes();
+    let index = 0;
+    const runNext = async () => {
+      if (index >= handlers.length) return;
+      const handler = handlers[index];
+      index += 1;
+      await handler(req, res, runNext);
+    };
+    await runNext();
+    return { req, res, state };
+  };
+
+  return { invoke, state, handlers, layer, router };
+}
+
+test('health security: middleware order is protect -> adminOnly -> handler', () => {
+  const { handlers } = createHealthSecurityHarness();
+  assert.equal(handlers.length, 3);
+  const order = [];
+  handlers[0]({}, {}, () => order.push('protect'));
+  handlers[1]({}, {}, () => order.push('adminOnly'));
+  assert.deepEqual(order, ['protect', 'adminOnly']);
+});
+
+test('health security: unauthenticated short-circuits with 401 and zero service calls', async () => {
+  const { invoke, state } = createHealthSecurityHarness({
+    protectImpl: unauthorizedProtect,
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 401);
+  assert.equal(state.adminOnlyCalls, 0);
+  assert.equal(state.serviceCalls.length, 0);
+});
+
+test('health security: role/header cannot bypass protect on health', async () => {
+  const { invoke, state } = createHealthSecurityHarness({
+    protectImpl: unauthorizedProtect,
+  });
+  for (const headers of [
+    { 'x-admin': 'true' },
+    { 'x-role': 'admin' },
+    { authorization: 'Bearer fake' },
+  ]) {
+    const { res } = await invoke({ headers });
+    assert.equal(res.statusCode, 401, JSON.stringify(headers));
+    assert.equal(state.serviceCalls.length, 0);
+  }
+});
+
+test('health security: non-admin short-circuits with 403 and zero service calls', async () => {
+  const { invoke, state } = createHealthSecurityHarness({
+    adminOnlyImpl: forbiddenAdmin,
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.error, 'Admin access required');
+  assert.equal(state.serviceCalls.length, 0);
+});
+
+test('health security: authorized admin invokes health service exactly once with no args', async () => {
+  const { invoke, state } = createHealthSecurityHarness();
+  const { res } = await invoke({}, );
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.serviceCalls.length, 1);
+  assert.equal(state.serviceCalls[0], null);
+});
+
+test('health security: any query key is 400 before service', async () => {
+  const { invoke, state } = createHealthSecurityHarness();
+  for (const query of [{ limit: '1' }, { admin: 'true' }, { run_id: 'x' }]) {
+    const { res } = await invoke({ query });
+    assert.equal(res.statusCode, 400, JSON.stringify(query));
+    assert.equal(res.body.error, 'invalid recommendation health query');
+  }
+  assert.equal(state.serviceCalls.length, 0);
+});
+
+test('health security: response never includes lease token or secrets', async () => {
+  const { invoke } = createHealthSecurityHarness({
+    serviceResult: {
+      state: 'running',
+      source: 'retraining-health',
+      lease: {
+        active: true,
+        run_id: 'run-43-01',
+        expires_at: '2026-09-15T12:10:00.000Z',
+        token: 'should-not-leak',
+      },
+      latest: {
+        attempt_id: 'run-43-01-ffffffff',
+        run_id: 'run-43-01',
+        status: 'completed',
+        failure_code: null,
+        failure_message: null,
+      },
+    },
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 200);
+  const serialized = JSON.stringify(res.body);
+  assert.equal(serialized.includes('should-not-leak'), false);
+  assert.equal(serialized.includes('token'), false);
+});
+
+test('health security: 500 uses fixed message and never leaks service error details', async () => {
+  const { invoke } = createHealthSecurityHarness({
+    serviceError: new Error('mongodb://user:pass@host'),
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, {
+    success: false,
+    error: 'failed to load retraining health',
+  });
+  assert.equal(JSON.stringify(res.body).includes('mongodb'), false);
+  assert.equal(JSON.stringify(res.body).includes('stack'), false);
+});
+
+test('health security: route source has no retrain execution, child_process, or Express extras', () => {
+  for (const token of [
+    'child_process',
+    'spawn',
+    'python',
+    'runRecommendationRetraining',
+    'recommendationPythonRunner',
+    'exec(',
+    'execSync(',
+    'spawnSync(',
+    'shell: true',
+    'RECOMMENDATION_AI_ENABLED',
+    'router.post',
+    'router.put',
+    'router.patch',
+    'router.delete',
   ]) {
     assert.equal(ROUTE_SOURCE.includes(token), false, token);
   }

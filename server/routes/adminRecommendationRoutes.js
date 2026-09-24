@@ -13,6 +13,10 @@ import {
   MAX_ADMIN_RECOMMENDATION_HISTORY_LIMIT,
   createAdminRecommendationHistoryService,
 } from '../services/adminRecommendationHistoryService.js';
+import {
+  RETRAINING_HEALTH_HTTP_MESSAGES,
+  createRecommendationRetrainingService,
+} from '../services/recommendationRetrainingService.js';
 
 const ALLOWED_KEYS = Object.freeze(['pipeline_stage']);
 
@@ -29,6 +33,25 @@ const invalidHistoryQuery = () => ({
   ok: false,
   error: ADMIN_RECOMMENDATION_HISTORY_HTTP_MESSAGES.invalidQuery,
 });
+
+const invalidHealthQuery = () => ({
+  ok: false,
+  error: RETRAINING_HEALTH_HTTP_MESSAGES.invalidQuery,
+});
+
+export function parseAdminRecommendationHealthQuery(query) {
+  if (query === undefined || query === null) {
+    return { ok: true, value: null };
+  }
+  if (typeof query !== 'object' || Array.isArray(query)) {
+    return invalidHealthQuery();
+  }
+  for (const key of Object.keys(query)) {
+    void key;
+    return invalidHealthQuery();
+  }
+  return { ok: true, value: null };
+}
 
 export function parseAdminRecommendationMetricsQuery(query) {
   if (query === undefined || query === null) {
@@ -104,8 +127,55 @@ export function createAdminRecommendationRouter({
   adminOnlyMiddleware = adminOnly,
   adminRecommendationMetricsService = createAdminRecommendationMetricsService(),
   adminRecommendationHistoryService = createAdminRecommendationHistoryService(),
+  adminRecommendationHealthService = createRecommendationRetrainingService(),
 } = {}) {
   const router = Router();
+
+  router.get(
+    '/health',
+    protectMiddleware,
+    adminOnlyMiddleware,
+    async (req, res) => {
+      const parsed = parseAdminRecommendationHealthQuery(req.query);
+      if (!parsed.ok) {
+        return res.status(400).json({
+          success: false,
+          error: parsed.error,
+        });
+      }
+
+      try {
+        const data =
+          await adminRecommendationHealthService.getRecommendationRetrainingHealth();
+        const lease =
+          data && typeof data.lease === 'object' && data.lease !== null
+            ? {
+                active: data.lease.active === true,
+                run_id:
+                  typeof data.lease.run_id === 'string' ? data.lease.run_id : null,
+                expires_at:
+                  typeof data.lease.expires_at === 'string'
+                    ? data.lease.expires_at
+                    : null,
+              }
+            : null;
+        return res.status(200).json({
+          success: true,
+          data: {
+            state: data?.state,
+            source: data?.source,
+            lease,
+            latest: data?.latest ?? null,
+          },
+        });
+      } catch {
+        return res.status(500).json({
+          success: false,
+          error: RETRAINING_HEALTH_HTTP_MESSAGES.failed,
+        });
+      }
+    },
+  );
 
   router.get(
     '/metrics',

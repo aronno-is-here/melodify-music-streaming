@@ -569,3 +569,13 @@ th {
   gap: 4px;
   min-width: 0;
 }
+
+.ai-rec-health {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-rec-health-refresh {
+  align-self: flex-start;
+}

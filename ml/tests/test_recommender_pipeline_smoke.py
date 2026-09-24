@@ -2,8 +2,9 @@
 
 The five-item rankings exhaust each user's eligible catalog, so recall/coverage
 check wiring, not model quality. No latent orientation or raw score order is
-prescribed. Every test builds fresh inputs; no production orchestration exists
-here and the principal flow ends at evaluation.
+prescribed. Every test builds fresh inputs; production orchestration lives in
+``ml/recommender/orchestrator.py`` (checkpoint 43/43) and this suite remains a
+self-contained composition check ending at evaluation.
 """
 
 from __future__ import annotations
@@ -641,8 +642,9 @@ class SmokeScopeTests(unittest.TestCase):
             if isinstance(node, ast.Attribute):
                 self.assertNotIn(node.attr, ("environ", "path", "sys_path"))
         root = Path(__file__).resolve().parents[1] / "recommender"
-        for name in ("pipeline.py", "orchestrator.py", "train.py"):
+        for name in ("pipeline.py", "train.py"):
             self.assertFalse((root / name).exists())
+        self.assertTrue((root / "orchestrator.py").exists())
 
 
 if __name__ == "__main__":

@@ -27,6 +27,11 @@ import {
   selectAdminRecommendationHistoryView,
   selectHistoryRun,
 } from './aiRecommendationHistoryUi.js';
+import {
+  ADMIN_AI_HEALTH_MESSAGES,
+  ADMIN_AI_HEALTH_VIEWS,
+} from './aiRecommendationHealthUi.js';
+import { ADMIN_RECOMMENDATION_HEALTH_PATH } from '../../services/adminRecommendationHealth.js';
 
 const readSource = (relativePath) =>
   readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8');
@@ -794,5 +799,131 @@ test('static safety: no HTTP verbs beyond GET in history client stack', () => {
     assert.equal(src.includes('api.patch'), false);
     assert.equal(src.includes('axios'), false);
     assert.equal(src.includes('fetch('), false);
+  }
+});
+
+// ============================================================
+// MODEL HEALTH (43/43)
+// ============================================================
+
+const HEALTH_SERVICE_SOURCE = readSource(
+  '../../services/adminRecommendationHealth.js',
+);
+const HEALTH_HOOK_SOURCE = readSource(
+  '../../hooks/useAdminRecommendationHealth.js',
+);
+const HEALTH_UI_SOURCE = readSource('./aiRecommendationHealthUi.js');
+const ALL_HEALTH = PAGE_SOURCE + HEALTH_UI_SOURCE + HEALTH_HOOK_SOURCE
+  + HEALTH_SERVICE_SOURCE;
+
+test('health page: uses the 43/43 health hook and renders Model Health', () => {
+  assert.ok(PAGE_SOURCE.includes('useAdminRecommendationHealth'));
+  assert.ok(
+    PAGE_SOURCE.includes(
+      "from '../../hooks/useAdminRecommendationHealth.js'",
+    ),
+  );
+  assert.ok(PAGE_SOURCE.includes('>Model Health</h3>'));
+  assert.equal(PAGE_SOURCE.includes('useEffect'), false);
+  assert.equal(PAGE_SOURCE.includes('api.get'), false);
+  assert.equal(PAGE_SOURCE.includes('fetch('), false);
+});
+
+test('health page: health does not add page-level useState', () => {
+  assert.equal(
+    (PAGE_SOURCE.match(/useState\(/g) || []).length,
+    2,
+    'stage selector + local run selection only',
+  );
+});
+
+test('health page: Refresh Status button calls refreshHealth', () => {
+  assert.ok(PAGE_SOURCE.includes('refreshHealth()'));
+  assert.ok(PAGE_SOURCE.includes('ADMIN_AI_HEALTH_MESSAGES.RETRY'));
+  assert.equal(ADMIN_AI_HEALTH_MESSAGES.RETRY, 'Refresh Status');
+});
+
+test('health page: health error retry uses alert role and health messages', () => {
+  assert.ok(PAGE_SOURCE.includes('ADMIN_AI_HEALTH_MESSAGES.ERROR'));
+  assert.equal(
+    ADMIN_AI_HEALTH_MESSAGES.ERROR,
+    'Unable to load retraining health.',
+  );
+  assert.ok(PAGE_SOURCE.includes('ADMIN_AI_HEALTH_VIEWS'));
+});
+
+test('health page: stage change does not touch health hook dependencies', () => {
+  assert.ok(PAGE_SOURCE.includes('handleStageChange'));
+  const handleIndex = PAGE_SOURCE.indexOf('handleStageChange');
+  const healthSectionIndex = PAGE_SOURCE.indexOf('>Model Health</h3>');
+  assert.ok(handleIndex >= 0);
+  assert.ok(healthSectionIndex > handleIndex);
+});
+
+test('static safety: health additions free of forbidden tokens', () => {
+  const forbidden = [
+    'overall_score',
+    'quality_score',
+    'composite_score',
+    'best_model',
+    'winner',
+    'winning',
+    'healthy',
+    'unhealthy',
+    'grade',
+    'tier',
+    'TruncatedSVD',
+    'train_collaborative_model',
+    'evaluate_recommendations',
+    'child_process',
+    'Math.random',
+    'setInterval',
+    'setTimeout',
+    'payload_sha256',
+    'RECOMMENDATION_AI_ENABLED',
+    'localStorage',
+    'sessionStorage',
+    'Bearer ',
+    'Activate',
+    'Deploy',
+    'Promote',
+    'Train/Retrain',
+  ];
+  for (const token of forbidden) {
+    assert.equal(ALL_HEALTH.includes(token), false, token);
+  }
+});
+
+test('static safety: health path literal only in health service module', () => {
+  assert.equal(
+    HEALTH_SERVICE_SOURCE.includes(ADMIN_RECOMMENDATION_HEALTH_PATH),
+    true,
+  );
+  assert.equal(PAGE_SOURCE.includes('/api/admin/recommendations'), false);
+  assert.equal(HEALTH_HOOK_SOURCE.includes('/api/admin/recommendations'), false);
+  assert.equal(HEALTH_UI_SOURCE.includes('/api/admin/recommendations'), false);
+});
+
+test('static safety: health client stack uses GET only', () => {
+  for (const src of [HEALTH_SERVICE_SOURCE, HEALTH_HOOK_SOURCE]) {
+    assert.equal(src.includes('api.post'), false);
+    assert.equal(src.includes('api.put'), false);
+    assert.equal(src.includes('api.del'), false);
+    assert.equal(src.includes('api.patch'), false);
+    assert.equal(src.includes('axios'), false);
+    assert.equal(src.includes('fetch('), false);
+  }
+});
+
+test('static safety: no session/token leakage in health additions', () => {
+  for (const token of [
+    'melodify_token',
+    'Authorization',
+    'JWT_SECRET',
+    'password',
+    'localStorage',
+    'Bearer ',
+  ]) {
+    assert.equal(ALL_HEALTH.includes(token), false, token);
   }
 });

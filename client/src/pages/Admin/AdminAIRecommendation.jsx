@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAdminRecommendationMetrics } from '../../hooks/useAdminRecommendationMetrics.js';
 import { useAdminRecommendationHistory } from '../../hooks/useAdminRecommendationHistory.js';
+import { useAdminRecommendationHealth } from '../../hooks/useAdminRecommendationHealth.js';
 import {
   ADMIN_RECOMMENDATION_PIPELINE_STAGES,
   DEFAULT_ADMIN_RECOMMENDATION_PIPELINE_STAGE,
@@ -25,6 +26,12 @@ import {
   selectAdminRecommendationHistoryView,
   selectHistoryRun,
 } from './aiRecommendationHistoryUi.js';
+import {
+  ADMIN_AI_HEALTH_MESSAGES,
+  ADMIN_AI_HEALTH_VIEWS,
+  buildHealthStatusCards,
+  selectAdminRecommendationHealthView,
+} from './aiRecommendationHealthUi.js';
 
 export default function AdminAIRecommendation() {
   const [selectedStage, setSelectedStage] = useState(
@@ -47,6 +54,13 @@ export default function AdminAIRecommendation() {
     pipelineStage: selectedStage,
     limit: DEFAULT_ADMIN_RECOMMENDATION_HISTORY_LIMIT,
   });
+  const {
+    state: healthState,
+    backendState,
+    lease,
+    latest: healthLatest,
+    refresh: refreshHealth,
+  } = useAdminRecommendationHealth();
 
   const view = selectAdminRecommendationDashboardView(metricsState);
   const metricCards = view === ADMIN_AI_DASHBOARD_VIEWS.READY
@@ -65,6 +79,12 @@ export default function AdminAIRecommendation() {
   const reproCards = selectedRun
     ? buildConfigurationCards(selectedRun)
     : [];
+
+  const healthView = selectAdminRecommendationHealthView(healthState);
+  const healthCards =
+    healthView === ADMIN_AI_HEALTH_VIEWS.READY
+      ? buildHealthStatusCards(backendState, lease, healthLatest)
+      : [];
 
   const handleStageChange = (stage) => {
     setSelectedStage(stage);
@@ -237,6 +257,47 @@ export default function AdminAIRecommendation() {
             ))}
           </div>
         </>
+      )}
+
+      <h3 className="ai-rec-section-title">Model Health</h3>
+
+      {healthView === ADMIN_AI_HEALTH_VIEWS.LOADING && (
+        <p className="ai-rec-state" role="status" aria-live="polite">
+          {ADMIN_AI_HEALTH_MESSAGES.LOADING}
+        </p>
+      )}
+
+      {healthView === ADMIN_AI_HEALTH_VIEWS.ERROR && (
+        <div className="ai-rec-state ai-rec-error" role="alert">
+          <p>{ADMIN_AI_HEALTH_MESSAGES.ERROR}</p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => refreshHealth()}
+          >
+            {ADMIN_AI_HEALTH_MESSAGES.RETRY}
+          </button>
+        </div>
+      )}
+
+      {healthView === ADMIN_AI_HEALTH_VIEWS.READY && (
+        <div className="ai-rec-health">
+          <div className="ai-rec-summary-grid">
+            {healthCards.map((card) => (
+              <div key={card.key} className="ai-rec-summary-card">
+                <span className="ai-rec-summary-label">{card.label}</span>
+                <span className="ai-rec-summary-value">{card.formatted}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn ai-rec-health-refresh"
+            onClick={() => refreshHealth()}
+          >
+            {ADMIN_AI_HEALTH_MESSAGES.RETRY}
+          </button>
+        </div>
       )}
     </div>
   );

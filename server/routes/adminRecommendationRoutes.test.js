@@ -6,6 +6,7 @@ import {
   createAdminRecommendationRouter,
   parseAdminRecommendationHistoryQuery,
   parseAdminRecommendationMetricsQuery,
+  parseAdminRecommendationHealthQuery,
 } from './adminRecommendationRoutes.js';
 import {
   ADMIN_RECOMMENDATION_METRICS_DEFAULT_STAGE,
@@ -202,14 +203,14 @@ test('106: no RECOMMENDATION_AI_ENABLED / aiEnabled gate in this route', () => {
   assert.equal(source.includes('503'), false);
 });
 
-test('107: route file has no POST/PUT/PATCH/DELETE handlers (GET /metrics + GET /history only)', () => {
+test('107: route file has no POST/PUT/PATCH/DELETE handlers (GET /metrics + GET /history + GET /health only)', () => {
   const source = readSource('./adminRecommendationRoutes.js');
   assert.equal(source.includes('router.post'), false);
   assert.equal(source.includes('router.put'), false);
   assert.equal(source.includes('router.patch'), false);
   assert.equal(source.includes('router.delete'), false);
   const gets = source.match(/router\.get\s*\(/g) || [];
-  assert.equal(gets.length, 2);
+  assert.equal(gets.length, 3);
 });
 
 test('108: no Python/child_process/write tokens in the route file', () => {
@@ -962,7 +963,7 @@ test('169: metrics query still rejects the history key and vice versa boundaries
   assert.equal(historyUnknown.ok, false);
 });
 
-test('170: both /metrics and /history routes exist on one router with GET only', () => {
+test('170: /metrics, /history, and /health routes exist on one router with GET only', () => {
   const router = createAdminRecommendationRouter({
     protectMiddleware: (req, res, next) => next(),
     adminOnlyMiddleware: (req, res, next) => next(),
@@ -976,13 +977,239 @@ test('170: both /metrics and /history routes exist on one router with GET only',
         return historyNoRunsData;
       },
     },
+    adminRecommendationHealthService: {
+      async getRecommendationRetrainingHealth() {
+        return {
+          state: 'never-run',
+          source: 'retraining-health',
+          lease: { active: false, run_id: null, expires_at: null },
+          latest: null,
+        };
+      },
+    },
   });
   const routePaths = router.stack
     .filter((l) => l.route)
     .map((l) => l.route.path)
     .sort();
-  assert.deepEqual(routePaths, ['/history', '/metrics']);
+  assert.deepEqual(routePaths, ['/health', '/history', '/metrics']);
   for (const layer of router.stack.filter((l) => l.route)) {
     assert.deepEqual(Object.keys(layer.route.methods), ['get']);
+  }
+});
+
+// --- health query parser + GET /health ---
+
+function createHealthHandler({
+  serviceResult = {
+    state: 'never-run',
+    source: 'retraining-health',
+    lease: { active: false, run_id: null, expires_at: null },
+    latest: null,
+  },
+  serviceError = null,
+  protectImpl = null,
+  adminOnlyImpl = null,
+} = {}) {
+  const serviceCalls = [];
+  const middlewareOrder = [];
+  const router = createAdminRecommendationRouter({
+    protectMiddleware:
+      protectImpl ??
+      ((req, _res, next) => {
+        middlewareOrder.push('protect');
+        next();
+      }),
+    adminOnlyMiddleware:
+      adminOnlyImpl ??
+      ((req, _res, next) => {
+        middlewareOrder.push('adminOnly');
+        next();
+      }),
+    adminRecommendationHealthService: {
+      async getRecommendationRetrainingHealth(args) {
+        serviceCalls.push(args ?? null);
+        if (serviceError) throw serviceError;
+        return serviceResult;
+      },
+    },
+  });
+
+  const layer = router.stack.find((l) => l.route && l.route.path === '/health');
+  assert.ok(layer, 'expected GET /health route');
+  const handlers = layer.route.stack.map((s) => s.handle);
+
+  const invoke = async (query = {}, user = { role: 'admin' }) => {
+    const req = { query, headers: {} };
+    if (user !== null) req.user = user;
+    const res = createRes();
+    let index = 0;
+    const runNext = async () => {
+      if (index >= handlers.length) return;
+      const handler = handlers[index];
+      index += 1;
+      await handler(req, res, runNext);
+    };
+    await runNext();
+    return { req, res, serviceCalls, middlewareOrder };
+  };
+
+  return { invoke, serviceCalls, middlewareOrder, handlers, layer };
+}
+
+test('171: GET /health route exists with GET method only', () => {
+  const { layer } = createHealthHandler();
+  assert.equal(layer.route.path, '/health');
+  assert.deepEqual(Object.keys(layer.route.methods), ['get']);
+});
+
+test('172: health middleware order is protect then adminOnly then handler', async () => {
+  const { invoke, middlewareOrder } = createHealthHandler();
+  await invoke({});
+  assert.deepEqual(middlewareOrder, ['protect', 'adminOnly']);
+});
+
+test('173: health route stack has exactly three handlers', () => {
+  const { handlers } = createHealthHandler();
+  assert.equal(handlers.length, 3);
+});
+
+test('174: empty health query is valid', () => {
+  const parsed = parseAdminRecommendationHealthQuery({});
+  assert.equal(parsed.ok, true);
+});
+
+test('175: undefined and null health query are valid', () => {
+  assert.equal(parseAdminRecommendationHealthQuery(undefined).ok, true);
+  assert.equal(parseAdminRecommendationHealthQuery(null).ok, true);
+});
+
+test('176: any health query key is rejected with fixed invalid message', () => {
+  for (const query of [
+    { pipeline_stage: 'policy' },
+    { limit: '1' },
+    { admin: 'true' },
+    { run_id: 'x' },
+    { debug: '1' },
+  ]) {
+    const parsed = parseAdminRecommendationHealthQuery(query);
+    assert.equal(parsed.ok, false, JSON.stringify(query));
+    assert.equal(parsed.error, 'invalid recommendation health query');
+  }
+});
+
+test('177: non-object health query is rejected', () => {
+  assert.equal(parseAdminRecommendationHealthQuery(['x']).ok, false);
+  assert.equal(parseAdminRecommendationHealthQuery('x').ok, false);
+  assert.equal(parseAdminRecommendationHealthQuery(1).ok, false);
+});
+
+test('178: health 400 body is success:false plus fixed invalid-query error only', async () => {
+  const { invoke, serviceCalls } = createHealthHandler();
+  const { res } = await invoke({ limit: '1' });
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(res.body, {
+    success: false,
+    error: 'invalid recommendation health query',
+  });
+  assert.equal(serviceCalls.length, 0);
+});
+
+test('179: health 400 performs zero service calls across many invalid attempts', async () => {
+  const { invoke, serviceCalls } = createHealthHandler();
+  for (const query of [
+    { a: '1' },
+    { pipeline_stage: 'policy' },
+    { limit: '20' },
+    { run_id: 'r' },
+    { token: 'x' },
+  ]) {
+    await invoke(query);
+  }
+  assert.equal(serviceCalls.length, 0);
+});
+
+test('180: authorized admin health 200 returns service payload with success envelope', async () => {
+  const serviceResult = {
+    state: 'running',
+    source: 'retraining-health',
+    lease: {
+      active: true,
+      run_id: 'run-43-01',
+      expires_at: '2026-09-15T12:10:00.000Z',
+    },
+    latest: null,
+  };
+  const { invoke, serviceCalls } = createHealthHandler({ serviceResult });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.deepEqual(res.body.data, serviceResult);
+  assert.equal(serviceCalls.length, 1);
+});
+
+test('181: health service receives no arguments and no req.user identity', async () => {
+  const { invoke, serviceCalls } = createHealthHandler();
+  const { res } = await invoke({}, { role: 'admin', _id: 'u1', email: 'a@b.c' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(serviceCalls.length, 1);
+  assert.equal(serviceCalls[0], null);
+});
+
+test('182: health service failure maps to fixed 500 message', async () => {
+  const { invoke } = createHealthHandler({
+    serviceError: new Error('mongo URI leaked'),
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, {
+    success: false,
+    error: 'failed to load retraining health',
+  });
+  assert.equal(JSON.stringify(res.body).includes('mongo'), false);
+});
+
+test('183: protect 401 short-circuits health before adminOnly and service', async () => {
+  const { invoke, serviceCalls, middlewareOrder } = createHealthHandler({
+    protectImpl: (req, res) => {
+      middlewareOrder.push('protect');
+      res.status(401).json({ success: false, error: 'not authorized' });
+    },
+    adminOnlyImpl: (req, res, next) => {
+      middlewareOrder.push('adminOnly');
+      next();
+    },
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 401);
+  assert.deepEqual(middlewareOrder, ['protect']);
+  assert.equal(serviceCalls.length, 0);
+});
+
+test('184: non-admin health short-circuits to 403 with zero service calls', async () => {
+  const { invoke, serviceCalls } = createHealthHandler({
+    adminOnlyImpl: (req, res) => {
+      res.status(403).json({ success: false, error: 'Admin access required' });
+    },
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.error, 'Admin access required');
+  assert.equal(serviceCalls.length, 0);
+});
+
+test('185: route source has no child_process/python/retrain execution tokens', () => {
+  const source = readSource('./adminRecommendationRoutes.js');
+  for (const token of [
+    'child_process',
+    'spawn',
+    'python',
+    'runRecommendationRetraining',
+    'recommendationPythonRunner',
+    'collectRetrainingInput',
+    'exec(',
+    'RECOMMENDATION_AI_ENABLED',
+  ]) {
+    assert.equal(source.includes(token), false, token);
   }
 });
