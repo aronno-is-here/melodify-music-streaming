@@ -22,7 +22,8 @@ A full-featured music streaming web application with user authentication, a song
 - **Trending sparse-data fallback (21/43)** — when activity-ranked songs do not fill the public `limit`, one bounded catalog top-up query (`createdAt` DESC, `_id` ASC) appends playable recommendation-eligible songs marked `basis: "catalog-fallback"` with `score: null` and zeroed activity metrics; activity always ranks first with contiguous `1..N` ranks; meta `mode`/`activity_count`/`fallback_count`; deterministic, **not** AI/personalized/random/popularity evidence; still no Dashboard UI
 - **Dashboard Trending Now (22/43)** — Dashboard middle column order is **Recently Played → Trending Now → search → Recommended Songs**; one authenticated `GET /api/trending?limit=10` per mount via the existing API client; activity and catalog-fallback cards stay semantically distinct with **no numeric Trending score** and **no fabricated fallback activity metrics**; playback passes the full filtered Song list to `player.playSong(list, index)` for next/previous continuity; server **503** quietly hides the section; empty/error states are section-local; PlayHistory/listening events remain centralized in PlayerContext (no Dashboard rewrites); **not AI**, no personalized recommendation UI yet
 - **Offline Python recommender runtime foundation (23/43)** — new `ml/` package is a **CPU-only, offline, standard-library** training foundation only (not a production HTTP service): hard safety ceilings seed **42**, **250,000** raw events, **50,000** unique users, **25,000** unique songs, **one** worker, **one** numerical-library thread; `configure_cpu_runtime()` binds common numeric-library thread env vars to `1` and clears `CUDA_VISIBLE_DEVICES` for the current process only (idempotent; not an OS CPU quota); resource/data-shape safety bounds for the current 8 GB RAM development workflow, **not** production/API limits; **no** hard OS memory quota claimed; **no** training, model, evaluation, MongoDB access, HTTP server, GPU support, or third-party ML dependency yet; deterministic `runtime-info` summary only
-- **Temporal raw-event split (24/43)** — offline recommender now has deterministic **per-user chronological** train/validation/test splitting of ListeningEvent-like records; **playback sessions are indivisible** across partitions; users with ≥3 non-overlapping sessions: all earlier sessions → train, second-latest → validation, latest → test; users with fewer than 3 sessions or overlapping session timelines remain **train-only**; server `createdAt` controls chronology (`client_occurred_at` ignored); same song may legitimately occur across partitions; 23/43 runtime hard caps enforced with **no silent truncation**; **no random split**, no sparse matrix/model/training yet; **25/43** will build the bounded sparse interaction representation
+- **Temporal raw-event split (24/43)** — offline recommender now has deterministic **per-user chronological** train/validation/test splitting of ListeningEvent-like records; **playback sessions are indivisible** across partitions; users with ≥3 non-overlapping sessions: all earlier sessions → train, second-latest → validation, latest → test; users with fewer than 3 sessions or overlapping session timelines remain **train-only**; server `createdAt` controls chronology (`client_occurred_at` ignored); same song may legitimately occur across partitions; 23/43 runtime hard caps enforced with **no silent truncation**; **no random split**, no sparse matrix/model/training yet; **25/43** builds the bounded sparse interaction representation
+- **Bounded sparse interaction matrices (25/43)** — `build_sparse_interactions()` converts 24/43 `TemporalInteractionEvent` records into **eight** canonical CSR **`float32`** user×song matrices: `observed` (binary presence), `session_count` (distinct sessions), `play_started_count`, `replay_started_count`, `completed_count`, `skipped_count` (**positive** factual count, never a penalty), `stopped_count`, `listened_seconds` (sum of stored `listened_seconds_delta` only); sorted ID row/column order with read-only index maps; lazy NumPy/SciPy import **after** `configure_cpu_runtime()`; only new deps are `numpy>=1.26,<3` and `scipy>=1.12,<2` in `ml/requirements.txt`; **no** training weights/preferences/scores, **no** dense allocation, **no** SVD/model/evaluation/artifacts/MongoDB/HTTP, Favorite/Playlist signals not folded in; **26/43** will build sparse Song content features
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -104,11 +105,13 @@ Melodify - Music Streaming Website/
 │   ├── src/api/                   # API client
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player)
 │   └── public/                    # Static assets only (no static pages left)
-├── ml/                            # Offline Python recommender runtime foundation (23–24/43; standard library only)
+├── ml/                            # Offline Python recommender foundation (23–25/43)
+│   ├── requirements.txt           # numpy>=1.26,<3 + scipy>=1.12,<2 only (25/43)
 │   ├── recommender/runtime.py      # Frozen hard limits + CPU env bootstrap + pure validators
 │   ├── recommender/temporal_split.py # Deterministic per-user session-level train/val/test split (24/43)
+│   ├── recommender/sparse_interactions.py # Eight CSR float32 user×song factual matrices (25/43)
 │   ├── recommender/cli.py          # Bounded `runtime-info` CLI only (no train/serve)
-│   └── tests/                      # unittest suites (runtime + CLI + temporal split)
+│   └── tests/                      # unittest suites (runtime + CLI + temporal split + sparse matrices)
 ├── karaoke-app/                   # Real-time karaoke recorder (Node)
 │   ├── public/index.html          # Karaoke UI
 │   └── server/                    # Express + Socket.IO server
@@ -386,7 +389,7 @@ Melodify now has an offline Python recommender runtime foundation under `ml/`. I
 | Topic | Behavior |
 |---|---|
 | Design | **CPU-only** by design (Intel i5-class, 8 GB RAM target); no CUDA/GPU/distributed/Spark assumption |
-| Dependencies | **Python standard library only** in 23/43 — no NumPy/SciPy/scikit-learn/pandas/pymongo/joblib/torch installed or required |
+| Dependencies | **Python standard library only** in 23/43 itself — NumPy/SciPy arrive in 25/43 via `ml/requirements.txt` only; no scikit-learn/pandas/pymongo/joblib/torch |
 | Thread bounding | `configure_cpu_runtime()` sets process env `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`, `NUMEXPR_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS` to **`1`** and `CUDA_VISIBLE_DEVICES` to **`""`** before future numerical libraries import; idempotent; current-process only (no permanent Windows/system env, no registry, no `SETX`); numerical-library thread bound, **not** an OS-level CPU quota |
 | Default seed | `DEFAULT_RANDOM_SEED = 42`; `seed_standard_library()` validates `0 <= seed <= 2**32-1` (rejects `bool`) and seeds only stdlib `random` — later numerical checkpoints must seed their own libraries |
 | Hard ceilings | `MAX_RAW_EVENTS = 250000`, `MAX_UNIQUE_USERS = 50000`, `MAX_UNIQUE_SONGS = 25000`, `MAX_WORKERS = 1`, `THREADS_PER_NUMERIC_LIBRARY = 1` |
@@ -398,7 +401,7 @@ Melodify now has an offline Python recommender runtime foundation under `ml/`. I
 | Import safety | Importing `ml.recommender.runtime` does **not** query MongoDB, read/write files, or auto-configure env; bootstrap runs explicitly via `configure_cpu_runtime()` / CLI main |
 | CLI | argparse only — single command `runtime-info` (optional `--json`); **no** `train` / `evaluate` / `recommend` / `snapshot` / `serve` yet |
 | `runtime-info` | Deterministic summary (`runtime`, `cpu_only: true`, seed/caps/workers/threads, `runtime_schema_version`); stdout only; **no** timestamp, username, computer name, home/repo path, env dump, or secrets; no file artifacts (`.pkl`/`.npy`/`.csv`/logs) |
-| Not present yet | No train/test split, interaction matrix, SVD, collaborative/content ranking, evaluation metrics, MongoDB reads, model artifacts, or recommendation snapshots — those belong to **24+**; **24/43** will begin time-aware dataset splitting |
+| Not present yet | No SVD, collaborative/content ranking, evaluation metrics, MongoDB reads, model artifacts, or recommendation snapshots — **25+** builds interaction/content matrices first |
 | AI status | **No model trained**; AI recommendations remain **not active**; do not claim GPU support or OS-hard-capped memory |
 
 ```bash
@@ -435,11 +438,38 @@ python -m compileall -q ml/recommender ml/tests
 | Runtime caps | reuses 23/43 `MAX_RAW_EVENTS` / `MAX_UNIQUE_USERS` / `MAX_UNIQUE_SONGS`; overflow raises `ResourceLimitError` — **no silent truncation** |
 | Result | frozen `TemporalSplitResult(train, validation, test, summary)` with frozen event/summary dataclasses and tuple partitions |
 | Count invariants | `input = train + validation + test` events; `session_count = train + validation + test` sessions |
-| Not present yet | no sparse matrix, interaction weighting, SVD, collaborative/content ranking, evaluation metrics, MongoDB, model artifacts, or snapshots — **25/43** will build the bounded sparse interaction representation |
+| Not present yet | no sparse matrix in 24/43 itself, no interaction weighting, SVD, collaborative/content ranking, evaluation metrics, MongoDB, model artifacts, or snapshots — **25/43** builds the bounded sparse interaction representation |
 
 ```bash
 python -m unittest discover -s ml/tests -p "test_*.py"
 python -m unittest ml.tests.test_temporal_split
+```
+
+### Bounded sparse interaction matrices (25/43)
+
+`ml/recommender/sparse_interactions.py` exposes `build_sparse_interactions(events)` — converts a list or tuple of 24/43 `TemporalInteractionEvent` records into eight deterministic CSR `float32` user×song matrices under 23/43 hard caps. NumPy/SciPy are loaded lazily after `configure_cpu_runtime()` so importing the module alone does not mutate process env. Only new project dependency surface is `ml/requirements.txt` (`numpy>=1.26,<3`, `scipy>=1.12,<2`).
+
+| Topic | Behavior |
+|---|---|
+| Input | list/tuple of `TemporalInteractionEvent` only — raw dicts, strings, bytes, mappings, generators, and arbitrary objects reject |
+| Matrices (all CSR `float32`, shape `(n_users, n_songs)`) | `observed` binary presence; `session_count` distinct session count; `play_started_count`; `replay_started_count`; `completed_count`; `skipped_count` **positive** count (never negative/penalty); `stopped_count`; `listened_seconds` sum of stored `listened_seconds_delta` only |
+| Canonical CSR | `sum_duplicates()` + `eliminate_zeros()` + `sort_indices()` on every matrix |
+| Index order | `user_ids`/`song_ids` = `tuple(sorted(unique_ids))`; `user_to_index`/`song_to_index` exposed as `types.MappingProxyType` (read-only) |
+| Support events | `progress` / `paused` / `resumed` / `seeked` contribute only to `observed`, `session_count`, and `listened_seconds` (stored delta) — no own count matrices, no inferred weights |
+| Weight/preference matrices | **none** — no `PLAY_WEIGHT`/`COMPLETE_WEIGHT`/`SKIP_PENALTY`/`REPLAY_WEIGHT`/`PREFERENCE_WEIGHT`; scoring belongs to later checkpoints |
+| Dense allocation | **none** for the interaction space (no `.toarray()`/`.todense()`/`np.zeros((n_users, …))`) — pair accumulators bounded by event count only |
+| Empty input | `[]` / `()` → valid empty bundle: zero-length ID tuples, shape `(0,0)`, eight empty CSR matrices, zeroed summary |
+| Defensive validation | canonical lowercase 24-hex IDs, non-empty `session_id` ≤128, non-bool int sequence, fixed 9-type vocabulary, `listened_seconds_delta` `None` or finite `[0,120]`, tz-aware `created_at`; reject duplicate `event_id`, duplicate session sequence (gaps OK), multi-song session per `(user, session)` |
+| Caps | reuses 23/43 `MAX_RAW_EVENTS` / `MAX_UNIQUE_USERS` / `MAX_UNIQUE_SONGS` via `validate_dataset_shape` — overflow raises `ResourceLimitError`, **no silent truncation** |
+| Result | frozen `SparseInteractionBundle(user_ids, song_ids, user_to_index, song_to_index, 8 matrices, summary)` + frozen `SparseInteractionSummary(event_count, unique_user_count, unique_song_count, interaction_pair_count, session_count, matrix_shape)` |
+| No re-split | does not call `split_interactions_temporally`; partitions arrive already decided by 24/43 |
+| Not present yet | no Favorite/Playlist folding, SVD, model training, evaluation metrics, MongoDB/HTTP, or artifact files (`.npz`/`.npy`/`.pkl`/`.joblib`) — **26/43** builds sparse Song content features |
+
+```bash
+python -m pip install -r ml/requirements.txt
+python -m pip check
+python -m unittest discover -s ml/tests -p "test_*.py"
+python -m unittest ml.tests.test_sparse_interactions
 ```
 
 ## 🔑 Admin Credentials
