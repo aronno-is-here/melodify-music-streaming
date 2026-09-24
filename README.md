@@ -24,7 +24,8 @@ A full-featured music streaming web application with user authentication, a song
 - **Offline Python recommender runtime foundation (23/43)** — new `ml/` package is a **CPU-only, offline, standard-library** training foundation only (not a production HTTP service): hard safety ceilings seed **42**, **250,000** raw events, **50,000** unique users, **25,000** unique songs, **one** worker, **one** numerical-library thread; `configure_cpu_runtime()` binds common numeric-library thread env vars to `1` and clears `CUDA_VISIBLE_DEVICES` for the current process only (idempotent; not an OS CPU quota); resource/data-shape safety bounds for the current 8 GB RAM development workflow, **not** production/API limits; **no** hard OS memory quota claimed; **no** training, model, evaluation, MongoDB access, HTTP server, GPU support, or third-party ML dependency yet; deterministic `runtime-info` summary only
 - **Temporal raw-event split (24/43)** — offline recommender now has deterministic **per-user chronological** train/validation/test splitting of ListeningEvent-like records; **playback sessions are indivisible** across partitions; users with ≥3 non-overlapping sessions: all earlier sessions → train, second-latest → validation, latest → test; users with fewer than 3 sessions or overlapping session timelines remain **train-only**; server `createdAt` controls chronology (`client_occurred_at` ignored); same song may legitimately occur across partitions; 23/43 runtime hard caps enforced with **no silent truncation**; **no random split**, no sparse matrix/model/training yet; **25/43** builds the bounded sparse interaction representation
 - **Bounded sparse interaction matrices (25/43)** — `build_sparse_interactions()` converts 24/43 `TemporalInteractionEvent` records into **eight** canonical CSR **`float32`** user×song matrices: `observed` (binary presence), `session_count` (distinct sessions), `play_started_count`, `replay_started_count`, `completed_count`, `skipped_count` (**positive** factual count, never a penalty), `stopped_count`, `listened_seconds` (sum of stored `listened_seconds_delta` only); sorted ID row/column order with read-only index maps; lazy NumPy/SciPy import **after** `configure_cpu_runtime()`; only new deps are `numpy>=1.26,<3` and `scipy>=1.12,<2` in `ml/requirements.txt`; **no** training weights/preferences/scores, **no** dense allocation, **no** SVD/model/evaluation/artifacts/MongoDB/HTTP, Favorite/Playlist signals not folded in; **26/43** builds sparse Song content features
-- **Sparse Song content features (26/43)** — `build_song_content_features()` deterministically encodes factual Song catalog metadata into one Song × Content Feature CSR **`float32`** matrix; feature families are exactly **`artist`**, **`genre`**, **`language`**, **`category`**; `normalized_artist` / `normalized_genre` take precedence when non-empty, otherwise fall back only to persisted `artist` / `genre`; language and category use only persisted values; **no** inference from title/artist/genre/provider/Unicode; multi-value strings are **not** split on `,` `/` `&` `feat.`; text normalization is **NFKC + trim + whitespace collapse + casefold** (no stemming/transliteration/tokenization); feature names are namespaced (`artist::…`, `genre::…`, `language::…`, `category::…`); values are binary **`1.0`** with **no** family weighting or scores; Songs and feature columns use deterministic lexical ordering with `MappingProxyType` index maps; **zero-feature Songs remain as zero rows**; **no** dense Song×feature or Song×Song matrix, **no** TF-IDF/similarity/nearest-neighbor/recommendation score/model fitting/MongoDB/HTTP/artifact output; NumPy/SciPy dependency set from 25/43 unchanged; **27/43** will establish safe model/artifact version handling
+- **Sparse Song content features (26/43)** — `build_song_content_features()` deterministically encodes factual Song catalog metadata into one Song × Content Feature CSR **`float32`** matrix; feature families are exactly **`artist`**, **`genre`**, **`language`**, **`category`**; `normalized_artist` / `normalized_genre` take precedence when non-empty, otherwise fall back only to persisted `artist` / `genre`; language and category use only persisted values; **no** inference from title/artist/genre/provider/Unicode; multi-value strings are **not** split on `,` `/` `&` `feat.`; text normalization is **NFKC + trim + whitespace collapse + casefold** (no stemming/transliteration/tokenization); feature names are namespaced (`artist::…`, `genre::…`, `language::…`, `category::…`); values are binary **`1.0`** with **no** family weighting or scores; Songs and feature columns use deterministic lexical ordering with `MappingProxyType` index maps; **zero-feature Songs remain as zero rows**; **no** dense Song×feature or Song×Song matrix, **no** TF-IDF/similarity/nearest-neighbor/recommendation score/model fitting/MongoDB/HTTP/artifact output; NumPy/SciPy dependency set from 25/43 unchanged; **27/43** establishes safe model/artifact version handling
+- **Safe recommender artifact store (27/43)** — `ml/recommender/artifacts.py` provides versioned immutable releases under `releases/<version>/` with a SHA-256 `manifest.json` per payload file; publication validates inputs, stages into `.staging/`, fully verifies, then atomically renames into place — **never** auto-creates or updates `current.json`; explicit `activate_artifact_release()` verifies a candidate first, then replaces the schema-1 `current.json` pointer via temp-file + fsync + `os.replace` (previous pointer bytes unchanged on failure); `resolve_active_artifact_release()` returns `None` when no pointer exists, otherwise verifies the referenced release (no auto-latest scanning); payloads are **JSON only** (deterministic sorted-key UTF-8) or **NPZ only** (`allow_pickle=False`, finite boolean/integer/unsigned/float dtypes, ZIP path/size/entry-count inspection before load, **no** filesystem extraction); rejects symlinks, undeclared files, reserved names (`manifest.json`/`current.json`), unsafe version/kind/filename characters, and non-scalar metadata; lazy NumPy loads **after** `configure_cpu_runtime()`; bounded limits: **32** files, **64 MiB** per file, **128 MiB** total, **64** metadata entries / **64 KiB** metadata JSON, **64** NPZ arrays, **256 MiB** uncompressed NPZ, **128** ZIP entries; **no** pickle/joblib/eval/exec/model training/MongoDB/HTTP/cloud/durability claims; `ml/artifacts/` is gitignored; `ml/requirements.txt` unchanged; **28/43** will add recommender evaluation metrics
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -106,14 +107,16 @@ Melodify - Music Streaming Website/
 │   ├── src/api/                   # API client
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player)
 │   └── public/                    # Static assets only (no static pages left)
-├── ml/                            # Offline Python recommender foundation (23–26/43)
+├── ml/                            # Offline Python recommender foundation (23–27/43)
 │   ├── requirements.txt           # numpy>=1.26,<3 + scipy>=1.12,<2 only (25/43)
 │   ├── recommender/runtime.py      # Frozen hard limits + CPU env bootstrap + pure validators
 │   ├── recommender/temporal_split.py # Deterministic per-user session-level train/val/test split (24/43)
 │   ├── recommender/sparse_interactions.py # Eight CSR float32 user×song factual matrices (25/43)
 │   ├── recommender/content_features.py # Song×content CSR float32 categorical encoder (26/43)
+│   ├── recommender/artifacts.py    # Safe versioned JSON/NPZ artifact store (27/43)
 │   ├── recommender/cli.py          # Bounded `runtime-info` CLI only (no train/serve)
-│   └── tests/                      # unittest suites (runtime + CLI + temporal + sparse + content)
+│   ├── artifacts/                  # Local release store root (gitignored; not created by tests)
+│   └── tests/                      # unittest suites (runtime + CLI + temporal + sparse + content + artifacts)
 ├── karaoke-app/                   # Real-time karaoke recorder (Node)
 │   ├── public/index.html          # Karaoke UI
 │   └── server/                    # Express + Socket.IO server
@@ -505,6 +508,32 @@ python -m unittest ml.tests.test_sparse_interactions
 ```bash
 python -m unittest discover -s ml/tests -p "test_*.py"
 python -m unittest ml.tests.test_content_features
+```
+
+### Safe recommender artifact store (27/43)
+
+`ml/recommender/artifacts.py` is a pure local filesystem store for bounded offline recommender outputs. Public API: `publish_artifact_release()`, `verify_artifact_release()`, `activate_artifact_release()`, `resolve_active_artifact_release()`, `load_json_artifact()`, `load_numeric_npz_artifact()`, plus `encode_json_artifact` / `decode_json_artifact` / `encode_numeric_npz` / `decode_numeric_npz` and the `ArtifactError` hierarchy. **No model is trained and no release exists in the repository** — tests create temporary stores only.
+
+| Topic | Behavior |
+|---|---|
+| Schema | `ARTIFACT_SCHEMA_VERSION = 1`; `current.json` payload is `{ schema_version, artifact_version }` |
+| Layout | `root/releases/<version>/{manifest.json, payload files…}` + optional `root/current.json` + `.staging/` during publish |
+| Identifiers | versions/kinds: `^[a-z0-9][a-z0-9._-]{0,63}$` (reject `.` / `..`); filenames ≤128 chars, same charset, must end `.json` or `.npz`; reserved: `manifest.json`, `current.json` |
+| Manifest | sorted-by-name file records `{ name, format, size_bytes, sha256 }`; no self-hash; no absolute paths / host / secrets |
+| Publish | validate → stage in `.staging/` → write payloads + manifest → fully verify staged dir → `os.replace` into `releases/<version>`; existing version ⇒ `ArtifactConflictError` (immutable, no merge); **never** writes `current.json` |
+| Activation | verify candidate first → temp file + fsync → `os.replace` onto `current.json`; failed verification or pointer write leaves previous pointer bytes unchanged |
+| Resolve | no pointer ⇒ `None`; pointer present ⇒ full release verification; **no** auto-latest scanning |
+| JSON codec | deterministic UTF-8, sorted keys, compact separators, `allow_nan=False`; decode rejects non-UTF-8, bare `NaN`/`Infinity`, malformed JSON |
+| NPZ codec | `allow_pickle=False` only; dtypes limited to bool/int/uint/float; all float values finite; array names `^[a-z_][a-z0-9_]{0,63}$`; ZIP inspected with stdlib `zipfile` (entry count, uncompressed size, absolute/`..`/drive paths) **before** `np.load`; never extracts to filesystem; returned arrays are read-only copies in a `MappingProxyType` |
+| Limits | `MAX_ARTIFACT_FILES=32`, `MAX_ARTIFACT_FILE_BYTES=64 MiB`, `MAX_ARTIFACT_TOTAL_BYTES=128 MiB`, `MAX_METADATA_ENTRIES=64`, `MAX_METADATA_JSON_BYTES=64 KiB`, `MAX_NPZ_ARRAYS=64`, `MAX_NPZ_UNCOMPRESSED_BYTES=256 MiB`, `MAX_NPZ_ZIP_ENTRIES=128` |
+| Metadata | flat scalars only (str / int / finite float / bool / None); keys ≤128 chars; nested objects/lists rejected |
+| Safety | rejects symlink release dirs / manifests / payloads, undeclared extra files or directories, executable suffixes (`.pkl` `.pickle` `.joblib` `.pt` `.pth` `.onnx` `.exe` `.dll` `.py`); no pickle/joblib/eval/exec/subprocess/model fitting/MongoDB/HTTP/cloud |
+| NumPy loading | module import does not configure env or import NumPy; `_load_numpy()` calls `configure_cpu_runtime()` first; JSON-only paths never import NumPy |
+| Not present yet | no model training, evaluation metrics, MongoDB/HTTP/UI, cloud durability guarantees, or auto-activation — **28/43** adds recommender evaluation metrics |
+
+```bash
+python -m unittest discover -s ml/tests -p "test_*.py"
+python -m unittest ml.tests.test_artifacts
 ```
 
 ## 🔑 Admin Credentials
