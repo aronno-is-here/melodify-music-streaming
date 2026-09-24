@@ -48,3 +48,7 @@ Reference_Homepage.png
 
 # Credentials — NEVER commit
 .credentials.json
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]

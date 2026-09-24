@@ -1,0 +1,41 @@
+"""Bounded CPU-only offline recommender runtime foundation."""
+
+from .runtime import (
+    DEFAULT_RANDOM_SEED,
+    MAX_RAW_EVENTS,
+    MAX_UNIQUE_SONGS,
+    MAX_UNIQUE_USERS,
+    MAX_WORKERS,
+    RUNTIME_SCHEMA_VERSION,
+    THREADS_PER_NUMERIC_LIBRARY,
+    RecommenderRuntimeError,
+    ResourceLimitError,
+    RuntimeConfigError,
+    RuntimeLimits,
+    configure_cpu_runtime,
+    ensure_within_limit,
+    get_runtime_limits,
+    seed_standard_library,
+    validate_dataset_shape,
+    validate_non_negative_count,
+)
+
+__all__ = [
+    "DEFAULT_RANDOM_SEED",
+    "MAX_RAW_EVENTS",
+    "MAX_UNIQUE_SONGS",
+    "MAX_UNIQUE_USERS",
+    "MAX_WORKERS",
+    "RUNTIME_SCHEMA_VERSION",
+    "THREADS_PER_NUMERIC_LIBRARY",
+    "RecommenderRuntimeError",
+    "ResourceLimitError",
+    "RuntimeConfigError",
+    "RuntimeLimits",
+    "configure_cpu_runtime",
+    "ensure_within_limit",
+    "get_runtime_limits",
+    "seed_standard_library",
+    "validate_dataset_shape",
+    "validate_non_negative_count",
+]

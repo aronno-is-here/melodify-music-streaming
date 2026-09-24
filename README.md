@@ -21,6 +21,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Authenticated Trending API (20/43)** — `GET /api/trending` behind login (`protect`) and `RECOMMENDATION_TRENDING_ENABLED`; strict `limit` query only (default 10, max 50); bounded 7-day ListeningEvent read (50,000-row cap with observable truncation), engine ranking + Song eligibility/playability filters; empty list is 200; **not AI**, no personalization, no Dashboard UI yet
 - **Trending sparse-data fallback (21/43)** — when activity-ranked songs do not fill the public `limit`, one bounded catalog top-up query (`createdAt` DESC, `_id` ASC) appends playable recommendation-eligible songs marked `basis: "catalog-fallback"` with `score: null` and zeroed activity metrics; activity always ranks first with contiguous `1..N` ranks; meta `mode`/`activity_count`/`fallback_count`; deterministic, **not** AI/personalized/random/popularity evidence; still no Dashboard UI
 - **Dashboard Trending Now (22/43)** — Dashboard middle column order is **Recently Played → Trending Now → search → Recommended Songs**; one authenticated `GET /api/trending?limit=10` per mount via the existing API client; activity and catalog-fallback cards stay semantically distinct with **no numeric Trending score** and **no fabricated fallback activity metrics**; playback passes the full filtered Song list to `player.playSong(list, index)` for next/previous continuity; server **503** quietly hides the section; empty/error states are section-local; PlayHistory/listening events remain centralized in PlayerContext (no Dashboard rewrites); **not AI**, no personalized recommendation UI yet
+- **Offline Python recommender runtime foundation (23/43)** — new `ml/` package is a **CPU-only, offline, standard-library** training foundation only (not a production HTTP service): hard safety ceilings seed **42**, **250,000** raw events, **50,000** unique users, **25,000** unique songs, **one** worker, **one** numerical-library thread; `configure_cpu_runtime()` binds common numeric-library thread env vars to `1` and clears `CUDA_VISIBLE_DEVICES` for the current process only (idempotent; not an OS CPU quota); resource/data-shape safety bounds for the current 8 GB RAM development workflow, **not** production/API limits; **no** hard OS memory quota claimed; **no** training, model, evaluation, MongoDB access, HTTP server, GPU support, or third-party ML dependency yet; deterministic `runtime-info` summary only; **24/43** will begin time-aware dataset splitting
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -102,6 +103,10 @@ Melodify - Music Streaming Website/
 │   ├── src/api/                   # API client
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player)
 │   └── public/                    # Static assets only (no static pages left)
+├── ml/                            # Offline Python recommender runtime foundation (23/43; standard library only)
+│   ├── recommender/runtime.py      # Frozen hard limits + CPU env bootstrap + pure validators
+│   ├── recommender/cli.py          # Bounded `runtime-info` CLI only (no train/serve)
+│   └── tests/                      # unittest suites (runtime + CLI)
 ├── karaoke-app/                   # Real-time karaoke recorder (Node)
 │   ├── public/index.html          # Karaoke UI
 │   └── server/                    # Express + Socket.IO server
@@ -370,6 +375,34 @@ Dashboard consumes authenticated `GET /api/trending?limit=10` through the existi
 
 ```bash
 node --test client/src/pages/Dashboard/trendingUi.test.js
+```
+
+### Offline Python recommender runtime foundation (23/43)
+
+Melodify now has an offline Python recommender runtime foundation under `ml/`. It is **not** a production HTTP service (no FastAPI/Flask/Django, no resident worker, no Python microservice). Production remains React → Express/Node → MongoDB; Python is an **offline / bounded** training tool invoked later by Node orchestration.
+
+| Topic | Behavior |
+|---|---|
+| Design | **CPU-only** by design (Intel i5-class, 8 GB RAM target); no CUDA/GPU/distributed/Spark assumption |
+| Dependencies | **Python standard library only** in 23/43 — no NumPy/SciPy/scikit-learn/pandas/pymongo/joblib/torch installed or required |
+| Thread bounding | `configure_cpu_runtime()` sets process env `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`, `NUMEXPR_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS` to **`1`** and `CUDA_VISIBLE_DEVICES` to **`""`** before future numerical libraries import; idempotent; current-process only (no permanent Windows/system env, no registry, no `SETX`); numerical-library thread bound, **not** an OS-level CPU quota |
+| Default seed | `DEFAULT_RANDOM_SEED = 42`; `seed_standard_library()` validates `0 <= seed <= 2**32-1` (rejects `bool`) and seeds only stdlib `random` — later numerical checkpoints must seed their own libraries |
+| Hard ceilings | `MAX_RAW_EVENTS = 250000`, `MAX_UNIQUE_USERS = 50000`, `MAX_UNIQUE_SONGS = 25000`, `MAX_WORKERS = 1`, `THREADS_PER_NUMERIC_LIBRARY = 1` |
+| Bounds meaning | Resource/**data-shape safety limits** for the initial 8 GB RAM CPU development workflow — **not** dataset statistics, production traffic limits, API limits, recommendation-quality parameters, or ML hyperparameters |
+| Memory | **No hard OS memory quota is claimed**; safety = bounded data sizes + single worker + single numerical thread + no resident service + no third-party ML allocations yet |
+| Timeout | **No in-process training timeout** in 23/43; future Node orchestration (43/43) can enforce subprocess execution time limits |
+| Config object | `@dataclass(frozen=True) RuntimeLimits` via `get_runtime_limits()` — immutable authoritative defaults (not a mutable module-global dict) |
+| Validation | Pure helpers `validate_non_negative_count` / `ensure_within_limit` / `validate_dataset_shape` — integer only (`bool`/`float` rejected), `>= 0`, hard-cap enforced; package-specific `ResourceLimitError` / `RuntimeConfigError` with deterministic bounded messages (no env dumps/tokens/DB URLs) |
+| Import safety | Importing `ml.recommender.runtime` does **not** query MongoDB, read/write files, or auto-configure env; bootstrap runs explicitly via `configure_cpu_runtime()` / CLI main |
+| CLI | argparse only — single command `runtime-info` (optional `--json`); **no** `train` / `evaluate` / `recommend` / `snapshot` / `serve` yet |
+| `runtime-info` | Deterministic summary (`runtime`, `cpu_only: true`, seed/caps/workers/threads, `runtime_schema_version`); stdout only; **no** timestamp, username, computer name, home/repo path, env dump, or secrets; no file artifacts (`.pkl`/`.npy`/`.csv`/logs) |
+| Not present yet | No train/test split, interaction matrix, SVD, collaborative/content ranking, evaluation metrics, MongoDB reads, model artifacts, or recommendation snapshots — those belong to **24+**; **24/43** will begin time-aware dataset splitting |
+| AI status | **No model trained**; AI recommendations remain **not active**; do not claim GPU support or OS-hard-capped memory |
+
+```bash
+python -m unittest discover -s ml/tests -p "test_*.py"
+python -m ml.recommender.cli runtime-info --json
+python -m compileall -q ml/recommender ml/tests
 ```
 
 ## 🔑 Admin Credentials
