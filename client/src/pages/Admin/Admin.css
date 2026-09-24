@@ -421,3 +421,117 @@ th {
     grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   }
 }
+
+.ai-rec-subtitle {
+  color: #b3b3b3;
+  margin-bottom: 16px;
+  font-size: 13;
+}
+
+.ai-rec-stage-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ai-rec-stage-btn {
+  background: var(--accent-black);
+  color: var(--white);
+  border: 1px solid var(--gray);
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.ai-rec-stage-btn:hover {
+  border-color: var(--sky-blue);
+}
+
+.ai-rec-stage-btn.active {
+  background: var(--sky-blue);
+  border-color: var(--sky-blue);
+  color: var(--white);
+}
+
+.ai-rec-state {
+  color: var(--gray);
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.ai-rec-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-rec-section-title {
+  color: var(--sky-blue);
+  font-size: 14px;
+  margin: 16px 0 10px;
+}
+
+.ai-rec-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.ai-rec-meta-item {
+  background: var(--accent-black);
+  border: 1px solid var(--gray);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ai-rec-meta-label,
+.ai-rec-metric-label,
+.ai-rec-summary-label {
+  color: var(--gray);
+  font-size: 12px;
+}
+
+.ai-rec-meta-value {
+  color: var(--white);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.ai-rec-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.ai-rec-metric-card,
+.ai-rec-summary-card {
+  background: var(--secondary-black);
+  border: 1px solid var(--gray);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ai-rec-metric-value,
+.ai-rec-summary-value {
+  color: var(--sky-blue);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ai-rec-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}

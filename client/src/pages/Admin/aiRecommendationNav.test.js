@@ -9,6 +9,9 @@ const readSource = (relativePath) =>
 const ADMIN_SOURCE = readSource('./Admin.jsx');
 const APP_SOURCE = readSource('../../App.jsx');
 const PAGE_SOURCE = readSource('./AdminAIRecommendation.jsx');
+const UI_SOURCE = readSource('./aiRecommendationMetricsUi.js');
+const HOOK_SOURCE = readSource('../../hooks/useAdminRecommendationMetrics.js');
+const SERVICE_SOURCE = readSource('../../services/adminRecommendationMetrics.js');
 
 // ============================================================
 // NAV ENTRY
@@ -135,27 +138,14 @@ test('shell: visible heading is exactly "AI Recommendation"', () => {
   assert.equal(PAGE_SOURCE.includes('AI Recommendations'), false);
 });
 
-test('shell: factual subtitle and placeholder only (no loaded-metrics claim)', () => {
-  assert.ok(PAGE_SOURCE.includes('Monitor recommendation model quality and evaluation history.'));
-  assert.ok(PAGE_SOURCE.includes('Recommendation model quality metrics and evaluation history will appear here.'));
-  assert.equal(/checkpoint|40\/43|TODO|FIXME/i.test(PAGE_SOURCE), false);
+test('shell: factual subtitle only (dashboard subtitle replaces 40/43 placeholder)', () => {
+  assert.ok(PAGE_SOURCE.includes('Monitor the latest persisted recommendation evaluation for each pipeline stage.'));
+  assert.equal(PAGE_SOURCE.includes('Recommendation model quality metrics and evaluation history will appear here.'), false);
+  assert.equal(/checkpoint|41\/43|40\/43|TODO|FIXME/i.test(PAGE_SOURCE), false);
 });
 
-test('shell: no hardcoded fake metric values or metric labels in page', () => {
+test('shell: no hardcoded fake metric values or best/winner claims in page', () => {
   const banned = [
-    'Precision',
-    'Recall',
-    'NDCG',
-    'MAP',
-    'Hit Rate',
-    'Coverage',
-    'Diversity',
-    'precision_at_',
-    'recall_at_',
-    'ndcg_at_',
-    'map_at_',
-    'hit_rate_at_',
-    'catalog_coverage',
     '92%',
     '88%',
     '95%',
@@ -164,16 +154,30 @@ test('shell: no hardcoded fake metric values or metric labels in page', () => {
     'winner',
     'Model Accuracy',
     'Users 1,000',
+    'overall_score',
+    'quality_score',
+    'composite_score',
+    'best_model',
   ];
   for (const token of banned) {
     assert.equal(PAGE_SOURCE.includes(token), false, token);
   }
 });
 
-test('shell: no loading/error/no-runs API state strings', () => {
-  for (const token of ['Loading metrics', 'API error', 'No runs', 'no-runs', 'spinner', 'skeleton', 'isLoading', 'setError']) {
-    assert.equal(PAGE_SOURCE.includes(token), false, token);
-  }
+test('shell: metric display labels live in the UI helper, not hardcoded in page', () => {
+  assert.equal(PAGE_SOURCE.includes('Precision@'), false);
+  assert.equal(PAGE_SOURCE.includes('NDCG@'), false);
+  assert.equal(PAGE_SOURCE.includes('MAP@'), false);
+  assert.equal(UI_SOURCE.includes('Precision@5'), true);
+});
+
+test('shell: loading/error/no-runs handling is present via view helper constants', () => {
+  assert.ok(PAGE_SOURCE.includes('ADMIN_AI_DASHBOARD_VIEWS'));
+  assert.ok(PAGE_SOURCE.includes('ADMIN_AI_DASHBOARD_MESSAGES'));
+  assert.ok(UI_SOURCE.includes('NO_RUNS'));
+  assert.equal(PAGE_SOURCE.includes("'no-runs'"), false);
+  assert.equal(PAGE_SOURCE.includes('isLoading'), false);
+  assert.equal(PAGE_SOURCE.includes('setError'), false);
 });
 
 test('shell: no chart datasets or sample metric objects', () => {
@@ -192,7 +196,7 @@ test('shell: page rendered from Admin content area for the section', () => {
 // NO FETCH / NO API
 // ============================================================
 
-test('no fetch: page has zero recommendation metrics/history/dataset requests', () => {
+test('no fetch: page has zero direct recommendation metrics/history/dataset requests', () => {
   for (const src of [PAGE_SOURCE, ADMIN_SOURCE]) {
     assert.equal(src.includes('/api/admin/recommendations/metrics'), false);
     assert.equal(src.includes('/api/admin/recommendations/history'), false);
@@ -204,8 +208,10 @@ test('no fetch: page has zero recommendation metrics/history/dataset requests', 
   assert.equal(PAGE_SOURCE.includes('api.get'), false);
   assert.equal(PAGE_SOURCE.includes('fetch('), false);
   assert.equal(PAGE_SOURCE.includes('axios'), false);
+  assert.equal(PAGE_SOURCE.includes("from '../../api/client.js'"), false);
   assert.equal(PAGE_SOURCE.includes('useEffect'), false);
-  assert.equal(PAGE_SOURCE.includes('useState'), false);
+  assert.equal(PAGE_SOURCE.includes('useState'), true);
+  assert.equal(PAGE_SOURCE.includes('useAdminRecommendationMetrics'), true);
 });
 
 test('no fetch: Admin AI section introduces no new recommendation endpoint call', () => {
@@ -268,10 +274,14 @@ test('access: no JWT parsing added', () => {
 });
 
 test('access: no custom isAdmin / duplicate role check in new page or Admin AI wiring', () => {
-  assert.equal(PAGE_SOURCE.includes('role'), false);
-  assert.equal(PAGE_SOURCE.includes('isAdmin'), false);
   assert.equal(PAGE_SOURCE.includes('user.role'), false);
+  assert.equal(PAGE_SOURCE.includes('role ==='), false);
+  assert.equal(PAGE_SOURCE.includes('role==='), false);
+  assert.equal(PAGE_SOURCE.includes('isAdmin'), false);
+  assert.equal(PAGE_SOURCE.includes('localStorage'), false);
   assert.equal(/function\s+\w*[Ii]sAdmin/.test(APP_SOURCE), false);
+  assert.equal(PAGE_SOURCE.includes('role="status"'), true);
+  assert.equal(PAGE_SOURCE.includes('role="alert"'), true);
 });
 
 // ============================================================
@@ -284,7 +294,8 @@ test('scope: no server/Python/model/Dashboard/Player imports in new page', () =>
   assert.equal(PAGE_SOURCE.includes('ml/'), false);
   assert.equal(PAGE_SOURCE.includes('RecommendationEvaluationRun'), false);
   assert.equal(PAGE_SOURCE.includes('RecommendationSnapshot'), false);
-  assert.equal(PAGE_SOURCE.includes('Dashboard'), false);
+  assert.equal(PAGE_SOURCE.includes('pages/Dashboard'), false);
+  assert.equal(PAGE_SOURCE.includes('../Dashboard'), false);
   assert.equal(PAGE_SOURCE.includes('PlayerContext'), false);
   assert.equal(PAGE_SOURCE.includes('usePersonalizedRecommendations'), false);
 });
@@ -302,27 +313,44 @@ test('scope: no evaluation calculation / retraining / write action', () => {
 test('static safety: forbidden tokens absent from page + Admin AI additions', () => {
   const combined = PAGE_SOURCE + ADMIN_SOURCE;
   const forbidden = [
-    '/api/admin/recommendations/metrics',
     '/api/admin/recommendations/history',
+    '/api/admin/recommendations/dataset',
     'RecommendationEvaluationRun',
     'RecommendationSnapshot',
-    'precision_at_',
-    'recall_at_',
-    'ndcg_at_',
-    'map_at_',
-    'hit_rate_at_',
-    'catalog_coverage',
     'payload_sha256',
     'TruncatedSVD',
     'child_process',
     'Math.random',
     'jwt.verify',
     'jsonwebtoken',
+    'overall_score',
+    'quality_score',
+    'composite_score',
+    'best_model',
+    'winner',
+    'winning',
+    'RECOMMENDATION_AI_ENABLED',
+    'recommendationConfig',
   ];
   for (const token of forbidden) {
     assert.equal(combined.includes(token), false, token);
   }
   assert.equal(PAGE_SOURCE.includes('setInterval'), false);
+  assert.equal(PAGE_SOURCE.includes('/api/admin/recommendations/metrics'), false);
+});
+
+test('static safety: page does not hardcode raw metric keys', () => {
+  for (const token of [
+    'precision_at_',
+    'recall_at_',
+    'ndcg_at_',
+    'map_at_',
+    'hit_rate_at_',
+    'catalog_coverage',
+  ]) {
+    assert.equal(PAGE_SOURCE.includes(token), false, token);
+  }
+  assert.equal(UI_SOURCE.includes('precision_at_5'), true);
 });
 
 test('static safety: Admin setInterval only for existing stats polling (unchanged behavior)', () => {
@@ -330,10 +358,12 @@ test('static safety: Admin setInterval only for existing stats polling (unchange
   assert.equal(PAGE_SOURCE.includes('setInterval'), false);
 });
 
-test('page shell: no metrics client service file created alongside', () => {
-  const expectedPageFiles = ['AdminAIRecommendation.jsx'];
-  assert.ok(expectedPageFiles.length > 0);
+test('page shell: metrics client service is a dedicated module, not inlined in page', () => {
   assert.equal(PAGE_SOURCE.includes('createAdmin'), false);
   assert.equal(PAGE_SOURCE.includes('metricsClient'), false);
   assert.equal(PAGE_SOURCE.includes('adminRecommendationClient'), false);
+  assert.equal(PAGE_SOURCE.includes('ADMIN_RECOMMENDATION_METRICS_PATH'), false);
+  assert.equal(PAGE_SOURCE.includes('fetchAdminRecommendationMetrics'), false);
+  assert.equal(HOOK_SOURCE.includes('fetchAdminRecommendationMetrics'), true);
+  assert.equal(SERVICE_SOURCE.includes('ADMIN_RECOMMENDATION_METRICS_PATH'), true);
 });

@@ -39,6 +39,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Secure Admin recommendation-metrics API (38/43)** — authenticated read-only `GET /api/admin/recommendations/metrics` (`server/routes/adminRecommendationRoutes.js` + `server/services/adminRecommendationMetricsService.js`); existing `protect` then `adminOnly`; optional exact-lowercase `pipeline_stage` query (`collaborative|hybrid|policy`, default `policy`), any other key → 400; exposes only the latest immutable 32/43 evaluation run for that stage with a whitelist projection (`run_id`, `pipeline_stage`, `artifact_version`, `evaluated_at`, the ten 28/43 metrics, seven summary counts) — no dataset/configuration/`payload_sha256`, no user identity, no recommendation lists, no overall/winner/best labeling, no history pagination (that is 42/43); no-runs returns HTTP 200 `state:"no-runs"` with `latest:null`; independent of `RECOMMENDATION_AI_ENABLED`; no Python/training/ranking/artifact writes.
 - **Admin metrics access regression tests (39/43)** — test-only security/access coverage locking down 38/43 in `server/routes/adminRecommendationSecurity.test.js` (production route/service unchanged); see the dedicated section below.
 - **Admin AI Recommendation navigation (40/43)** — Admin sidebar now includes an **AI Recommendation** entry (exact label) with canonical path **`/admin/ai-recommendation`**; the route reuses the existing `AdminProtected` guard (direct/deep-link access remains admin-only — nav visibility alone is not authorization); the destination is currently a protected Admin page shell for future recommender observability (heading + factual placeholder only) — **no** recommendation metrics/history/dataset request, **no** fake metric values or best/winner claims, **no** `RECOMMENDATION_AI_ENABLED` gate on Admin nav; existing Admin layout, sidebar ordering, active-state, responsive conventions, and text-only nav style are reused unchanged; no server, Python, model, user Dashboard, Player, or dependency changes. **41/43** will connect the secure 38/43 metrics API and build the model-quality dashboard; **42/43** will add model-history and dataset-stat surfaces.
+- **Admin model-quality dashboard (41/43)** — `/admin/ai-recommendation` consumes the secure 38/43 **`GET /api/admin/recommendations/metrics`** via a client service + hook (one GET per stage selection; exact-lowercase `pipeline_stage` only; default **Policy**); stage selector buttons use `aria-pressed`; **loading** / **error** (`Unable to load recommendation metrics.` + Retry) / **no-runs** (exact 38/43 empty message) / **ready** views; ready shows run metadata (Pipeline Stage, Run ID, Artifact Version → `Not recorded` when null, Evaluated At via `Intl.DateTimeFormat`), the ten metrics as percent labels (`Precision@5`…`Diversity`, presentation-only `0..1 → 0.00%..100.00%`), and seven integer summary counts — **no** overall/composite/quality/winner/best/grade/tier, **no** history or dataset surfaces, **no** `payload_sha256`/configuration rendering, **no** `RECOMMENDATION_AI_ENABLED` gate, **no** raw `api.get` on the page (service/hook only), **no** polling or auto-retry; client-only (server, Python, models, dependencies unchanged).
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -858,6 +859,24 @@ Admin navigation and a protected route shell only — **no** metrics UI yet.
 
 ```bash
 node --test client/src/pages/Admin/aiRecommendationNav.test.js
+```
+
+### Admin model-quality dashboard (41/43)
+
+Turns the 40/43 shell into a read-only dashboard over the secure 38/43 metrics endpoint.
+
+- **Client service** — `client/src/services/adminRecommendationMetrics.js` owns the path constant, exact-lowercase stage vocabulary, payload normalization (source `evaluation-history`, stage match, ten metrics in [0,1], seven summary counts + invariants), and **one** `GET /api/admin/recommendations/metrics?pipeline_stage=…` per fetch via the existing authenticated API client (injectable for tests; optional AbortSignal forwarded only when provided).
+- **Hook** — `client/src/hooks/useAdminRecommendationMetrics.js` exposes `{state, latest, error, pipelineStage, isLoading, isReady, refresh}` with generation-counter race safety; stage changes clear `latest` and re-fetch; no polling or auto-retry.
+- **UI helper** — `client/src/pages/Admin/aiRecommendationMetricsUi.js` provides pure formatters (`formatRecommendationMetric` → `0.00%`…`100.00%`, `formatEvaluationDate` via `Intl.DateTimeFormat`), stage/metric/summary/meta labels, card builders, and the `idle|loading|ready|no-runs|error` view selector.
+- **Page** — heading remains **AI Recommendation**; subtitle `Monitor the latest persisted recommendation evaluation for each pipeline stage.`; `aria-pressed` stage buttons (Policy / Hybrid / Collaborative, default Policy); loading `role="status"` + `aria-live="polite"`; error `Unable to load recommendation metrics.` + Retry; no-runs exact empty message; ready renders metadata + ten metric cards + seven summary integer cards.
+- **Not claimed** — no overall/quality/composite score, no winner/best/grade/tier, no history or dataset surfaces, no `payload_sha256`/configuration UI, no `RECOMMENDATION_AI_ENABLED` gate, no server/Python/model/dependency changes.
+- **Out of scope** — model-history and dataset-stats surfaces (**42/43**).
+
+```bash
+node --test client/src/services/adminRecommendationMetrics.test.js \
+  client/src/pages/Admin/aiRecommendationMetricsUi.test.js \
+  client/src/pages/Admin/aiRecommendationDashboard.test.js \
+  client/src/pages/Admin/aiRecommendationNav.test.js
 ```
 
 ## 🔑 Admin Credentials
