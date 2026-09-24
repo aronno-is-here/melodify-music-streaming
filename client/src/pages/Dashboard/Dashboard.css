@@ -1645,3 +1645,70 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   }
 }
 
+.np-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  min-height: 34px;
+}
+
+.np-status-text {
+  color: var(--light-blue);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.np-retry-btn {
+  background: var(--accent-black);
+  border: 1px solid var(--sky-blue);
+  color: var(--sky-blue);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.np-retry-btn:hover {
+  background: var(--sky-blue);
+  color: var(--white);
+}
+
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
+  }
+
+  main {
+    height: auto;
+    min-height: calc(100vh - 60px);
+  }
+
+  .scroll-grid,
+  .scroll-grid:hover,
+  .scroll-grid:nth-child(3),
+  .scroll-grid:nth-child(3):hover,
+  main.collapsed .scroll-grid:nth-child(1) {
+    height: auto;
+    overflow: visible;
+  }
+
+  .scroll-grid {
+    margin-left: 0;
+  }
+
+  .playlist-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .controls {
+    width: 100%;
+    max-width: 380px;
+  }
+}
+

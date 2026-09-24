@@ -7,6 +7,18 @@ import {
 
 const PlayerContext = createContext(null);
 
+export const PLAYBACK_STATUS = Object.freeze({
+  IDLE: 'idle',
+  LOADING: 'loading',
+  PLAYING: 'playing',
+  PAUSED: 'paused',
+  BLOCKED: 'blocked',
+  ERROR: 'error',
+});
+
+export const YOUTUBE_INIT_TIMEOUT_MS = 10000;
+export const PLAY_CONFIRM_TIMEOUT_MS = 8000;
+
 export function usePlayer() {
   return useContext(PlayerContext);
 }
@@ -22,6 +34,7 @@ export function PlayerProvider({ children }) {
   const [list, setList] = useState([]);
   const [index, setIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackStatus, setPlaybackStatusState] = useState(PLAYBACK_STATUS.IDLE);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -41,6 +54,9 @@ export function PlayerProvider({ children }) {
   const playSongRef = useRef(null);
   const transitioningRef = useRef(false);
   const targetSongRef = useRef(null);
+  const playbackStatusRef = useRef(PLAYBACK_STATUS.IDLE);
+  const initTimerRef = useRef(null);
+  const confirmTimerRef = useRef(null);
   const stateRef = useRef({ list: [], index: -1, isPlaying: false, volume: 50, muted: false });
   stateRef.current.list = list;
   stateRef.current.index = index;
@@ -82,12 +98,89 @@ export function PlayerProvider({ children }) {
 
   const currentSong = index >= 0 && list[index] ? list[index] : null;
 
+  const setStatus = useCallback((next) => {
+    playbackStatusRef.current = next;
+    setPlaybackStatusState(next);
+  }, []);
+
+  const clearInitTimer = useCallback(() => {
+    if (initTimerRef.current) {
+      clearTimeout(initTimerRef.current);
+      initTimerRef.current = null;
+    }
+  }, []);
+
+  const clearConfirmTimer = useCallback(() => {
+    if (confirmTimerRef.current) {
+      clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
+    }
+  }, []);
+
+  const clearPlaybackTimers = useCallback(() => {
+    clearInitTimer();
+    clearConfirmTimer();
+  }, [clearInitTimer, clearConfirmTimer]);
+
+  const startInitTimer = useCallback(() => {
+    clearInitTimer();
+    initTimerRef.current = setTimeout(() => {
+      initTimerRef.current = null;
+      if (playerReadyRef.current) return;
+      setIsPlaying(false);
+      setStatus(PLAYBACK_STATUS.ERROR);
+    }, YOUTUBE_INIT_TIMEOUT_MS);
+  }, [clearInitTimer, setStatus]);
+
+  const startConfirmTimer = useCallback(() => {
+    clearConfirmTimer();
+    confirmTimerRef.current = setTimeout(() => {
+      confirmTimerRef.current = null;
+      if (playbackStatusRef.current !== PLAYBACK_STATUS.LOADING) return;
+      let enginePlaying = false;
+      try {
+        const p = ytRef.current;
+        enginePlaying = Boolean(
+          p &&
+          window.YT &&
+          typeof p.getPlayerState === 'function' &&
+          p.getPlayerState() === window.YT.PlayerState.PLAYING,
+        );
+      } catch {
+        enginePlaying = false;
+      }
+      if (enginePlaying) return;
+      setIsPlaying(false);
+      setStatus(PLAYBACK_STATUS.BLOCKED);
+    }, PLAY_CONFIRM_TIMEOUT_MS);
+  }, [clearConfirmTimer, setStatus]);
+
+  const markPlaying = useCallback(() => {
+    clearPlaybackTimers();
+    errorCountRef.current = 0;
+    transitioningRef.current = false;
+    targetSongRef.current = null;
+    setIsPlaying(true);
+    setStatus(PLAYBACK_STATUS.PLAYING);
+  }, [clearPlaybackTimers, setStatus]);
+
+  const markPaused = useCallback(() => {
+    clearConfirmTimer();
+    setIsPlaying(false);
+    setStatus(PLAYBACK_STATUS.PAUSED);
+  }, [clearConfirmTimer, setStatus]);
+
+  const isYoutubeTrackActive = useCallback(() => {
+    const song = stateRef.current.list[stateRef.current.index];
+    return Boolean(song && song.youtube_id);
+  }, []);
+
   const getContainer = useCallback(() => {
     let el = document.getElementById('melodify-yt-player');
     if (!el) {
       el = document.createElement('div');
       el.id = 'melodify-yt-player';
-      el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1';
+      el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;overflow:hidden;opacity:0.01;pointer-events:none';
       document.body.appendChild(el);
     }
     return el;
@@ -119,15 +212,20 @@ export function PlayerProvider({ children }) {
   const loadVideo = useCallback((song) => {
     const p = ytRef.current;
     if (!p || !song?.youtube_id) return;
+    setStatus(PLAYBACK_STATUS.LOADING);
     try {
       p.loadVideoById(song.youtube_id, 0);
       p.setVolume(stateRef.current.muted ? 0 : stateRef.current.volume);
       p.playVideo();
       startPolling();
+      startConfirmTimer();
     } catch (err) {
       console.error('YouTube loadVideoById error:', err);
+      stopPolling();
+      setIsPlaying(false);
+      setStatus(PLAYBACK_STATUS.ERROR);
     }
-  }, [startPolling]);
+  }, [startConfirmTimer, startPolling, setStatus, stopPolling]);
 
   const switchTrack = useCallback((newList, i, transitionReason) => {
     const song = newList?.[i];
@@ -153,20 +251,22 @@ export function PlayerProvider({ children }) {
     stateRef.current.index = i;
     setList(newList);
     setIndex(i);
-    errorCountRef.current = 0;
+    if (transitionReason) errorCountRef.current = 0;
     transitioningRef.current = true;
     targetSongRef.current = song;
+    clearPlaybackTimers();
 
     if (song.youtube_id) {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
       }
+      setStatus(PLAYBACK_STATUS.LOADING);
       if (playerReadyRef.current && ytRef.current) {
         loadVideo(song);
       } else {
         pendingLoadRef.current = { song };
-        setIsPlaying(true);
+        startInitTimer();
       }
     } else {
       if (ytRef.current) {
@@ -176,10 +276,18 @@ export function PlayerProvider({ children }) {
       const audio = audioRef.current;
       if (audio) {
         audio.src = song.file_path || '';
-        audio.play().catch(() => {});
+        setStatus(PLAYBACK_STATUS.LOADING);
+        const attempt = audio.play();
+        if (attempt && typeof attempt.catch === 'function') {
+          attempt.catch(() => {
+            stopPolling();
+            setIsPlaying(false);
+            setStatus(PLAYBACK_STATUS.ERROR);
+          });
+        }
       }
     }
-  }, [loadVideo, stopPolling, telemetry]);
+  }, [clearPlaybackTimers, loadVideo, startInitTimer, setStatus, stopPolling, telemetry]);
 
   const playSong = useCallback((newList, i) => {
     switchTrack(newList, i, 'new-selection');
@@ -214,18 +322,12 @@ export function PlayerProvider({ children }) {
       events: {
         onReady: () => {
           playerReadyRef.current = true;
-          if (pendingLoadRef.current) {
-            const { song } = pendingLoadRef.current;
+          clearInitTimer();
+          const pending = pendingLoadRef.current;
+          if (pending) {
             pendingLoadRef.current = null;
-            if (ytRef.current && song?.youtube_id) {
-              try {
-                ytRef.current.loadVideoById(song.youtube_id, 0);
-                ytRef.current.setVolume(stateRef.current.muted ? 0 : stateRef.current.volume);
-                ytRef.current.playVideo();
-                startPolling();
-              } catch (err) {
-                console.error('YouTube pending load error:', err);
-              }
+            if (pending.song?.youtube_id) {
+              loadVideo(pending.song);
             }
           }
         },
@@ -246,13 +348,11 @@ export function PlayerProvider({ children }) {
             }
           };
           if (e.data === window.YT.PlayerState.PLAYING) {
-            transitioningRef.current = false;
-            targetSongRef.current = null;
-            setIsPlaying(true);
+            markPlaying();
             startPolling();
             telemetry.confirmedPlay({ position: readPos(), duration: readDur() });
           } else if (e.data === window.YT.PlayerState.PAUSED) {
-            setIsPlaying(false);
+            if (isYoutubeTrackActive()) markPaused();
             stopPolling();
             telemetry.pause({ position: readPos(), duration: readDur() });
           } else if (e.data === window.YT.PlayerState.ENDED) {
@@ -274,8 +374,9 @@ export function PlayerProvider({ children }) {
           const { list: l } = stateRef.current;
           if (errorCountRef.current >= Math.min(3, l.length || 1)) {
             errorCountRef.current = 0;
-            setIsPlaying(false);
             stopPolling();
+            setIsPlaying(false);
+            setStatus(PLAYBACK_STATUS.ERROR);
           } else {
             nextRef.current();
           }
@@ -283,8 +384,26 @@ export function PlayerProvider({ children }) {
       },
     });
     },
-    [getContainer, startPolling, stopPolling, telemetry],
+    [clearInitTimer, getContainer, isYoutubeTrackActive, loadVideo, markPlaying, markPaused, setStatus, startPolling, stopPolling, telemetry],
   );
+
+  const loadYT = useCallback(() => {
+    if (window.YT && window.YT.Player) {
+      ensurePlayer();
+      return;
+    }
+    const existing = document.querySelector('script[src*="youtube.com/iframe_api"]');
+    if (!existing) window.__melodifyYTLoading = false;
+    if (!window.__melodifyYTLoading) {
+      window.__melodifyYTLoading = true;
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = () => {
+        ensurePlayer();
+      };
+    }
+  }, [ensurePlayer]);
 
   useEffect(() => {
     const audio = new Audio();
@@ -311,41 +430,29 @@ export function PlayerProvider({ children }) {
       }
     });
     audio.addEventListener('play', () => {
-      setIsPlaying(true);
+      markPlaying();
       telemetry.confirmedPlay({
         position: audio.currentTime,
         duration: Number.isFinite(audio.duration) ? audio.duration : undefined,
       });
     });
     audio.addEventListener('pause', () => {
-      setIsPlaying(false);
+      if (!isYoutubeTrackActive()) markPaused();
       telemetry.pause({
         position: audio.currentTime,
         duration: Number.isFinite(audio.duration) ? audio.duration : undefined,
       });
     });
 
-    const loadYT = () => {
-      if (window.YT && window.YT.Player) {
-        ensurePlayer();
-      } else if (!window.__melodifyYTLoading) {
-        window.__melodifyYTLoading = true;
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        document.head.appendChild(tag);
-        window.onYouTubeIframeAPIReady = () => {
-          ensurePlayer();
-        };
-      }
-    };
     loadYT();
 
     return () => {
+      clearPlaybackTimers();
       stopPolling();
       audio.pause();
       audio.src = '';
     };
-  }, [ensurePlayer, stopPolling, telemetry]);
+  }, [clearPlaybackTimers, loadYT, markPaused, stopPolling, telemetry]);
 
   const togglePlay = useCallback(() => {
     const { list: l, index: i, isPlaying: playing } = stateRef.current;
@@ -361,18 +468,31 @@ export function PlayerProvider({ children }) {
       } else {
         audioRef.current?.pause();
       }
-    } else {
-      if (song?.youtube_id) {
-        if (playerReadyRef.current && ytRef.current) {
-          try { ytRef.current.playVideo(); } catch {}
-        } else {
-          playSongRef.current(l, i);
-        }
+      return;
+    }
+    if (song?.youtube_id) {
+      if (playerReadyRef.current && ytRef.current) {
+        setStatus(PLAYBACK_STATUS.LOADING);
+        startConfirmTimer();
+        try { ytRef.current.playVideo(); } catch { setIsPlaying(false); setStatus(PLAYBACK_STATUS.ERROR); }
       } else {
-        audioRef.current?.play().catch(() => {});
+        pendingLoadRef.current = { song };
+        setStatus(PLAYBACK_STATUS.LOADING);
+        startInitTimer();
+        loadYT();
+      }
+    } else {
+      setStatus(PLAYBACK_STATUS.LOADING);
+      const attempt = audioRef.current?.play();
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(() => {
+          stopPolling();
+          setIsPlaying(false);
+          setStatus(PLAYBACK_STATUS.ERROR);
+        });
       }
     }
-  }, []);
+  }, [loadYT, startConfirmTimer, startInitTimer, setStatus, stopPolling]);
 
   const pause = useCallback(() => {
     const { list: l, index: i } = stateRef.current;
@@ -448,11 +568,46 @@ export function PlayerProvider({ children }) {
     }
   }, [telemetry]);
 
+  const retryPlayback = useCallback(() => {
+    const { list: l, index: i } = stateRef.current;
+    const song = l[i];
+    if (!song) return;
+    clearPlaybackTimers();
+    if (song.youtube_id) {
+      if (playerReadyRef.current && ytRef.current) {
+        loadVideo(song);
+      } else {
+        pendingLoadRef.current = { song };
+        setStatus(PLAYBACK_STATUS.LOADING);
+        startInitTimer();
+        loadYT();
+      }
+    } else {
+      const audio = audioRef.current;
+      if (!audio || !song.file_path) {
+        stopPolling();
+        setIsPlaying(false);
+        setStatus(PLAYBACK_STATUS.ERROR);
+        return;
+      }
+      setStatus(PLAYBACK_STATUS.LOADING);
+      const attempt = audio.play();
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(() => {
+          stopPolling();
+          setIsPlaying(false);
+          setStatus(PLAYBACK_STATUS.ERROR);
+        });
+      }
+    }
+  }, [clearPlaybackTimers, loadVideo, loadYT, startInitTimer, setStatus, stopPolling]);
+
   const value = {
     currentSong,
     list,
     index,
     isPlaying,
+    playbackStatus,
     currentTime,
     duration,
     progress,
@@ -468,6 +623,7 @@ export function PlayerProvider({ children }) {
     setVolume,
     toggleMute,
     seek,
+    retryPlayback,
   };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;

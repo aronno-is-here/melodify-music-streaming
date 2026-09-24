@@ -21,6 +21,7 @@ import {
   DASHBOARD_RECOMMENDATION_LOADING_MESSAGE,
   selectDashboardRecommendationPresentation,
 } from './recommendationUi.js';
+import { selectPlaybackStatusPresentation } from './playbackStatusUi.js';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
 const PERSONALIZED_RECOMMENDATION_LIMIT = 10;
@@ -446,6 +447,11 @@ export default function Dashboard() {
 
   const playingSongId = player.currentSong?._id;
 
+  const playbackStatusUi = selectPlaybackStatusPresentation({
+    playbackStatus: player.playbackStatus,
+    hasSong: Boolean(player.currentSong),
+  });
+
   const activePlaylistData = playlists.find((pl) => String(pl._id) === String(activePlaylist));
 
   return (
@@ -855,6 +861,21 @@ export default function Dashboard() {
                 <span>{formatTime(player.currentTime)}</span>
                 <span>{player.currentSong ? player.currentSong.duration : formatTime(player.duration)}</span>
               </div>
+              {playbackStatusUi.visible && (
+                <div className="np-status" role="status" aria-live="polite">
+                  <span className="np-status-text">{playbackStatusUi.message}</span>
+                  {playbackStatusUi.showRetry && (
+                    <button
+                      type="button"
+                      className="np-retry-btn"
+                      aria-label={playbackStatusUi.retryAriaLabel}
+                      onClick={player.retryPlayback}
+                    >
+                      {playbackStatusUi.retryLabel}
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="controls">
                 <button className="control-btn prev-btn" aria-label="Previous song" onClick={player.prev}>
                   <i className="fa-solid fa-backward"></i>
