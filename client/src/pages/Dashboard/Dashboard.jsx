@@ -6,8 +6,24 @@ import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
 import cssRaw from './Dashboard.css?raw';
 import FullScreenPlayer from './FullScreenPlayer.jsx';
 import LyricsChordsPanel from './LyricsChordsPanel.jsx';
+import {
+  TRENDING_REQUEST_PATH,
+  TRENDING_LOADING_MESSAGE,
+  TRENDING_EMPTY_MESSAGE,
+  TRENDING_ERROR_MESSAGE,
+  normalizeTrendingResponse,
+  buildTrendingSongs,
+  classifyTrendingResult,
+} from './trendingUi.js';
+import usePersonalizedRecommendations from '../../hooks/usePersonalizedRecommendations.js';
+import {
+  DASHBOARD_RECOMMENDATION_MODES,
+  DASHBOARD_RECOMMENDATION_LOADING_MESSAGE,
+  selectDashboardRecommendationPresentation,
+} from './recommendationUi.js';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
+const PERSONALIZED_RECOMMENDATION_LIMIT = 10;
 
 export default function Dashboard() {
   useLayoutEffect(() => {
@@ -24,6 +40,8 @@ export default function Dashboard() {
   const [songs, setSongs] = useState([]);
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [history, setHistory] = useState([]);
+  const [trendingStatus, setTrendingStatus] = useState('loading');
+  const [trendingItems, setTrendingItems] = useState([]);
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
@@ -99,6 +117,38 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadTrending = async () => {
+      try {
+        const data = await api.get(TRENDING_REQUEST_PATH);
+        if (cancelled) return;
+        const kind = classifyTrendingResult(data);
+        if (kind === 'disabled') {
+          setTrendingStatus('disabled');
+          setTrendingItems([]);
+          return;
+        }
+        if (kind !== 'ok') {
+          setTrendingStatus('error');
+          setTrendingItems([]);
+          return;
+        }
+        const { items } = normalizeTrendingResponse(data);
+        if (cancelled) return;
+        setTrendingItems(items);
+        setTrendingStatus(items.length > 0 ? 'ready' : 'empty');
+      } catch {
+        if (!cancelled) {
+          setTrendingStatus('error');
+          setTrendingItems([]);
+        }
+      }
+    };
+    loadTrending();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     const term = search.toLowerCase();
     if (!term) {
       setFilteredSongs(songs);
@@ -139,13 +189,6 @@ export default function Dashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const recordPlay = (song) => {
-    if (!song?._id) return;
-    api.post('/api/history', { songId: song._id }).then(() => {
-      setHistory((prev) => [song, ...prev.filter((s) => s._id !== song._id)].slice(0, 20));
-    });
-  };
-
   const handleSongClick = (songIndex, songList) => {
     const list = songList || filteredSongs;
     const song = list[songIndex];
@@ -155,7 +198,47 @@ export default function Dashboard() {
       player.togglePlay();
     } else {
       player.playSong(list, songIndex);
-      recordPlay(song);
+    }
+  };
+
+  const trendingSongs = buildTrendingSongs(trendingItems);
+
+  const playTrendingSong = (index) => {
+    const song = trendingSongs[index];
+    if (!song) return;
+    if (player.currentSong?._id === song._id) {
+      player.togglePlay();
+    } else {
+      player.playSong(trendingSongs, index);
+    }
+  };
+
+  const personalizedRecommendations = usePersonalizedRecommendations({
+    limit: PERSONALIZED_RECOMMENDATION_LIMIT,
+  });
+  const legacyRecommendedSongs = filteredSongs;
+  const searchActive = Boolean(search.trim());
+  const recommendationPresentation = searchActive
+    ? {
+      mode: DASHBOARD_RECOMMENDATION_MODES.LEGACY,
+      state: personalizedRecommendations.state,
+      songs: legacyRecommendedSongs,
+      isFallback: false,
+    }
+    : selectDashboardRecommendationPresentation({
+      state: personalizedRecommendations.state,
+      personalizedSongs: personalizedRecommendations.songs,
+      legacySongs: legacyRecommendedSongs,
+    });
+
+  const playRecommendation = (index) => {
+    const displayedSongs = recommendationPresentation.songs;
+    const song = displayedSongs[index];
+    if (!song) return;
+    if (player.currentSong?._id === song._id) {
+      player.togglePlay();
+    } else {
+      player.playSong(displayedSongs, index);
     }
   };
 
@@ -165,7 +248,6 @@ export default function Dashboard() {
       handleSongClick(idx);
     } else {
       player.playSong([song], 0);
-      recordPlay(song);
     }
   };
 
@@ -279,20 +361,17 @@ export default function Dashboard() {
       player.togglePlay();
     } else {
       player.playSong(activePlaylistSongs, rowIndex);
-      recordPlay(song);
     }
   };
 
   const playAllPlaylist = () => {
     if (activePlaylistSongs.length === 0) return;
     player.playSong(activePlaylistSongs, 0);
-    recordPlay(activePlaylistSongs[0]);
   };
 
   const playFavorites = () => {
     if (favorites.length === 0) return;
     player.playSong(favorites, 0);
-    recordPlay(favorites[0]);
   };
 
   const playFavoriteRow = (index) => {
@@ -302,7 +381,6 @@ export default function Dashboard() {
       player.togglePlay();
     } else {
       player.playSong(favorites, index);
-      recordPlay(song);
     }
   };
 
@@ -632,6 +710,49 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              {trendingStatus !== 'disabled' && (
+                <div className="trending-container" aria-busy={trendingStatus === 'loading'}>
+                  <h2>Trending Now</h2>
+                  {trendingStatus === 'loading' && (
+                    <p className="trending-status" role="status">{TRENDING_LOADING_MESSAGE}</p>
+                  )}
+                  {trendingStatus === 'ready' && (
+                    <div className="recent-grid trending-grid" role="list">
+                      {trendingItems.map((item, index) => (
+                        <button
+                          type="button"
+                          className="song-item recent-item trending-item"
+                          key={item.song._id}
+                          role="listitem"
+                          onClick={() => playTrendingSong(index)}
+                        >
+                          <span className="song-poster-wrapper trending-poster-wrapper">
+                            <img
+                              className="song-poster"
+                              src={item.song.poster_url || DEFAULT_POSTER}
+                              alt={`${item.song.title} Poster`}
+                              onError={(e) => { e.target.src = DEFAULT_POSTER; }}
+                            />
+                            <span className="play-button" aria-hidden="true">
+                              <i className="fa-solid fa-play"></i>
+                            </span>
+                          </span>
+                          <span className="song-info">
+                            <span className="song-name">{item.song.title}</span>
+                            <span className="artist-name">{item.song.artist}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {trendingStatus === 'empty' && (
+                    <p className="trending-status" role="status">{TRENDING_EMPTY_MESSAGE}</p>
+                  )}
+                  {trendingStatus === 'error' && (
+                    <p className="trending-status" role="status">{TRENDING_ERROR_MESSAGE}</p>
+                  )}
+                </div>
+              )}
               <div className="search-container">
                 <div className="search-bar">
                   <i className="fa-solid fa-magnifying-glass"></i>
@@ -639,29 +760,38 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="songs-container">
-                <h2>Recommended Songs</h2>
-                <div className="songs-grid">
-                  {filteredSongs.map((song, index) => {
-                    const isActive = playingSongId === song._id;
-                    return (
-                      <div className="song-item" key={song._id || index} onClick={() => handleSongClick(index)}>
-                        <div className="song-poster-wrapper">
-                          <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
-                          <div className="play-button">
-                            <i className={`fa-solid ${isActive && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                <h2>Recommended For You</h2>
+                {recommendationPresentation.mode === DASHBOARD_RECOMMENDATION_MODES.LOADING ? (
+                  <p className="trending-status" role="status">{DASHBOARD_RECOMMENDATION_LOADING_MESSAGE}</p>
+                ) : (
+                  <div className="songs-grid" role="list">
+                    {recommendationPresentation.songs.map((song, index) => {
+                      const isActive = playingSongId === song._id;
+                      return (
+                        <div
+                          className="song-item"
+                          key={song._id || index}
+                          role="listitem"
+                          onClick={() => playRecommendation(index)}
+                        >
+                          <div className="song-poster-wrapper">
+                            <img className="song-poster" src={song.poster_url} alt={`${song.title} Poster`} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
+                            <div className="play-button">
+                              <i className={`fa-solid ${isActive && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
+                            </div>
                           </div>
+                          <div className="song-info">
+                            <div className="song-name">{song.title}</div>
+                            <div className="artist-name">{song.artist}</div>
+                          </div>
+                          <button className={`grid-fav-btn${favoritedIds.has(String(song._id)) ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); toggleFavorite(song._id); }}>
+                            <i className={`fa-${favoritedIds.has(String(song._id)) ? 'solid' : 'regular'} fa-heart`}></i>
+                          </button>
                         </div>
-                        <div className="song-info">
-                          <div className="song-name">{song.title}</div>
-                          <div className="artist-name">{song.artist}</div>
-                        </div>
-                        <button className={`grid-fav-btn${favoritedIds.has(String(song._id)) ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); toggleFavorite(song._id); }}>
-                          <i className={`fa-${favoritedIds.has(String(song._id)) ? 'solid' : 'regular'} fa-heart`}></i>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </>
           )}

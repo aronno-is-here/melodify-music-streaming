@@ -48,3 +48,10 @@ Reference_Homepage.png
 
 # Credentials — NEVER commit
 .credentials.json
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]
+
+# Offline recommender artifact store (27/43)
+ml/artifacts/

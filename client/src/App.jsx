@@ -103,6 +103,14 @@ export default function App() {
           </AdminProtected>
         }
       />
+      <Route
+        path="/admin/ai-recommendation"
+        element={
+          <AdminProtected>
+            <Admin />
+          </AdminProtected>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
