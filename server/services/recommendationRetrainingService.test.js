@@ -5,12 +5,14 @@ import {
   MAX_RETRAIN_SNAPSHOT_LIMIT,
   RETRAINING_HEALTH_SOURCE,
   RETRAINING_HEALTH_STATES,
+  RETRAIN_LEASE_GRACE_MS,
   SNAPSHOT_PERSIST_CONCURRENCY,
   createRecommendationRetrainingService,
   normalizeRetrainRunAt,
   normalizeRetrainRunId,
   normalizeRetrainSnapshotLimit,
 } from './recommendationRetrainingService.js';
+import { RETRAIN_PYTHON_TIMEOUT_MS } from './recommendationPythonRunner.js';
 
 const RUN_ID = 'run-43-01';
 const RUN_AT = '2026-09-15T12:00:00.000Z';
@@ -341,7 +343,7 @@ test('runRecommendationRetraining maps evaluation persist failure', async () => 
 });
 
 test('runRecommendationRetraining maps snapshot persist failure', async () => {
-  const { deps, attemptModel } = createDeps();
+  const { deps, attemptModel, calls } = createDeps();
   deps.snapshotService = {
     async recordRecommendationSnapshot() {
       throw new Error('snapshot failed');
@@ -355,6 +357,150 @@ test('runRecommendationRetraining maps snapshot persist failure', async () => {
     attemptModel.state.attempts[0].failure_code,
     'SNAPSHOT_PERSIST_FAILED',
   );
+  assert.equal(attemptModel.state.attempts[0].status, 'failed');
+  assert.equal(attemptModel.state.attempts.length, 1);
+  // evaluation persisted before the snapshot phase is not deleted by the failure
+  assert.equal(calls.eval, 1);
+  // lease is still released on partial failure
+  assert.equal(deps.LeaseModel.state.deleted.length, 1);
+});
+
+test('lease expires_at includes python timeout and grace exactly once', async () => {
+  const { deps } = createDeps();
+  const service = createRecommendationRetrainingService(deps);
+  await service.runRecommendationRetraining({ runId: RUN_ID, runAt: RUN_AT });
+  assert.equal(deps.LeaseModel.state.created.length, 1);
+  const created = deps.LeaseModel.state.created[0];
+  assert.equal(created.acquired_at.toISOString(), '2026-09-15T12:00:00.000Z');
+  assert.equal(created.expires_at.toISOString(), '2026-09-15T12:11:00.000Z');
+  assert.equal(
+    created.expires_at.getTime() - created.acquired_at.getTime(),
+    RETRAIN_PYTHON_TIMEOUT_MS + RETRAIN_LEASE_GRACE_MS,
+  );
+  assert.equal(RETRAIN_PYTHON_TIMEOUT_MS, 600000);
+  assert.equal(RETRAIN_LEASE_GRACE_MS, 60000);
+});
+
+test('health treats lease with expires_at equal to now as inactive', async () => {
+  const leaseModel = makeLeaseModel({
+    existing: {
+      scope: 'global',
+      token: 'a'.repeat(64),
+      run_id: RUN_ID,
+      expires_at: new Date('2026-09-15T12:00:00.000Z'),
+    },
+  });
+  const { deps } = createDeps({ leaseModel });
+  const service = createRecommendationRetrainingService(deps);
+  const health = await service.getRecommendationRetrainingHealth();
+  assert.equal(health.lease.active, false);
+  assert.equal(health.state, 'never-run');
+});
+
+test('health does not re-add lease grace at read time', async () => {
+  const leaseModel = makeLeaseModel({
+    existing: {
+      scope: 'global',
+      token: 'a'.repeat(64),
+      run_id: RUN_ID,
+      expires_at: new Date('2026-09-15T11:59:59.999Z'),
+    },
+  });
+  const { deps } = createDeps({ leaseModel });
+  const service = createRecommendationRetrainingService(deps);
+  const health = await service.getRecommendationRetrainingHealth();
+  assert.equal(health.lease.active, false);
+  assert.equal(health.state, 'never-run');
+});
+
+test('expired lease within grace is reclaimed instead of blocking the run', async () => {
+  const leaseModel = makeLeaseModel({
+    existing: {
+      scope: 'global',
+      token: 'b'.repeat(64),
+      run_id: 'stale-run',
+      expires_at: new Date('2026-09-15T11:59:59.999Z'),
+      _id: 'stale-lease',
+    },
+  });
+  const { deps, attemptModel } = createDeps({ leaseModel });
+  const service = createRecommendationRetrainingService(deps);
+  const result = await service.runRecommendationRetraining({
+    runId: RUN_ID,
+    runAt: RUN_AT,
+  });
+  assert.equal(result.status, 'completed');
+  assert.equal(leaseModel.state.deleted[0]._id, 'stale-lease');
+  assert.equal(leaseModel.state.created.length, 1);
+  assert.equal(leaseModel.state.created[0].run_id, RUN_ID);
+  assert.equal(attemptModel.state.attempts[0].status, 'completed');
+});
+
+test('retry after partial snapshot failure reuses immutable outputs with a fresh attempt id', async () => {
+  const base = validOutput();
+  const twoSnapshotOutput = {
+    ...base,
+    snapshots: [
+      base.snapshots[0],
+      { ...base.snapshots[0], user_id: '2'.repeat(24) },
+    ],
+  };
+  const { deps, attemptModel } = createDeps({
+    runnerResult: { output: twoSnapshotOutput, stderr: '', exitCode: 0 },
+  });
+  const persistedSnapshots = [];
+  let evalCalls = 0;
+  let snapCalls = 0;
+  deps.evaluationRunService = {
+    async recordEvaluationRun() {
+      evalCalls += 1;
+      return { created: evalCalls === 1, run: {} };
+    },
+  };
+  deps.snapshotService = {
+    async recordRecommendationSnapshot() {
+      snapCalls += 1;
+      if (snapCalls === 1) {
+        persistedSnapshots.push({ version: RUN_ID });
+        return { created: true, snapshot: {} };
+      }
+      if (snapCalls === 2) throw new Error('snapshot failed');
+      return { created: false, snapshot: {} };
+    },
+  };
+  const service = createRecommendationRetrainingService(deps);
+  await assert.rejects(() =>
+    service.runRecommendationRetraining({ runId: RUN_ID, runAt: RUN_AT }),
+  );
+  // partial failure: evaluation kept, already-created snapshot kept, lease released
+  assert.equal(evalCalls, 1);
+  assert.equal(persistedSnapshots.length, 1);
+  assert.equal(deps.LeaseModel.state.deleted.length, 1);
+  assert.equal(
+    attemptModel.state.attempts[0].failure_code,
+    'SNAPSHOT_PERSIST_FAILED',
+  );
+  const failedAttemptId = attemptModel.state.attempts[0].attempt_id;
+  assert.match(failedAttemptId, /^run-43-01-[0-9a-f]{8}$/);
+
+  const result = await service.runRecommendationRetraining({
+    runId: RUN_ID,
+    runAt: RUN_AT,
+  });
+  assert.equal(result.status, 'completed');
+  assert.equal(result.evaluation_created, false);
+  assert.equal(result.snapshot_persisted_count, 0);
+  assert.equal(result.snapshot_reused_count, 2);
+  assert.equal(evalCalls, 2);
+  assert.equal(persistedSnapshots.length, 1);
+  // one immutable attempt per invocation, same run_id, distinct attempt_id
+  assert.equal(attemptModel.state.attempts.length, 2);
+  assert.equal(attemptModel.state.attempts[1].run_id, RUN_ID);
+  assert.match(attemptModel.state.attempts[1].attempt_id, /^run-43-01-[0-9a-f]{8}$/);
+  assert.notEqual(attemptModel.state.attempts[1].attempt_id, failedAttemptId);
+  // lease acquired and released once per invocation
+  assert.equal(deps.LeaseModel.state.created.length, 2);
+  assert.equal(deps.LeaseModel.state.deleted.length, 2);
 });
 
 test('runRecommendationRetraining rejects concurrent lease', async () => {

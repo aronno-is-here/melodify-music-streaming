@@ -2,54 +2,69 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createRecommendationTrainingInputService,
+  MAX_EVENT_LOOKAHEAD,
   MAX_RAW_EVENTS,
+  MAX_SONG_LOOKAHEAD,
   MAX_UNIQUE_SONGS,
   MAX_UNIQUE_USERS,
+  MAX_USER_LOOKAHEAD,
   RETRAIN_INPUT_SCHEMA_VERSION,
 } from './recommendationTrainingInputService.js';
 
 const oid = (hex) => hex;
 
-const makeModel = (docs, { sortKey = '_id' } = {}) => ({
-  find(filter) {
-    const state = {
-      filter,
-      sort: null,
-      limit: null,
-      projection: null,
-    };
-    const chain = {
-      select(projection) {
-        state.projection = projection;
-        return chain;
-      },
-      sort(spec) {
-        state.sort = spec;
-        return chain;
-      },
-      limit(n) {
-        state.limit = n;
-        return chain;
-      },
-      async lean() {
-        let out = [...docs];
-        if (state.sort) {
-          const [[key, dir]] = Object.entries(state.sort);
-          out.sort((a, b) => {
-            const av = a[key];
-            const bv = b[key];
-            if (av < bv) return dir === -1 ? 1 : -1;
-            if (av > bv) return dir === -1 ? -1 : 1;
-            return 0;
-          });
-        }
-        if (state.limit != null) out = out.slice(0, state.limit);
-        return out;
-      },
-    };
-    return chain;
-  },
-});
+const makeModel = (docs) => {
+  const model = {
+    findCalls: 0,
+    states: [],
+    get lastState() {
+      return model.states[model.states.length - 1];
+    },
+    find(filter) {
+      model.findCalls += 1;
+      const state = {
+        filter,
+        sort: null,
+        limit: null,
+        projection: null,
+      };
+      model.states.push(state);
+      const chain = {
+        select(projection) {
+          state.projection = projection;
+          return chain;
+        },
+        sort(spec) {
+          state.sort = spec;
+          return chain;
+        },
+        limit(n) {
+          state.limit = n;
+          return chain;
+        },
+        async lean() {
+          let out = [...docs];
+          if (state.sort) {
+            const entries = Object.entries(state.sort);
+            out.sort((a, b) => {
+              for (const [key, dir] of entries) {
+                const av = a[key];
+                const bv = b[key];
+                if (av < bv) return dir === -1 ? 1 : -1;
+                if (av > bv) return dir === -1 ? -1 : 1;
+              }
+              return 0;
+            });
+          }
+          if (state.limit != null) out = out.slice(0, state.limit);
+          return out;
+        },
+      };
+      return chain;
+    },
+  };
+  return model;
+};
 
 const songDocs = [
   {
@@ -229,6 +244,137 @@ test('input: event window truncation flag when over max', async () => {
   const input = await service.collectRetrainingInput();
   assert.equal(input.event_window_truncated, true);
   assert.equal(input.events.length, MAX_RAW_EVENTS);
+  assert.equal(input.input_event_count, MAX_RAW_EVENTS);
+  // newest MAX_RAW_EVENTS retained: newest event is last in ascending order
+  assert.equal(
+    input.events[input.events.length - 1].createdAt,
+    new Date(Date.UTC(2026, 0, 1) + MAX_RAW_EVENTS * 1000).toISOString(),
+  );
+  // oldest event excluded: index 0 was dropped by the newest-first window
+  assert.equal(
+    input.events[0].createdAt,
+    new Date(Date.UTC(2026, 0, 1) + 1000).toISOString(),
+  );
+  assert.equal(
+    input.events.some((event) => event._id === '0'.repeat(24)),
+    false,
+  );
+});
+
+test('input: zero events yields an empty bounded window without truncation', async () => {
+  const service = createRecommendationTrainingInputService({
+    SongModel: makeModel(songDocs),
+    UserModel: makeModel(userDocs),
+    ListeningEventModel: makeModel([]),
+    FavoriteModel: makeModel(favoriteDocs),
+    PlaylistModel: makeModel(playlistDocs),
+  });
+  const input = await service.collectRetrainingInput();
+  assert.deepEqual(input.events, []);
+  assert.equal(input.event_window_truncated, false);
+  assert.equal(input.input_event_count, 0);
+  assert.deepEqual(input.profiles, {});
+});
+
+test('input: exactly MAX_RAW_EVENTS is not truncated', async () => {
+  const exactEvents = Array.from({ length: MAX_RAW_EVENTS }, (_, i) => ({
+    _id: i.toString(16).padStart(24, '0'),
+    user: oid('1'.repeat(24)),
+    song: oid('a'.repeat(24)),
+    session_id: `s${i}`,
+    sequence: 0,
+    event_type: 'play-started',
+    createdAt: new Date(Date.UTC(2026, 0, 1) + i * 1000),
+  }));
+  const service = createRecommendationTrainingInputService({
+    SongModel: makeModel(songDocs),
+    UserModel: makeModel(userDocs),
+    ListeningEventModel: makeModel(exactEvents),
+    FavoriteModel: makeModel(favoriteDocs),
+    PlaylistModel: makeModel(playlistDocs),
+  });
+  const input = await service.collectRetrainingInput();
+  assert.equal(input.event_window_truncated, false);
+  assert.equal(input.events.length, MAX_RAW_EVENTS);
+  assert.equal(input.input_event_count, MAX_RAW_EVENTS);
+  assert.equal(
+    input.events[0].createdAt,
+    new Date(Date.UTC(2026, 0, 1)).toISOString(),
+  );
+  assert.equal(
+    input.events[input.events.length - 1].createdAt,
+    new Date(Date.UTC(2026, 0, 1) + (MAX_RAW_EVENTS - 1) * 1000).toISOString(),
+  );
+});
+
+test('input: single bounded query per model with exact sort specs and MAX+1 lookahead', async () => {
+  const songModel = makeModel(songDocs);
+  const userModel = makeModel(userDocs);
+  const eventModel = makeModel(eventDocs);
+  const service = createRecommendationTrainingInputService({
+    SongModel: songModel,
+    UserModel: userModel,
+    ListeningEventModel: eventModel,
+    FavoriteModel: makeModel(favoriteDocs),
+    PlaylistModel: makeModel(playlistDocs),
+  });
+  await service.collectRetrainingInput();
+  assert.equal(eventModel.findCalls, 1);
+  assert.deepEqual(eventModel.states[0].sort, { createdAt: -1, _id: -1 });
+  assert.equal(eventModel.states[0].limit, MAX_EVENT_LOOKAHEAD);
+  assert.equal(MAX_EVENT_LOOKAHEAD, MAX_RAW_EVENTS + 1);
+  assert.equal(songModel.states[0].limit, MAX_SONG_LOOKAHEAD);
+  assert.deepEqual(songModel.states[0].sort, { _id: 1 });
+  assert.equal(userModel.states[0].limit, MAX_USER_LOOKAHEAD);
+  assert.equal(MAX_USER_LOOKAHEAD, MAX_UNIQUE_USERS + 1);
+});
+
+test('input: events sharing createdAt are serialized ascending by _id', async () => {
+  const sameInstant = new Date('2026-09-15T12:00:00.000Z');
+  const tiedEvents = ['c', 'a', 'b'].map((hex) => ({
+    _id: hex.repeat(24),
+    user: oid('1'.repeat(24)),
+    song: oid('a'.repeat(24)),
+    session_id: 's1',
+    sequence: 0,
+    event_type: 'play-started',
+    createdAt: sameInstant,
+  }));
+  const service = createRecommendationTrainingInputService({
+    SongModel: makeModel(songDocs),
+    UserModel: makeModel(userDocs),
+    ListeningEventModel: makeModel(tiedEvents),
+    FavoriteModel: makeModel(favoriteDocs),
+    PlaylistModel: makeModel(playlistDocs),
+  });
+  const input = await service.collectRetrainingInput();
+  assert.deepEqual(
+    input.events.map((event) => event._id),
+    ['a'.repeat(24), 'b'.repeat(24), 'c'.repeat(24)],
+  );
+  assert.equal(input.event_window_truncated, false);
+});
+
+test('input: user limit error when users exceed bound', async () => {
+  const overflow = Array.from({ length: MAX_UNIQUE_USERS + 1 }, (_, i) => ({
+    _id: i.toString(16).padStart(24, '0'),
+    email: `u${i}@example.com`,
+  }));
+  const service = createRecommendationTrainingInputService({
+    SongModel: makeModel(songDocs),
+    UserModel: makeModel(overflow),
+    ListeningEventModel: makeModel(eventDocs),
+    FavoriteModel: makeModel(favoriteDocs),
+    PlaylistModel: makeModel(playlistDocs),
+  });
+  await assert.rejects(
+    () => service.collectRetrainingInput(),
+    (error) => {
+      assert.equal(error.name, 'RecommendationTrainingInputLimitError');
+      assert.match(error.message, /user_count/);
+      return true;
+    },
+  );
 });
 
 test('input: read failure becomes RecommendationTrainingInputReadError', async () => {

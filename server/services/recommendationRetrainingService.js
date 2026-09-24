@@ -6,7 +6,10 @@ import RecommendationRetrainingAttempt, {
   RETRAINING_ATTEMPT_STATUSES,
 } from '../models/RecommendationRetrainingAttempt.js';
 import { createRecommendationTrainingInputService } from './recommendationTrainingInputService.js';
-import { createRecommendationPythonRunner } from './recommendationPythonRunner.js';
+import {
+  createRecommendationPythonRunner,
+  RETRAIN_PYTHON_TIMEOUT_MS,
+} from './recommendationPythonRunner.js';
 import { createRecommendationEvaluationRunService } from './recommendationEvaluationRunService.js';
 import { createRecommendationSnapshotService } from './recommendationSnapshotService.js';
 
@@ -439,7 +442,9 @@ export function createRecommendationRetrainingService({
   const acquireLease = async (runId) => {
     const token = generateToken();
     const acquiredAt = now();
-    const expiresAt = new Date(acquiredAt.getTime() + 600000);
+    const expiresAt = new Date(
+      acquiredAt.getTime() + RETRAIN_PYTHON_TIMEOUT_MS + leaseGraceMs,
+    );
     const document = {
       schema_version: 1,
       scope: RETRAINING_LEASE_SCOPE,
@@ -469,10 +474,9 @@ export function createRecommendationRetrainingService({
         const existingExpires = existing.expires_at instanceof Date
           ? existing.expires_at
           : new Date(existing.expires_at);
-        const graceCutoff = new Date(now().getTime() - leaseGraceMs);
         if (
           Number.isFinite(existingExpires?.getTime?.())
-          && existingExpires.getTime() > graceCutoff.getTime()
+          && existingExpires.getTime() > now().getTime()
         ) {
           throw new RecommendationRetrainingConflictError(
             'a retraining run is already in progress',
@@ -749,7 +753,7 @@ export function createRecommendationRetrainingService({
           ? leaseDoc.expires_at
           : new Date(leaseDoc.expires_at);
         const expiresMs = expires?.getTime?.();
-        if (Number.isFinite(expiresMs) && expiresMs + leaseGraceMs > nowMs) {
+        if (Number.isFinite(expiresMs) && expiresMs > nowMs) {
           running = true;
           leaseRunId =
             typeof leaseDoc.run_id === 'string' ? leaseDoc.run_id : null;

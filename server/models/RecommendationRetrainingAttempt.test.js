@@ -144,12 +144,17 @@ test('attempt: unique attempt_id index exists', () => {
   assert.equal(unique[1].unique, true);
 });
 
-test('attempt: finished_at and run_id compound index exists', () => {
+test('attempt: finished_at and run_id compound index exists and run_id stays non-unique', () => {
   const indexes = RecommendationRetrainingAttempt.schema.indexes();
   const compound = indexes.find(
     ([keys]) => keys.run_id === 1 && keys.finished_at === -1,
   );
   assert.ok(compound);
+  assert.notEqual(compound[1].unique, true);
+  // retries of the same run must be allowed: no unique index may contain run_id
+  for (const [keys, options] of indexes) {
+    if ('run_id' in keys) assert.notEqual(options.unique, true);
+  }
 });
 
 test('attempt: immutable — save rejects non-new', () => {
