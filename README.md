@@ -38,6 +38,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Dashboard Recommended For You (37/43)** — Dashboard consumes the reusable 36/43 `usePersonalizedRecommendations({limit:10})` hook; principal content-row order remains **Recently Played → Trending Now → Recommended For You**; `ready` displays only personalized snapshot Songs in server/persisted order (no client append/interleave/rerank); `loading`/`idle` show a neutral placeholder and do **not** flash legacy cards; `no-snapshot`, `empty`, `disabled`, and `error` preserve the pre-existing legacy recommendation content (`filteredSongs`) with **no new fallback request** (not coupled to Trending); clicking a recommendation passes the exact visible list and index to `PlayerContext.playSong(...)`; no manual history/listening telemetry write; snapshot diagnostic scores/internal metadata are not rendered; Trending, Recently Played, and search remain separate and unchanged; no server, Python, API contract, model, or dependency changes.
 - **Secure Admin recommendation-metrics API (38/43)** — authenticated read-only `GET /api/admin/recommendations/metrics` (`server/routes/adminRecommendationRoutes.js` + `server/services/adminRecommendationMetricsService.js`); existing `protect` then `adminOnly`; optional exact-lowercase `pipeline_stage` query (`collaborative|hybrid|policy`, default `policy`), any other key → 400; exposes only the latest immutable 32/43 evaluation run for that stage with a whitelist projection (`run_id`, `pipeline_stage`, `artifact_version`, `evaluated_at`, the ten 28/43 metrics, seven summary counts) — no dataset/configuration/`payload_sha256`, no user identity, no recommendation lists, no overall/winner/best labeling, no history pagination (that is 42/43); no-runs returns HTTP 200 `state:"no-runs"` with `latest:null`; independent of `RECOMMENDATION_AI_ENABLED`; no Python/training/ranking/artifact writes.
 - **Admin metrics access regression tests (39/43)** — test-only security/access coverage locking down 38/43 in `server/routes/adminRecommendationSecurity.test.js` (production route/service unchanged); see the dedicated section below.
+- **Admin AI Recommendation navigation (40/43)** — Admin sidebar now includes an **AI Recommendation** entry (exact label) with canonical path **`/admin/ai-recommendation`**; the route reuses the existing `AdminProtected` guard (direct/deep-link access remains admin-only — nav visibility alone is not authorization); the destination is currently a protected Admin page shell for future recommender observability (heading + factual placeholder only) — **no** recommendation metrics/history/dataset request, **no** fake metric values or best/winner claims, **no** `RECOMMENDATION_AI_ENABLED` gate on Admin nav; existing Admin layout, sidebar ordering, active-state, responsive conventions, and text-only nav style are reused unchanged; no server, Python, model, user Dashboard, Player, or dependency changes. **41/43** will connect the secure 38/43 metrics API and build the model-quality dashboard; **42/43** will add model-history and dataset-stat surfaces.
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -840,6 +841,23 @@ Test-only suite for the 38/43 endpoint in `server/routes/adminRecommendationSecu
 
 ```bash
 node --test server/routes/adminRecommendationSecurity.test.js
+```
+
+### Admin AI Recommendation navigation and page shell (40/43)
+
+Admin navigation and a protected route shell only — **no** metrics UI yet.
+
+- **Nav label** — exact visible text **AI Recommendation** (appended after existing Admin sections; no existing item renamed or reordered).
+- **Canonical path** — **`/admin/ai-recommendation`**, declared in `App.jsx` and rendered through the existing Admin shell (`Admin.jsx` → `AdminAIRecommendation.jsx` content card).
+- **Protection** — the route uses the **same** `AdminProtected` guard as `/admin` (existing `user.role !== 'admin'` redirect). Deep links work without visiting `/admin` first; navigation visibility alone is not authorization. No second guard, no JWT parsing, no localStorage role check.
+- **Active state** — the sidebar entry uses the existing `.active` class when the path is `/admin/ai-recommendation`.
+- **Page shell** — heading **AI Recommendation**, factual subtitle, and a text placeholder that metrics and evaluation history **will** appear here. No loading spinner/error/no-runs state, no charts, no hardcoded Precision/Recall/NDCG/MAP/Hit Rate/Coverage/Diversity values, no best/winner claims.
+- **No data access** — 40/43 makes **zero** calls to `/api/admin/recommendations/metrics`, history, or dataset endpoints (no Admin metrics client service yet). Independent of `RECOMMENDATION_AI_ENABLED`.
+- **Reuse** — existing Admin header/sidebar/card CSS and responsive behavior; text-only nav (no new icon package).
+- **Out of scope** — metrics dashboard and 38/43 API wiring (**41/43**); model-history and dataset-stats surfaces (**42/43**).
+
+```bash
+node --test client/src/pages/Admin/aiRecommendationNav.test.js
 ```
 
 ## 🔑 Admin Credentials
