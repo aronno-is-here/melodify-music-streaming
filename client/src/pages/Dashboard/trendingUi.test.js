@@ -587,15 +587,15 @@ test('static 4: click path uses player.playSong with full list and filtered inde
   assert.equal(playBlock.includes('buildTrendingSongs(['), false);
 });
 
-test('static 5: Recently Played precedes Trending Now precedes Recommended Songs', () => {
+test('static 5: Recently Played precedes Trending Now precedes Recommended For You', () => {
   const recently = dashboardSrc.indexOf('Recently Played');
   const trending = dashboardSrc.indexOf('Trending Now');
-  const recommended = dashboardSrc.indexOf('Recommended Songs');
+  const recommended = dashboardSrc.indexOf('Recommended For You');
   assert.ok(recently >= 0, 'Recently Played heading present');
   assert.ok(trending >= 0, 'Trending Now heading present');
-  assert.ok(recommended >= 0, 'Recommended Songs heading present');
+  assert.ok(recommended >= 0, 'Recommended For You heading present');
   assert.ok(recently < trending, 'Recently Played before Trending Now');
-  assert.ok(trending < recommended, 'Trending Now before Recommended Songs');
+  assert.ok(trending < recommended, 'Trending Now before Recommended For You');
   const searchBlock = dashboardSrc.indexOf('search-container');
   assert.ok(trending < searchBlock || searchBlock < recently || searchBlock < trending,
     'search block coexists with ordered sections');
@@ -604,7 +604,7 @@ test('static 5: Recently Played precedes Trending Now precedes Recommended Songs
 test('static 6: no AI wording and no numeric score display around Trending', () => {
   assert.equal(dashboardSrc.includes('AI Trending'), false);
   assert.equal(dashboardSrc.includes('AI Picks'), false);
-  assert.equal(dashboardSrc.includes('Recommended For You'), false);
+  assert.equal(dashboardSrc.includes('Recommended Songs'), false);
   assert.equal(dashboardSrc.includes('Because You Listened'), false);
   assert.equal(dashboardSrc.includes('Smart Trending'), false);
   assert.equal(/Trending Now[\s\S]{0,400}\{[^}]*score[^}]*\}/.test(dashboardSrc), false);

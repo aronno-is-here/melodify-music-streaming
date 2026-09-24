@@ -14,15 +14,21 @@ import {
   classifyPersonalizedRecommendationPayload,
   shouldUseLegacyRecommendationFallback,
   getPersonalizedRecommendationEmptyReason,
+  DASHBOARD_RECOMMENDATION_MODES,
+  DASHBOARD_RECOMMENDATION_LOADING_MESSAGE,
+  selectDashboardRecommendationPresentation,
 } from './recommendationUi.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const uiSrc = readFileSync(join(__dirname, 'recommendationUi.js'), 'utf8');
-const dashboardSrc = readFileSync(join(__dirname, 'Dashboard.jsx'), 'utf8');
 const serviceSrc = readFileSync(
   join(__dirname, '..', '..', 'services', 'personalizedRecommendations.js'),
   'utf8',
 );
+
+const song = (id, title = id) => ({ _id: id, title, artist: 'Artist' });
+const PERSONALIZED = [song('p1'), song('p2'), song('p3')];
+const LEGACY = [song('l1'), song('l2')];
 
 test('1: recommendationUi re-exports the seven-state vocabulary', () => {
   assert.deepEqual(Object.values(PERSONALIZED_RECOMMENDATION_STATES).sort(), [
@@ -124,53 +130,213 @@ test('8: empty reason values are identifiers, not prose', () => {
   }
 });
 
-test('9: static: recommendationUi only re-exports from recommendation service', () => {
+test('9: presentation mode vocabulary is exactly loading, personalized, legacy', () => {
+  assert.deepEqual(Object.values(DASHBOARD_RECOMMENDATION_MODES).sort(), [
+    'legacy',
+    'loading',
+    'personalized',
+  ]);
+  assert.equal(DASHBOARD_RECOMMENDATION_LOADING_MESSAGE, 'Loading...');
+});
+
+test('10: idle maps to loading presentation with no playable songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'idle',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.mode, 'loading');
+  assert.deepEqual(result.songs, []);
+  assert.equal(result.isFallback, false);
+  assert.equal(result.state, 'idle');
+});
+
+test('11: loading maps to loading presentation with no playable songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'loading',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.mode, 'loading');
+  assert.deepEqual(result.songs, []);
+  assert.equal(result.isFallback, false);
+});
+
+test('12: ready maps to personalized and returns personalized songs unchanged', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'ready',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.mode, 'personalized');
+  assert.equal(result.songs, PERSONALIZED);
+  assert.equal(result.isFallback, false);
+});
+
+test('13: no-snapshot maps to legacy with legacy songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'no-snapshot',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.mode, 'legacy');
+  assert.equal(result.songs, LEGACY);
+  assert.equal(result.isFallback, true);
+});
+
+test('14: empty maps to legacy with legacy songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'empty',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.mode, 'legacy');
+  assert.equal(result.songs, LEGACY);
+  assert.equal(result.isFallback, true);
+});
+
+test('15: disabled maps to legacy with legacy songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'disabled',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.mode, 'legacy');
+  assert.equal(result.songs, LEGACY);
+});
+
+test('16: error maps to legacy with legacy songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'error',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.mode, 'legacy');
+  assert.equal(result.songs, LEGACY);
+});
+
+test('17: unknown state fails closed with a thrown validation error', () => {
+  for (const state of ['stale', 'READY', '', null, undefined, 42, {}]) {
+    assert.throws(
+      () => selectDashboardRecommendationPresentation({
+        state,
+        personalizedSongs: PERSONALIZED,
+        legacySongs: LEGACY,
+      }),
+      /invalid recommendation state/,
+      String(state),
+    );
+  }
+});
+
+test('18: ready does not append, interleave, or copy legacy songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'ready',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.songs.length, PERSONALIZED.length);
+  assert.equal(result.songs.some((s) => String(s._id).startsWith('l')), false);
+  assert.notEqual(result.songs, LEGACY);
+});
+
+test('19: fallback does not append personalized songs', () => {
+  const result = selectDashboardRecommendationPresentation({
+    state: 'no-snapshot',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: LEGACY,
+  });
+  assert.equal(result.songs.length, LEGACY.length);
+  assert.equal(result.songs.some((s) => String(s._id).startsWith('p')), false);
+});
+
+test('20: helper does not mutate, sort, or reverse source arrays', () => {
+  const personalized = [song('p3'), song('p1'), song('p2')];
+  const legacy = [song('l2'), song('l1')];
+  const personalizedCopy = [...personalized];
+  const legacyCopy = [...legacy];
+
+  const ready = selectDashboardRecommendationPresentation({
+    state: 'ready',
+    personalizedSongs: personalized,
+    legacySongs: legacy,
+  });
+  assert.deepEqual(ready.songs.map((s) => s._id), ['p3', 'p1', 'p2']);
+
+  const fallback = selectDashboardRecommendationPresentation({
+    state: 'error',
+    personalizedSongs: personalized,
+    legacySongs: legacy,
+  });
+  assert.deepEqual(fallback.songs.map((s) => s._id), ['l2', 'l1']);
+
+  assert.deepEqual(personalized, personalizedCopy);
+  assert.deepEqual(legacy, legacyCopy);
+  assert.equal(personalized.includes, personalized.includes);
+});
+
+test('21: personalized order is authoritative with no local rerank', () => {
+  const ordered = [song('z'), song('a'), song('m')];
+  const result = selectDashboardRecommendationPresentation({
+    state: 'ready',
+    personalizedSongs: ordered,
+    legacySongs: LEGACY,
+  });
+  assert.deepEqual(result.songs.map((s) => s._id), ['z', 'a', 'm']);
+  assert.equal(uiSrc.includes('.sort('), false);
+  assert.equal(uiSrc.includes('.reverse('), false);
+  assert.equal(uiSrc.includes('.splice('), false);
+});
+
+test('22: legacy order is preserved for fallback modes', () => {
+  const orderedLegacy = [song('zz'), song('aa')];
+  for (const state of ['no-snapshot', 'empty', 'disabled', 'error']) {
+    const result = selectDashboardRecommendationPresentation({
+      state,
+      personalizedSongs: PERSONALIZED,
+      legacySongs: orderedLegacy,
+    });
+    assert.deepEqual(result.songs.map((s) => s._id), ['zz', 'aa'], state);
+  }
+});
+
+test('23: non-array song inputs fail closed to empty arrays', () => {
+  const ready = selectDashboardRecommendationPresentation({
+    state: 'ready',
+    personalizedSongs: null,
+    legacySongs: LEGACY,
+  });
+  assert.deepEqual(ready.songs, []);
+
+  const legacy = selectDashboardRecommendationPresentation({
+    state: 'disabled',
+    personalizedSongs: PERSONALIZED,
+    legacySongs: undefined,
+  });
+  assert.deepEqual(legacy.songs, []);
+});
+
+test('24: helper does not fetch data or call player side effects', () => {
+  assert.equal(uiSrc.includes('fetch('), false);
+  assert.equal(uiSrc.includes('api.get'), false);
+  assert.equal(uiSrc.includes('playSong'), false);
+  assert.equal(uiSrc.includes('PlayerContext'), false);
+  assert.equal(uiSrc.includes('/api/recommendations'), false);
+  assert.equal(uiSrc.includes('setInterval'), false);
+  assert.equal(uiSrc.includes('Math.random'), false);
+});
+
+test('25: static: recommendationUi re-exports service helpers and defines presentation selector', () => {
   assert.equal(
     uiSrc.includes("from '../../services/personalizedRecommendations.js'"),
     true,
   );
-  assert.equal(uiSrc.includes('export function'), false);
-  assert.equal(uiSrc.includes('Math.random'), false);
-  assert.equal(uiSrc.includes('setInterval'), false);
+  assert.equal(
+    uiSrc.includes('export function selectDashboardRecommendationPresentation'),
+    true,
+  );
   assert.equal(uiSrc.toLowerCase().includes('trending'), false);
-  assert.equal(uiSrc.includes('PlayerContext'), false);
-  assert.equal(uiSrc.includes('playSong'), false);
-});
-
-test('10: static: Dashboard is unchanged and still owns Recommended Songs fallback section', () => {
-  assert.equal(dashboardSrc.includes('Recommended Songs'), true);
-  assert.equal(dashboardSrc.includes('Recommended For You'), false);
-  assert.equal(dashboardSrc.includes('from \'./trendingUi.js\''), true);
-  assert.equal(dashboardSrc.includes('recommendationUi'), false);
-  assert.equal(dashboardSrc.includes('usePersonalizedRecommendations'), false);
-  assert.equal(dashboardSrc.includes('/api/recommendations'), false);
-});
-
-test('11: static: service helper names stay aligned with UI exports', () => {
-  assert.equal(
-    serviceSrc.includes('export function shouldUseLegacyRecommendationFallback'),
-    true,
-  );
-  assert.equal(
-    serviceSrc.includes('export function getPersonalizedRecommendationEmptyReason'),
-    true,
-  );
-  assert.equal(
-    serviceSrc.includes('export function classifyPersonalizedRecommendationPayload'),
-    true,
-  );
-});
-
-test('12: static: no legacy fallback is implied as Trending or catalog scoring', () => {
-  assert.equal(serviceSrc.includes('catalog-fallback'), false);
-  assert.equal(serviceSrc.includes('activity'), false);
-  assert.equal(uiSrc.includes('catalog-fallback'), false);
-  assert.equal(getPersonalizedRecommendationEmptyReason('disabled'), 'feature-disabled');
-});
-
-test('13: static: fallback helper does not mention random, popularity, or exploration', () => {
-  assert.equal(serviceSrc.includes('Math.random'), false);
-  assert.equal(serviceSrc.includes('exploration'), false);
-  assert.equal(serviceSrc.includes('popularity'), false);
-  assert.equal(uiSrc.includes('exploration'), false);
+  assert.equal(serviceSrc.includes('export function shouldUseLegacyRecommendationFallback'), true);
+  assert.equal(serviceSrc.includes('export function getPersonalizedRecommendationEmptyReason'), true);
+  assert.equal(serviceSrc.includes('export function classifyPersonalizedRecommendationPayload'), true);
 });
