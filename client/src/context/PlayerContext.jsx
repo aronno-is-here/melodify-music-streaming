@@ -129,10 +129,28 @@ export function PlayerProvider({ children }) {
     }
   }, [startPolling]);
 
-  const playSong = useCallback((newList, i) => {
+  const switchTrack = useCallback((newList, i, transitionReason) => {
     const song = newList?.[i];
     if (!song) return;
+    const previous = telemetry.getSessionSnapshot();
+    const sameTrack = previous?.songId === String(song._id);
+    const oldSong = stateRef.current.list[stateRef.current.index];
+    let position;
+    let mediaDuration;
+    try {
+      position = oldSong?.youtube_id ? ytRef.current?.getCurrentTime() : audioRef.current?.currentTime;
+      mediaDuration = oldSong?.youtube_id ? ytRef.current?.getDuration() : audioRef.current?.duration;
+    } catch {}
+    if (!sameTrack && transitionReason) {
+      telemetry.skip({ reason: transitionReason, position, duration: mediaDuration });
+    } else if (sameTrack && previous.started && !previous.terminal && !previous.paused) {
+      // Existing same-song selection reloads at zero; observe it as a seek,
+      // not abandonment or replay. Paused reloads reset the baseline on resume.
+      telemetry.seek({ from: position, to: 0, duration: mediaDuration });
+    }
     telemetry.prepare(song);
+    stateRef.current.list = newList;
+    stateRef.current.index = i;
     setList(newList);
     setIndex(i);
     errorCountRef.current = 0;
@@ -163,9 +181,13 @@ export function PlayerProvider({ children }) {
     }
   }, [loadVideo, stopPolling, telemetry]);
 
-  playSongRef.current = playSong;
+  const playSong = useCallback((newList, i) => {
+    switchTrack(newList, i, 'new-selection');
+  }, [switchTrack]);
 
-  const next = useCallback(() => {
+  playSongRef.current = switchTrack;
+
+  const advanceNext = useCallback((transitionReason) => {
     const { list: l, index: i } = stateRef.current;
     if (!l.length) return;
     let n;
@@ -174,10 +196,13 @@ export function PlayerProvider({ children }) {
     } else {
       n = (i + 1) % l.length;
     }
-    playSongRef.current(l, n);
+    playSongRef.current(l, n, transitionReason);
   }, []);
 
-  nextRef.current = next;
+  // Media ENDED/error callbacks use the automatic path with no manual reason.
+  nextRef.current = advanceNext;
+
+  const next = useCallback(() => advanceNext('manual-next'), [advanceNext]);
 
   const ensurePlayer = useCallback(() => {
     if (ytRef.current) return;
@@ -364,7 +389,7 @@ export function PlayerProvider({ children }) {
     const { list: l, index: i } = stateRef.current;
     if (!l.length) return;
     const n = (i - 1 + l.length) % l.length;
-    playSongRef.current(l, n);
+    playSongRef.current(l, n, 'manual-previous');
   }, []);
 
   const setVolume = useCallback((v) => {

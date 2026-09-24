@@ -152,6 +152,8 @@ export function createListeningTelemetryController({
     const duration = sanitizeDuration(fields.duration);
     if (duration !== undefined) payload.duration_seconds = duration;
 
+    if (fields.reason !== undefined) payload.transition_reason = fields.reason;
+
     if (fields.listenedSecondsDelta !== undefined) {
       const delta = sanitizeDelta(fields.listenedSecondsDelta);
       if (delta !== undefined && delta > 0) payload.listened_seconds_delta = delta;
@@ -169,15 +171,15 @@ export function createListeningTelemetryController({
     return payload;
   };
 
-  const canEmit = () => Boolean(session) && !disabled && !session.terminal;
-
   const emit = (eventType, fields = {}) => {
     if (!session || disabled) return false;
     if (eventType === 'play-started') {
       if (session.started) return false;
     } else {
       if (!session.started) return false;
-      if (session.terminal) return false;
+      if (eventType === 'replay-started') {
+        if (session.terminalType !== 'completed') return false;
+      } else if (session.terminal) return false;
     }
 
     const payload = buildPayload(eventType, fields);
@@ -202,7 +204,7 @@ export function createListeningTelemetryController({
   const prepare = (song) => {
     const songId = normalizeSongId(song);
     if (!songId) return false;
-    if (session && session.songId === songId && !session.terminal) {
+    if (session && session.songId === songId && (!session.terminal || session.terminalType === 'completed')) {
       return false;
     }
     session = {
@@ -212,6 +214,7 @@ export function createListeningTelemetryController({
       started: false,
       paused: false,
       terminal: false,
+      terminalType: null,
       baselinePosition: null,
       historyRecorded: false,
     };
@@ -219,14 +222,21 @@ export function createListeningTelemetryController({
   };
 
   const confirmedPlay = ({ position, duration } = {}) => {
-    if (disabled) return;
-    if (!session) return;
-    if (session.terminal) {
-      prepare(session.songId);
-    }
     if (!session) return;
     const safePosition = sanitizeSeconds(position);
     const safeDuration = sanitizeDuration(duration);
+
+    if (session.terminal) {
+      // Only natural completion permits a same-session replay. A skipped track
+      // must be prepared anew, not reopened by a late media callback.
+      if (session.terminalType !== 'completed') return;
+      emit('replay-started', { position: safePosition, duration: safeDuration, reason: 'repeat' });
+      session.terminal = false;
+      session.terminalType = null;
+      session.paused = false;
+      session.baselinePosition = safePosition ?? null;
+      return;
+    }
 
     if (!session.started) {
       emit('play-started', { position: safePosition, duration: safeDuration });
@@ -310,7 +320,7 @@ export function createListeningTelemetryController({
   };
 
   const complete = ({ position, duration } = {}) => {
-    if (!session || disabled || session.terminal || !session.started) return;
+    if (!session || session.terminal || !session.started) return;
     const safeDuration = sanitizeDuration(duration);
     const safePosition = sanitizeSeconds(position) ?? safeDuration;
     if (safePosition !== undefined) {
@@ -318,6 +328,20 @@ export function createListeningTelemetryController({
     }
     emit('completed', { position: safePosition, duration: safeDuration });
     session.terminal = true;
+    session.terminalType = 'completed';
+    session.paused = false;
+  };
+
+  // The player calls this only when a manual action changes logical tracks.
+  const skip = ({ reason, position, duration } = {}) => {
+    if (!['manual-next', 'manual-previous', 'new-selection'].includes(reason)) return;
+    if (!session || session.terminal || !session.started) return;
+    const safePosition = sanitizeSeconds(position);
+    const safeDuration = sanitizeDuration(duration);
+    flushProgress(safePosition, safeDuration);
+    emit('skipped', { position: safePosition, duration: safeDuration, reason });
+    session.terminal = true;
+    session.terminalType = 'skipped';
     session.paused = false;
   };
 
@@ -338,6 +362,7 @@ export function createListeningTelemetryController({
     pause,
     seek,
     complete,
+    skip,
     reset,
     isDisabled,
     getSessionSnapshot,
