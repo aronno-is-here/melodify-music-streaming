@@ -535,3 +535,37 @@ th {
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
 }
+
+.ai-rec-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-rec-history-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  background: var(--secondary-black);
+  border: 1px solid var(--gray);
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.ai-rec-history-row:hover {
+  border-color: var(--sky-blue);
+}
+
+.ai-rec-history-row.active {
+  border-color: var(--sky-blue);
+}
+
+.ai-rec-history-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}

@@ -4,9 +4,11 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   createAdminRecommendationRouter,
+  parseAdminRecommendationHistoryQuery,
   parseAdminRecommendationMetricsQuery,
 } from './adminRecommendationRoutes.js';
 import { createAdminRecommendationMetricsService } from '../services/adminRecommendationMetricsService.js';
+import { createAdminRecommendationHistoryService } from '../services/adminRecommendationHistoryService.js';
 import { PIPELINE_STAGES } from '../models/RecommendationEvaluationRun.js';
 
 const readSource = (relativePath) =>
@@ -19,6 +21,8 @@ const AUTH_SOURCE = readSource('../middleware/auth.js');
 
 const VALID_QUERY_ERROR = 'invalid recommendation metrics query';
 const FAILED_ERROR = 'failed to load recommendation metrics';
+const VALID_HISTORY_QUERY_ERROR = 'invalid recommendation history query';
+const FAILED_HISTORY_ERROR = 'failed to load recommendation history';
 
 const readyData = {
   state: 'ready',
@@ -161,7 +165,7 @@ const forbiddenAdmin = (req, res) => {
 // ROUTE STRUCTURE
 // ============================================================
 
-test('structure: route is GET /metrics only (no write methods)', () => {
+test('structure: routes are GET /metrics and GET /history only (no write methods)', () => {
   const router = createAdminRecommendationRouter({
     protectMiddleware: (req, res, next) => next(),
     adminOnlyMiddleware: (req, res, next) => next(),
@@ -170,10 +174,25 @@ test('structure: route is GET /metrics only (no write methods)', () => {
         return noRunsData;
       },
     },
+    adminRecommendationHistoryService: {
+      async getRecommendationEvaluationHistory() {
+        return {
+          state: 'no-runs',
+          source: 'evaluation-history',
+          pipeline_stage: 'policy',
+          limit: 20,
+          count: 0,
+          runs: [],
+        };
+      },
+    },
   });
   const metricsLayer = router.stack.find((l) => l.route && l.route.path === '/metrics');
   assert.ok(metricsLayer);
   assert.deepEqual(Object.keys(metricsLayer.route.methods), ['get']);
+  const historyLayer = router.stack.find((l) => l.route && l.route.path === '/history');
+  assert.ok(historyLayer, 'expected GET /history route');
+  assert.deepEqual(Object.keys(historyLayer.route.methods), ['get']);
   const writePaths = router.stack.filter(
     (l) =>
       l.route &&
@@ -1046,4 +1065,493 @@ test('no model judgment: ready/no-runs payloads free of overall/composite/winner
 test('auth middleware files remain read-only referenced (auth exports protect+adminOnly)', () => {
   assert.match(AUTH_SOURCE, /export const protect/);
   assert.match(AUTH_SOURCE, /export const adminOnly/);
+});
+
+// ============================================================
+// HISTORY ROUTE SECURITY (42/43)
+// ============================================================
+
+function createHistoryHarness({
+  serviceResult = null,
+  serviceError = null,
+  protectImpl = null,
+  adminOnlyImpl = null,
+} = {}) {
+  const state = {
+    protectCalls: 0,
+    adminOnlyCalls: 0,
+    serviceCalls: [],
+  };
+
+  const defaultResult =
+    serviceResult ?? {
+      state: 'ready',
+      source: 'evaluation-history',
+      pipeline_stage: 'policy',
+      limit: 20,
+      count: 1,
+      runs: [
+        {
+          run_id: 'eval-2026-09-15-policy-1',
+          pipeline_stage: 'policy',
+          artifact_version: null,
+          evaluated_at: '2026-09-15T12:00:00.000Z',
+          metrics: {
+            precision_at_5: 0.4,
+            precision_at_10: 0.35,
+            recall_at_5: 0.5,
+            recall_at_10: 0.6,
+            ndcg_at_5: 0.45,
+            ndcg_at_10: 0.55,
+            map_at_10: 0.5,
+            hit_rate_at_10: 0.7,
+            catalog_coverage: 0.25,
+            diversity: 0.8,
+          },
+          summary: {
+            evaluated_user_count: 10,
+            recommendation_user_count: 12,
+            relevance_user_count: 10,
+            catalog_size: 50,
+            unique_recommended_at_10: 40,
+            diversity_evaluable_user_count: 8,
+            diversity_pair_count: 28,
+          },
+          dataset: {
+            raw_event_count: 100,
+            train_event_count: 70,
+            validation_event_count: 15,
+            test_event_count: 15,
+            unique_user_count: 5,
+            unique_song_count: 8,
+            session_count: 20,
+            interaction_pair_count: 90,
+            content_feature_count: 12,
+          },
+          configuration: {
+            random_seed: 42,
+            algorithm: null,
+            requested_components: null,
+            effective_components: null,
+            collaborative_weight: null,
+            content_weight: null,
+            base_hybrid_policy_weight: null,
+            explicit_profile_policy_weight: null,
+            exploration_interval: null,
+          },
+        },
+      ],
+    };
+
+  const baseProtect =
+    protectImpl ??
+    ((req, res, next) => {
+      next();
+    });
+  const baseAdmin =
+    adminOnlyImpl ??
+    ((req, res, next) => {
+      next();
+    });
+
+  const router = createAdminRecommendationRouter({
+    protectMiddleware: (req, res, next) => {
+      state.protectCalls += 1;
+      return baseProtect(req, res, next);
+    },
+    adminOnlyMiddleware: (req, res, next) => {
+      state.adminOnlyCalls += 1;
+      return baseAdmin(req, res, next);
+    },
+    adminRecommendationHistoryService: {
+      async getRecommendationEvaluationHistory(args) {
+        state.serviceCalls.push(args);
+        if (serviceError) throw serviceError;
+        return defaultResult;
+      },
+    },
+  });
+
+  const layer = router.stack.find((l) => l.route && l.route.path === '/history');
+  assert.ok(layer, 'expected GET /history route');
+  const handlers = layer.route.stack.map((s) => s.handle);
+
+  const invoke = async ({
+    query = {},
+    headers = {},
+    body,
+    user = { role: 'admin' },
+  } = {}) => {
+    const req = { query, headers };
+    if (body !== undefined) req.body = body;
+    if (user !== null) req.user = user;
+    const res = createRes();
+    let index = 0;
+    const runNext = async () => {
+      if (index >= handlers.length) return;
+      const handler = handlers[index];
+      index += 1;
+      await handler(req, res, runNext);
+    };
+    await runNext();
+    return { req, res, state };
+  };
+
+  return { invoke, state, handlers, layer, router };
+}
+
+test('history security: structure middleware order is protect -> adminOnly -> handler', () => {
+  const { handlers } = createHistoryHarness();
+  assert.equal(handlers.length, 3);
+  const order = [];
+  handlers[0]({}, {}, () => order.push('protect'));
+  handlers[1]({}, {}, () => order.push('adminOnly'));
+  assert.deepEqual(order, ['protect', 'adminOnly']);
+});
+
+test('history security: unauthenticated short-circuit yields 401 and zero service calls', async () => {
+  const { invoke, state } = createHistoryHarness({
+    protectImpl: unauthorizedProtect,
+  });
+  const { res } = await invoke({ query: { pipeline_stage: 'policy' } });
+  assert.equal(res.statusCode, 401);
+  assert.equal(state.adminOnlyCalls, 0);
+  assert.equal(state.serviceCalls.length, 0);
+  assert.equal(res.body.data, undefined);
+});
+
+test('history security: unauthenticated with invalid query still 401, zero service calls', async () => {
+  const { invoke, state } = createHistoryHarness({
+    protectImpl: unauthorizedProtect,
+  });
+  const { res } = await invoke({ query: { limit: '999', admin: 'true' } });
+  assert.equal(res.statusCode, 401);
+  assert.equal(state.serviceCalls.length, 0);
+});
+
+test('history security: role/admin/header cannot bypass protect', async () => {
+  const { invoke, state } = createHistoryHarness({
+    protectImpl: unauthorizedProtect,
+  });
+  for (const query of [{ admin: 'true' }, { role: 'admin' }, { isAdmin: 'true' }]) {
+    const { res } = await invoke({ query });
+    assert.equal(res.statusCode, 401, JSON.stringify(query));
+    assert.equal(state.serviceCalls.length, 0);
+  }
+  for (const headers of [
+    { 'x-admin': 'true' },
+    { 'x-role': 'admin' },
+    { authorization: 'Bearer fake-token' },
+  ]) {
+    const { res } = await invoke({ headers, query: { pipeline_stage: 'policy' } });
+    assert.equal(res.statusCode, 401, JSON.stringify(headers));
+    assert.equal(state.serviceCalls.length, 0);
+  }
+});
+
+test('history security: non-admin short-circuit yields 403 and zero service calls', async () => {
+  const { invoke, state } = createHistoryHarness({ adminOnlyImpl: forbiddenAdmin });
+  const { res } = await invoke({ query: { pipeline_stage: 'policy', limit: '5' } });
+  assert.equal(state.protectCalls, 1);
+  assert.equal(state.adminOnlyCalls, 1);
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.error, 'Admin access required');
+  assert.equal(state.serviceCalls.length, 0);
+  const serialized = JSON.stringify(res.body);
+  assert.equal(serialized.includes('runs'), false);
+  assert.equal(serialized.includes('evaluation-history'), false);
+});
+
+test('history security: body/header role cannot bypass adminOnly', async () => {
+  const { invoke, state } = createHistoryHarness({ adminOnlyImpl: forbiddenAdmin });
+  const { res } = await invoke({ body: { role: 'admin' } });
+  assert.equal(res.statusCode, 403);
+  assert.equal(state.serviceCalls.length, 0);
+  const { res: res2 } = await invoke({
+    headers: { 'x-role': 'admin', 'x-admin': 'true' },
+    query: { pipeline_stage: 'policy' },
+  });
+  assert.equal(res2.statusCode, 403);
+  assert.equal(state.serviceCalls.length, 0);
+});
+
+test('history security: authorized admin reaches handler with exact stage and limit args', async () => {
+  const { invoke, state } = createHistoryHarness();
+  const { res } = await invoke({ query: { pipeline_stage: 'hybrid', limit: '10' } });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(state.serviceCalls.length, 1);
+  assert.deepEqual(state.serviceCalls[0], { pipelineStage: 'hybrid', limit: 10 });
+});
+
+test('history security: request user object is not forwarded into service args', async () => {
+  const { invoke, state } = createHistoryHarness();
+  await invoke({
+    query: {},
+    user: { role: 'admin', _id: 'aaaaaaaaaaaaaaaaaaaaaaaa', email: 'a@b.c' },
+  });
+  assert.equal(state.serviceCalls.length, 1);
+  const argKeys = Object.keys(state.serviceCalls[0]);
+  assert.deepEqual(argKeys.sort(), ['limit', 'pipelineStage']);
+  const serialized = JSON.stringify(state.serviceCalls[0]);
+  assert.equal(serialized.includes('aaaaaaaaaaaaaaaaaaaaaaaa'), false);
+  assert.equal(serialized.includes('email'), false);
+  assert.equal(serialized.includes('role'), false);
+});
+
+test('history security: malformed query yields 400 before any service call', async () => {
+  const { invoke, state } = createHistoryHarness();
+  for (const query of [
+    { limit: '101' },
+    { limit: '0' },
+    { limit: '-5' },
+    { limit: '1.5' },
+    { pipeline_stage: 'POLICY' },
+    { pipeline_stage: ['policy'] },
+    { pipeline_stage: 'best' },
+    { userId: 'u' },
+    { run_id: 'r' },
+    { sort: 'metric' },
+    { best: '1' },
+    { winner: '1' },
+    { admin: 'true' },
+    { role: 'admin' },
+    { email: 'a@b.c' },
+    { foo: '<script>' },
+    { payload_sha256: 'x' },
+    { dataset: 'x' },
+    { configuration: 'x' },
+  ]) {
+    const { res } = await invoke({ query });
+    assert.equal(res.statusCode, 400, JSON.stringify(query));
+    assert.equal(res.body.error, VALID_HISTORY_QUERY_ERROR);
+    assert.equal(state.serviceCalls.length, 0, JSON.stringify(query));
+  }
+});
+
+test('history security: 400 body does not reflect attacker input', async () => {
+  const { invoke } = createHistoryHarness();
+  const evil = 'policy<script>alert(1)</script>';
+  const { res } = await invoke({ query: { pipeline_stage: evil } });
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error, VALID_HISTORY_QUERY_ERROR);
+  const serialized = JSON.stringify(res.body);
+  assert.equal(serialized.includes('<script>'), false);
+  assert.equal(serialized.includes('alert'), false);
+  assert.equal(serialized.includes(evil), false);
+});
+
+test('history security: 500 does not expose Mongo URI / token / user id / stack', async () => {
+  const secrets = [
+    'mongodb://fake-secret-host/db',
+    'Authorization: Bearer fake-token',
+    'user_id=aaaaaaaaaaaaaaaaaaaaaaaa',
+    'at Object.<anonymous> (/fake/stack/path.js:1:1)',
+  ];
+  const { invoke } = createHistoryHarness({
+    serviceError: new Error(secrets.join(' | ')),
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.success, false);
+  assert.equal(res.body.error, FAILED_HISTORY_ERROR);
+  assert.deepEqual(Object.keys(res.body).sort(), ['error', 'success']);
+  const serialized = JSON.stringify(res.body);
+  for (const secret of secrets) {
+    assert.equal(serialized.includes(secret), false, `leaked: ${secret}`);
+  }
+  for (const token of ['mongodb://', 'Bearer', 'stack', 'cause', 'details']) {
+    assert.equal(serialized.includes(token), false, `leaked token: ${token}`);
+  }
+});
+
+test('history security: ready response top-level keys limited to the six envelope fields', async () => {
+  const { invoke } = createHistoryHarness();
+  const { res } = await invoke({});
+  assert.deepEqual(Object.keys(res.body.data).sort(), [
+    'count',
+    'limit',
+    'pipeline_stage',
+    'runs',
+    'source',
+    'state',
+  ]);
+});
+
+test('history security: run whitelist strips internal fields and has no user data', async () => {
+  const { invoke } = createHistoryHarness();
+  const { res } = await invoke({});
+  const run = res.body.data.runs[0];
+  assert.deepEqual(Object.keys(run).sort(), [
+    'artifact_version',
+    'configuration',
+    'dataset',
+    'evaluated_at',
+    'metrics',
+    'pipeline_stage',
+    'run_id',
+    'summary',
+  ]);
+  const serialized = JSON.stringify(res.body);
+  for (const forbidden of [
+    'payload_sha256',
+    '"_id":',
+    'createdAt',
+    'updatedAt',
+    'schema_version',
+    '"user":',
+    '"user_id":',
+    '"email":',
+    'youtube_id',
+    'ListeningEvent',
+    'session_id',
+  ]) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
+  }
+});
+
+test('history security: no feature flag / no custom JWT / no custom role in route', () => {
+  assert.equal(ROUTE_SOURCE.includes('RECOMMENDATION_AI_ENABLED'), false);
+  assert.equal(ROUTE_SOURCE.includes('aiEnabled'), false);
+  assert.equal(ROUTE_SOURCE.includes('recommendationConfig'), false);
+  assert.equal(ROUTE_SOURCE.includes('503'), false);
+  assert.equal(ROUTE_SOURCE.includes('jsonwebtoken'), false);
+  assert.equal(ROUTE_SOURCE.includes('jwt.verify'), false);
+  assert.equal(ROUTE_SOURCE.includes('Bearer'), false);
+  assert.equal(ROUTE_SOURCE.includes('req.query.role'), false);
+  assert.equal(ROUTE_SOURCE.includes('req.body.role'), false);
+  assert.equal(ROUTE_SOURCE.includes('req.user._id'), false);
+  assert.equal(ROUTE_SOURCE.includes('isAdmin'), false);
+});
+
+test('history security: route+history service free of writes/Python/child_process/ML', () => {
+  const HISTORY_SERVICE_SOURCE = readSource(
+    '../services/adminRecommendationHistoryService.js',
+  );
+  for (const source of [ROUTE_SOURCE, HISTORY_SERVICE_SOURCE]) {
+    for (const token of [
+      'recordEvaluationRun',
+      '.create(',
+      '.save(',
+      '.updateOne',
+      '.updateMany',
+      '.findOneAndUpdate',
+      '.replaceOne',
+      '.deleteOne',
+      '.deleteMany',
+      'upsert',
+      'child_process',
+      'spawn',
+      'exec(',
+      'python',
+      'TruncatedSVD',
+      'train_collaborative_model',
+      'evaluate_recommendations',
+      'rank_hybrid_candidates',
+      'rank_with_cold_start_policy',
+      'publish_artifact_release',
+      'activate_artifact_release',
+      'RecommendationSnapshot',
+      'countDocuments',
+      'estimatedDocumentCount',
+      'distinct(',
+      'aggregate(',
+    ]) {
+      assert.equal(source.includes(token), false, token);
+    }
+  }
+});
+
+test('history security: history service issues exactly one listEvaluationRuns call', () => {
+  const HISTORY_SERVICE_SOURCE = readSource(
+    '../services/adminRecommendationHistoryService.js',
+  );
+  const matches = HISTORY_SERVICE_SOURCE.match(/listEvaluationRuns\s*\(/g) || [];
+  assert.equal(matches.length, 1);
+  assert.equal(
+    HISTORY_SERVICE_SOURCE.includes('RecommendationEvaluationRun.find'),
+    false,
+  );
+  assert.equal(
+    HISTORY_SERVICE_SOURCE.includes('RecommendationEvaluationRun.aggregate'),
+    false,
+  );
+  assert.equal(
+    HISTORY_SERVICE_SOURCE.includes('import RecommendationEvaluationRun'),
+    false,
+  );
+});
+
+test('history security: no model judgment labels in history payloads', async () => {
+  const { invoke } = createHistoryHarness();
+  const { res } = await invoke({});
+  const serialized = JSON.stringify(res.body);
+  for (const token of [
+    'overall',
+    'composite',
+    'winner',
+    'best',
+    'quality',
+    'grade',
+    'tier',
+    'percent',
+  ]) {
+    assert.equal(serialized.includes(token), false, token);
+  }
+});
+
+test('history security: history service factory rejects missing listEvaluationRuns', () => {
+  assert.throws(
+    () =>
+      createAdminRecommendationHistoryService({
+        evaluationRunService: {},
+      }),
+    (error) => {
+      assert.equal(error.name, 'AdminRecommendationHistoryValidationError');
+      return true;
+    },
+  );
+});
+
+test('history security: sequential authorized requests each hit history service once', async () => {
+  const { invoke, state } = createHistoryHarness();
+  await invoke({ query: { pipeline_stage: 'policy' } });
+  await invoke({ query: { pipeline_stage: 'hybrid', limit: '5' } });
+  await invoke({ query: { pipeline_stage: 'collaborative', limit: '1' } });
+  assert.equal(state.serviceCalls.length, 3);
+  assert.deepEqual(state.serviceCalls, [
+    { pipelineStage: 'policy', limit: 20 },
+    { pipelineStage: 'hybrid', limit: 5 },
+    { pipelineStage: 'collaborative', limit: 1 },
+  ]);
+});
+
+test('history security: history query parser rejects prototype pollution keys without mutating Object.prototype', () => {
+  const before = Object.prototype.hasOwnProperty('admin');
+  parseAdminRecommendationHistoryQuery({ constructor: 'x', prototype: 'y' });
+  assert.equal(Object.prototype.hasOwnProperty('admin'), before);
+  assert.equal(Object.prototype.admin, undefined);
+  assert.equal(Object.prototype.role, undefined);
+});
+
+test('history security: no HTML generation in route for history path', () => {
+  assert.equal(ROUTE_SOURCE.includes('res.send('), false);
+  assert.equal(ROUTE_SOURCE.includes('text/html'), false);
+  assert.equal(ROUTE_SOURCE.includes('<html'), false);
+  assert.equal(ROUTE_SOURCE.includes('render('), false);
+});
+
+test('history security: history and metrics remain read-only in route source', () => {
+  for (const token of [
+    'router.post',
+    'router.put',
+    'router.patch',
+    'router.delete',
+    '.create(',
+    '.insert',
+    '.updateOne',
+    'upsert',
+  ]) {
+    assert.equal(ROUTE_SOURCE.includes(token), false, token);
+  }
 });
