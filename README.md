@@ -23,7 +23,8 @@ A full-featured music streaming web application with user authentication, a song
 - **Dashboard Trending Now (22/43)** — Dashboard middle column order is **Recently Played → Trending Now → search → Recommended Songs**; one authenticated `GET /api/trending?limit=10` per mount via the existing API client; activity and catalog-fallback cards stay semantically distinct with **no numeric Trending score** and **no fabricated fallback activity metrics**; playback passes the full filtered Song list to `player.playSong(list, index)` for next/previous continuity; server **503** quietly hides the section; empty/error states are section-local; PlayHistory/listening events remain centralized in PlayerContext (no Dashboard rewrites); **not AI**, no personalized recommendation UI yet
 - **Offline Python recommender runtime foundation (23/43)** — new `ml/` package is a **CPU-only, offline, standard-library** training foundation only (not a production HTTP service): hard safety ceilings seed **42**, **250,000** raw events, **50,000** unique users, **25,000** unique songs, **one** worker, **one** numerical-library thread; `configure_cpu_runtime()` binds common numeric-library thread env vars to `1` and clears `CUDA_VISIBLE_DEVICES` for the current process only (idempotent; not an OS CPU quota); resource/data-shape safety bounds for the current 8 GB RAM development workflow, **not** production/API limits; **no** hard OS memory quota claimed; **no** training, model, evaluation, MongoDB access, HTTP server, GPU support, or third-party ML dependency yet; deterministic `runtime-info` summary only
 - **Temporal raw-event split (24/43)** — offline recommender now has deterministic **per-user chronological** train/validation/test splitting of ListeningEvent-like records; **playback sessions are indivisible** across partitions; users with ≥3 non-overlapping sessions: all earlier sessions → train, second-latest → validation, latest → test; users with fewer than 3 sessions or overlapping session timelines remain **train-only**; server `createdAt` controls chronology (`client_occurred_at` ignored); same song may legitimately occur across partitions; 23/43 runtime hard caps enforced with **no silent truncation**; **no random split**, no sparse matrix/model/training yet; **25/43** builds the bounded sparse interaction representation
-- **Bounded sparse interaction matrices (25/43)** — `build_sparse_interactions()` converts 24/43 `TemporalInteractionEvent` records into **eight** canonical CSR **`float32`** user×song matrices: `observed` (binary presence), `session_count` (distinct sessions), `play_started_count`, `replay_started_count`, `completed_count`, `skipped_count` (**positive** factual count, never a penalty), `stopped_count`, `listened_seconds` (sum of stored `listened_seconds_delta` only); sorted ID row/column order with read-only index maps; lazy NumPy/SciPy import **after** `configure_cpu_runtime()`; only new deps are `numpy>=1.26,<3` and `scipy>=1.12,<2` in `ml/requirements.txt`; **no** training weights/preferences/scores, **no** dense allocation, **no** SVD/model/evaluation/artifacts/MongoDB/HTTP, Favorite/Playlist signals not folded in; **26/43** will build sparse Song content features
+- **Bounded sparse interaction matrices (25/43)** — `build_sparse_interactions()` converts 24/43 `TemporalInteractionEvent` records into **eight** canonical CSR **`float32`** user×song matrices: `observed` (binary presence), `session_count` (distinct sessions), `play_started_count`, `replay_started_count`, `completed_count`, `skipped_count` (**positive** factual count, never a penalty), `stopped_count`, `listened_seconds` (sum of stored `listened_seconds_delta` only); sorted ID row/column order with read-only index maps; lazy NumPy/SciPy import **after** `configure_cpu_runtime()`; only new deps are `numpy>=1.26,<3` and `scipy>=1.12,<2` in `ml/requirements.txt`; **no** training weights/preferences/scores, **no** dense allocation, **no** SVD/model/evaluation/artifacts/MongoDB/HTTP, Favorite/Playlist signals not folded in; **26/43** builds sparse Song content features
+- **Sparse Song content features (26/43)** — `build_song_content_features()` deterministically encodes factual Song catalog metadata into one Song × Content Feature CSR **`float32`** matrix; feature families are exactly **`artist`**, **`genre`**, **`language`**, **`category`**; `normalized_artist` / `normalized_genre` take precedence when non-empty, otherwise fall back only to persisted `artist` / `genre`; language and category use only persisted values; **no** inference from title/artist/genre/provider/Unicode; multi-value strings are **not** split on `,` `/` `&` `feat.`; text normalization is **NFKC + trim + whitespace collapse + casefold** (no stemming/transliteration/tokenization); feature names are namespaced (`artist::…`, `genre::…`, `language::…`, `category::…`); values are binary **`1.0`** with **no** family weighting or scores; Songs and feature columns use deterministic lexical ordering with `MappingProxyType` index maps; **zero-feature Songs remain as zero rows**; **no** dense Song×feature or Song×Song matrix, **no** TF-IDF/similarity/nearest-neighbor/recommendation score/model fitting/MongoDB/HTTP/artifact output; NumPy/SciPy dependency set from 25/43 unchanged; **27/43** will establish safe model/artifact version handling
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -105,13 +106,14 @@ Melodify - Music Streaming Website/
 │   ├── src/api/                   # API client
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player)
 │   └── public/                    # Static assets only (no static pages left)
-├── ml/                            # Offline Python recommender foundation (23–25/43)
+├── ml/                            # Offline Python recommender foundation (23–26/43)
 │   ├── requirements.txt           # numpy>=1.26,<3 + scipy>=1.12,<2 only (25/43)
 │   ├── recommender/runtime.py      # Frozen hard limits + CPU env bootstrap + pure validators
 │   ├── recommender/temporal_split.py # Deterministic per-user session-level train/val/test split (24/43)
 │   ├── recommender/sparse_interactions.py # Eight CSR float32 user×song factual matrices (25/43)
+│   ├── recommender/content_features.py # Song×content CSR float32 categorical encoder (26/43)
 │   ├── recommender/cli.py          # Bounded `runtime-info` CLI only (no train/serve)
-│   └── tests/                      # unittest suites (runtime + CLI + temporal split + sparse matrices)
+│   └── tests/                      # unittest suites (runtime + CLI + temporal + sparse + content)
 ├── karaoke-app/                   # Real-time karaoke recorder (Node)
 │   ├── public/index.html          # Karaoke UI
 │   └── server/                    # Express + Socket.IO server
@@ -463,13 +465,46 @@ python -m unittest ml.tests.test_temporal_split
 | Caps | reuses 23/43 `MAX_RAW_EVENTS` / `MAX_UNIQUE_USERS` / `MAX_UNIQUE_SONGS` via `validate_dataset_shape` — overflow raises `ResourceLimitError`, **no silent truncation** |
 | Result | frozen `SparseInteractionBundle(user_ids, song_ids, user_to_index, song_to_index, 8 matrices, summary)` + frozen `SparseInteractionSummary(event_count, unique_user_count, unique_song_count, interaction_pair_count, session_count, matrix_shape)` |
 | No re-split | does not call `split_interactions_temporally`; partitions arrive already decided by 24/43 |
-| Not present yet | no Favorite/Playlist folding, SVD, model training, evaluation metrics, MongoDB/HTTP, or artifact files (`.npz`/`.npy`/`.pkl`/`.joblib`) — **26/43** builds sparse Song content features |
+| Not present yet | no Favorite/Playlist folding, SVD, model training, evaluation metrics, MongoDB/HTTP, or artifact files (`.npz`/`.npy`/`.pkl`/`.joblib`) — content encoding arrives in **26/43** |
 
 ```bash
 python -m pip install -r ml/requirements.txt
 python -m pip check
 python -m unittest discover -s ml/tests -p "test_*.py"
 python -m unittest ml.tests.test_sparse_interactions
+```
+
+### Sparse Song content features (26/43)
+
+`ml/recommender/content_features.py` exposes `build_song_content_features(songs)` and pure helper `normalize_content_value(value)` — deterministic binary categorical encoding of Song catalog metadata into one CSR `float32` matrix under 23/43 caps. NumPy/SciPy still load lazily after `configure_cpu_runtime()`; `ml/requirements.txt` is unchanged from 25/43.
+
+| Topic | Behavior |
+|---|---|
+| Feature families | exactly `CONTENT_FEATURE_FAMILIES = ("artist", "genre", "language", "category")` |
+| Metadata fields read | `artist`, `genre`, `language`, `category`, `normalized_artist`, `normalized_genre` only (plus required `_id`) |
+| Title / lyrics / chords / duration / popularity / provider / YouTube / paths / timestamps | **not encoded** |
+| Normalization | one pure policy: Unicode **NFKC** → trim → collapse internal whitespace to one ASCII space → Unicode **casefold()**; no transliteration, stemming, accent removal, punctuation stripping, or tokenization |
+| `MAX_CONTENT_VALUE_LENGTH` | **512** code points after normalization — longer values **reject** (no silent truncation) |
+| `normalized_artist` / `normalized_genre` | non-empty normalized value wins; otherwise fall back only to persisted `artist` / `genre`; never both for one family |
+| Language / category | persisted values only when non-empty; **no** inference from title/artist/genre/provider/script |
+| Multi-value strings | **not split** on `,` `/` `&` `;` `feat.`/`ft.` — one persisted string is one categorical value |
+| Placeholders (`Unknown`, `N/A`) | encoded as factual normalized values (e.g. `genre::unknown`) — no special suppression |
+| Feature names | namespaced `artist::<value>`, `genre::<value>`, `language::<value>`, `category::<value>` (families never collide) |
+| Feature values | binary **`1.0`** only — no `ARTIST_WEIGHT` / `GENRE_WEIGHT` / content scores |
+| Song rows | `song_ids = tuple(sorted(canonical_ids))`; uppercase hex IDs normalized lowercase; duplicate canonical `_id` **rejects** |
+| Feature columns | `feature_names = tuple(sorted(unique_names))` lexicographic ASC |
+| Index maps | `song_to_index` / `feature_to_index` are `types.MappingProxyType` (immutable) |
+| `MAX_CONTENT_FEATURES` | derived: `MAX_UNIQUE_SONGS * len(CONTENT_FEATURE_FAMILIES)` = **100_000** — overflow raises `ResourceLimitError` |
+| Input | list/tuple of mapping-like Song records only; `len(songs) > MAX_UNIQUE_SONGS` raises `ResourceLimitError` before processing |
+| Zero-feature Songs | retained as zero rows (`zero_feature_song_count`); all-zero catalog keeps shape `(n, 0)` — never collapses to `(0, 0)` |
+| Empty input | `[]` / `()` → shape `(0, 0)`, CSR `float32`, `nnz = 0`, zeroed summary |
+| Matrix | one CSR `float32` Song×Feature matrix; `sum_duplicates` + `eliminate_zeros` + `sort_indices`; every active value `1.0` |
+| Dense / Song×Song | **none** — no `.toarray()`, `.todense()`, `np.zeros`, cosine similarity, or nearest-neighbor retrieval |
+| Not present yet | no TF-IDF, recommendation/preference scores, model fitting/SVD, MongoDB/HTTP, Favorite/Playlist folding, `recommendation_eligible` filtering, or artifact writes — **27/43** establishes safe model/artifact version handling |
+
+```bash
+python -m unittest discover -s ml/tests -p "test_*.py"
+python -m unittest ml.tests.test_content_features
 ```
 
 ## 🔑 Admin Credentials
