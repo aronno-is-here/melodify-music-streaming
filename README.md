@@ -18,6 +18,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Explicit preference evidence foundation (17/43)** — bounded internal loader derives current positive evidence from song Favorites and user-owned playlist memberships, deduplicates within each source, and filters deleted Song references; no numeric recommendation weights
 - **Factual user preference aggregation (18/43)** — bounded internal per-song and artist/genre/language summaries combine windowed listening with current explicit evidence; no recommendation scoring or active AI recommendations
 - **Transparent Trending score engine (19/43)** — pure global ranking of recent ListeningEvent activity over a fixed 7-day window with 24-hour half-life decay and documented coefficients; **not AI**, not personalized; no API, UI, fallback, or ML yet
+- **Authenticated Trending API (20/43)** — `GET /api/trending` behind login (`protect`) and `RECOMMENDATION_TRENDING_ENABLED`; strict `limit` query only (default 10, max 50); bounded 7-day ListeningEvent read (50,000-row cap with observable truncation), engine ranking + Song eligibility/playability filters; empty list is 200; **not AI**, no personalization, no Dashboard UI yet
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -69,6 +70,7 @@ Melodify - Music Streaming Website/
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
 │   ├── utils/catalogSyncRequest.js # Pure admin catalog-sync request validator (10/43)
 │   ├── utils/listeningEventRequest.js # Pure listening-event HTTP request/result mapping (14/43)
+│   ├── utils/trendingRequest.js      # Pure Trending limit query parser (20/43)
 │   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
 │   ├── utils/resetSecurity.js     # Reset endpoint matching and safe error responses
 │   ├── utils/accessTokenFreshness.js # Access-token freshness vs passwordChangedAt
@@ -80,8 +82,9 @@ Melodify - Music Streaming Website/
 │   ├── services/explicitPreferenceSignalService.js # Bounded current Favorite/Playlist evidence (17/43)
 │   ├── services/userPreferenceAggregationService.js # Windowed factual user evidence profiles (18/43)
 │   ├── services/trendingScoreEngine.js # Pure global Trending score engine (19/43)
+│   ├── services/trendingService.js  # Authenticated Trending load/filter/reconstruct service (20/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
-│   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events
+│   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events, /api/trending
 ├── client/                        # React + Vite frontend
 │   ├── src/pages/                 # One folder per page (React)
 │   │   ├── Home/                  # Landing page
@@ -306,12 +309,38 @@ Fixed exported constants and formula:
 - **Per-user/song anti-spam cap:** summed decayed event contributions for each `user + song` are clamped to **[-3, 8]** (abuse-resistance / concentration-control — not ML), then the one unique-listener term is added. Each user contributes at most one `0.5 × decay(age of most recent play-started|replay-started)` term per song (`unique_listener_count` = distinct users with such a start). Repeating a song 20× does not count as 20 listeners.
 - **Final score:** `max(0, sum over users of (clamp(eventSum) + uniqueListenerTerm))`. Scores are ranked at full floating-point precision, then rounded to **6 decimal places** for output only. Zero-score songs are omitted (no fallback — 21/43 owns that). Tie-break order: internal score DESC → `unique_listener_count` DESC → `last_activity_at` DESC → `song_id` ASC. Identical input + `now` ⇒ deep-equal output.
 - **Output rows only:** `{ song_id, score, unique_listener_count, play_started_count, completed_count, replay_started_count, skipped_count, listened_seconds, last_activity_at }` — no user/session/event IDs, emails, tokens, raw events, `recommendation_score`, or `preference_score`. Counts and `listened_seconds` are factual non-decayed totals inside the window; `last_activity_at` is the latest server `createdAt` ISO string. Malformed rows (bad user/song/type/time) are ignored without failing valid rows. Canonical IDs: ObjectId-like / 24-hex strings / populated `{ _id }` only — arbitrary objects are never stringified.
-- **Not present yet:** no API endpoint, no DB/service wiring, no Song metadata lookup, no `recommendation_eligible` filter, no Dashboard UI, no personalization, no Favorite/Playlist imports, no fallback, no Python/ML. 20/43 will expose/load Trending; 21/43 hardens ranking/fallback; 22/43 adds Dashboard Trending Now. **Do not label Trending as AI.**
+- **Not present yet:** no Dashboard UI, no personalization, no Favorite/Playlist imports in ranking, no fallback, no Python/ML. 21/43 hardens ranking/fallback; 22/43 adds Dashboard Trending Now. **Do not label Trending as AI.**
 
 ```bash
 node --test server/services/trendingScoreEngine.test.js
 node --check server/services/trendingScoreEngine.js
 node --check server/services/trendingScoreEngine.test.js
+```
+
+### Authenticated Trending API (20/43)
+
+`GET /api/trending` is mounted from `server/routes/trendingRoutes.js` (protect → `recommendationConfig.trendingEnabled` → parser → service). It is a **global** activity ranking for signed-in users; `req.user` is never passed into ranking. **Trending is not AI.**
+
+| Topic | Behavior |
+|---|---|
+| Auth | `protect` only (401 without a valid token); no `adminOnly` |
+| Feature flag | `RECOMMENDATION_TRENDING_ENABLED` (`true`/`1`); when off, fixed **503** `Trending is currently disabled` with zero event/engine/Song reads |
+| Query | only `limit` (integer **1–50**, default **10**); any other key or malformed value → **400** `Invalid trending query` |
+| Window | one injected `now`; server `createdAt` in `[now − 168h, now]`; sort `createdAt` desc, `_id` desc; lookahead **50,001** |
+| Overflow | if 50,001 rows return, drop the oldest lookahead row → retain **50,000**, `meta.event_input_truncated: true`, `event_count: 50000` (never passes 50,001 to the engine) |
+| Engine | exactly one `scoreTrendingSongs(events, { now, limit: 100 })` call per non-empty request; empty events or empty ranking skip Song lookup |
+| Song load | at most one `$in` query; drops missing docs, `recommendation_eligible === false` (legacy absent = eligible), unplayable (`youtube_id` and `file_path` both empty), and blank `title`/`artist` |
+| Order / limit | engine rank order preserved through filtering; public `limit` applied last; ranks renumbered `1..N` with no gaps |
+| Empty | `items: []` is HTTP **200** (never 404, never fallback songs) |
+| Failure | service throws fixed `Trending loading failed`; route returns fixed **500** `Unable to load Trending songs` (no raw DB/stack leak) |
+
+Success body: `{ "success": true, "data": { "items": [ { "rank", "score", "activity": { unique_listener_count, play_started_count, completed_count, replay_started_count, skipped_count, listened_seconds, last_activity_at }, "song": { _id, title, artist, genre, youtube_id, file_path, poster_url, duration, duration_seconds, release_date, language, category } } ], "meta": { window_hours: 168, requested_limit, returned_count, event_count, event_input_truncated, candidate_count } } }`. Items never include user/session/event IDs, emails, tokens, or raw Mongo documents.
+
+```bash
+node --test server/utils/trendingRequest.test.js server/routes/trendingRoutes.test.js server/services/trendingService.test.js
+node --check server/services/trendingService.js
+node --check server/utils/trendingRequest.js
+node --check server/routes/trendingRoutes.js
 ```
 
 ## 🔑 Admin Credentials
