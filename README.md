@@ -15,7 +15,8 @@ A full-featured music streaming web application with user authentication, a song
 - **Song library** — search by song title or artist, browse a poster grid
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history; written once on confirmed playback start, not on click)
 - **Confirmed-playback telemetry (15–16/43)** — authenticated clients emit playback lifecycle evidence to `POST /api/listening-events` after real media confirmation, including manual `skipped` and same-session confirmed `replay-started`; 15s throttled progress with seek-safe listened-delta ≤120s; serialized queue; 503 runtime disable with no retry/toast/blocking
-- **Explicit preference evidence foundation (17/43)** — bounded internal loader derives current positive evidence from song Favorites and user-owned playlist memberships, deduplicates within each source, and filters deleted Song references; no aggregation or numeric recommendation weights yet
+- **Explicit preference evidence foundation (17/43)** — bounded internal loader derives current positive evidence from song Favorites and user-owned playlist memberships, deduplicates within each source, and filters deleted Song references; no numeric recommendation weights
+- **Factual user preference aggregation (18/43)** — bounded internal per-song and artist/genre/language summaries combine windowed listening with current explicit evidence; no recommendation scoring or active AI recommendations
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -76,6 +77,7 @@ Melodify - Music Streaming Website/
 │   ├── services/catalogSyncService.js # Bounded admin catalog-sync orchestrator (10/43)
 │   ├── services/listeningEventService.js # Listening interaction recording service (13/43)
 │   ├── services/explicitPreferenceSignalService.js # Bounded current Favorite/Playlist evidence (17/43)
+│   ├── services/userPreferenceAggregationService.js # Windowed factual user evidence profiles (18/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events
 ├── client/                        # React + Vite frontend
@@ -238,7 +240,7 @@ node --test client/src/context/listeningTelemetry.test.js
 - Natural YouTube/HTML completion remains `completed`, never `skipped`. Automatic advance and error recovery carry no manual skip reason. A different auto-advanced song waits for confirmed playback before its fresh `play-started`.
 - Only confirmed playback of the same current track after natural completion emits `replay-started` with reason `repeat`, retaining `session_id` and continuing sequence numbers. Repeat toggle, reload request, and seek-to-zero alone emit no replay. Each confirmed replay resets the progress baseline and active/paused state, supporting subsequent progress, pause/resume, seek, completion, and multiple replay cycles. A skipped track selected again starts a fresh session instead.
 - Previous still wraps to the prior entry with no time-threshold restart rule. If a one-song list, shuffle, or direct selection reloads the same active song, it is not a skip or replay: an active reload is observed as a seek to zero when a valid position is available; a paused reload resets its baseline on confirmed resume. Restart behavior is otherwise unchanged; unavailable media positions cannot supply a seek observation.
-- Skip/replay sends share the existing serialized queue, never block playback/navigation/repeat, and have no retries or user-visible failure UI. Runtime 503 disables later listening-event sends while history remains independent. Neither skip nor same-session replay adds a PlayHistory write; a newly confirmed session records history once. Preference aggregation, evidence-based Trending, recommendation ranking, and ML remain unimplemented.
+- Skip/replay sends share the existing serialized queue, never block playback/navigation/repeat, and have no retries or user-visible failure UI. Runtime 503 disables later listening-event sends while history remains independent. Neither skip nor same-session replay adds a PlayHistory write; a newly confirmed session records history once. Evidence-based Trending, recommendation ranking, and ML remain unimplemented.
 
 ### Current Favorite and Playlist evidence (17/43)
 
@@ -248,12 +250,33 @@ The result is `{ signals, counts: { favorites, playlistMemberships, total }, tru
 
 Reads are lean, projection-limited and deterministic: source documents are ordered by ascending `_id`; **1,000 Favorite rows** and **250 Playlist documents** are retained, with one extra row per read solely to detect overflow. Each fetched playlist array is projected to at most **5,001 items** (including lookahead), and at most **5,000 raw membership slots total** are inspected across retained playlists in source-ID then persisted array order. Invalid and duplicate slots consume that conservative scan budget, so `truncated.memberships` means additional membership slots went unexamined, even if fewer than 5,000 distinct signals survive. The other truncation flags report source-document overflow; flags are independent and remain set after filtering. No pagination or retries occur. Unique referenced song IDs (at most 6,000) use **one bounded, ID-only Song query**, skipped entirely when no candidates exist. Deleted/stale references are dropped; counts reflect surviving signals. Final ordering is `type`, then canonical lowercase `song_id`, then `source_id`.
 
-Existing Favorite and Playlist state remains the source of truth: old records count automatically, and removed Favorites/memberships disappear on the next load. Removal is **not dislike** and produces no negative signal. Post/social likes, listening events, and playback history are excluded. No numeric recommendation weights, scores, or user-preference aggregation are implemented. No new API, write-event model, collection, route hook, or migration was added.
+Existing Favorite and Playlist state remains the source of truth: old records count automatically, and removed Favorites/memberships disappear on the next load. Removal is **not dislike** and produces no negative signal. This explicit loader excludes Post/social likes, listening events, and playback history, and supplies factual inputs to 18/43 without numeric recommendation weights or scores. No new API, write-event model, collection, route hook, or migration was added.
 
 Run the database-free service tests from the repository root:
 
 ```bash
 node --test server/services/explicitPreferenceSignalService.test.js
+```
+
+### Bounded factual user preference aggregation (18/43)
+
+`server/services/userPreferenceAggregationService.js` exposes `createUserPreferenceAggregationService({ ListeningEventModel, SongModel, explicitPreferenceSignalService, now })` → `getUserPreferenceProfile({ userId, lookbackDays })`. Trusted IDs and options are validated before reads. Listening uses an inclusive server-`createdAt` window of **1–365 integer days, default 90**, derived from one injected clock reading. One lean projected query is scoped to that user and window, ordered by `createdAt` then `_id` ascending, and limited to **20,001 rows**; at most the earliest **20,000 rows** contribute. There is no pagination or retry.
+
+The result contains `window`, `songs`, `genres`, `artists`, `languages`, `counts`, and `truncated`:
+
+- Each song has `song_id`, `listening`, `explicit`, and whitelisted persisted `metadata`. Listening facts include distinct observed sessions, explicit play starts, replays, completions, skips, stops, progress-event counts, listened seconds, and latest server event time. Replay stays within its session; neither repeated appearances nor positions imply a replay, completion, or skip. A window beginning mid-session does not invent a start or reconstruct missing transitions.
+- Listened seconds sum only stored finite, non-negative deltas ≤120 seconds. Invalid deltas and unexpected positive deltas on non-listening start/resume/seek/replay transitions contribute zero, while their otherwise valid event facts remain countable. Malformed IDs/sessions/types/server times, out-of-window rows, and impossible position/duration values are skipped. No position differences, seek distances, paused intervals, or timestamp gaps become listened time. `last_event_at` uses server `createdAt`, never client time.
+- The 17/43 explicit service is called once with the trusted user ID. Current Favorite state/source/time and sorted distinct playlist source IDs/counts are integrated without an age cutoff. Explicit-only songs remain available for sparse/cold-start users with zero listening counters and null `last_event_at`; listening-only songs also remain. Removal of explicit evidence is not dislike.
+- One additional bounded Song query fetches only IDs and the needed metadata for the unique combined references (at most 26,000). Deleted/stale references are excluded from songs, groups, and profile totals. `recommendation_eligible: false` remains factual metadata and does not erase user evidence. Persisted text is preserved; absent metadata is null. Artist/genre grouping prefers persisted normalized fields, falling back to raw fields, using trim/lowercase/whitespace collapse only as grouping keys. Language grouping uses persisted non-empty language only. Nothing is inferred from titles or categories.
+- Artist, genre, and language groups contain `key`, `label`, distinct `song_count`, summed `listened_seconds`, per-song `session_count`, completion/skip/replay counts, distinct `favorite_song_count`, summed `playlist_membership_count`, and latest server `last_event_at`. Labels come from the lowest-ID contributing song. Profile `counts` contains surviving valid `listening_event_count`, `song_count`, `active_favorite_count`, `playlist_membership_count`, `total_listened_seconds`, `completed_count`, `skipped_count`, and `replay_count`.
+- Songs sort by canonical song ID; groups by key; playlist IDs lexically. `truncated.listeningEvents` reports source-row overflow before validity/stale filtering. `explicitFavorites`, `explicitPlaylists`, and `explicitMemberships` propagate 17/43's independent flags, including its conservative raw-membership scan limit. Unexpected query/service failures become the fixed `User preference aggregation failed` error without the original cause.
+
+This is read/derive-only factual aggregation: no numeric recommendation weights or scores, ranking, training, new model, persistence, API, or client behavior was added. AI recommendations are not active; Trending remains a later checkpoint.
+
+```bash
+node --test server/services/userPreferenceAggregationService.test.js
+node --check server/services/userPreferenceAggregationService.js
+node --check server/services/userPreferenceAggregationService.test.js
 ```
 
 ## 🔑 Admin Credentials
