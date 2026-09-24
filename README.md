@@ -15,6 +15,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Song library** — search by song title or artist, browse a poster grid
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history; written once on confirmed playback start, not on click)
 - **Confirmed-playback telemetry (15–16/43)** — authenticated clients emit playback lifecycle evidence to `POST /api/listening-events` after real media confirmation, including manual `skipped` and same-session confirmed `replay-started`; 15s throttled progress with seek-safe listened-delta ≤120s; serialized queue; 503 runtime disable with no retry/toast/blocking
+- **Explicit preference evidence foundation (17/43)** — bounded internal loader derives current positive evidence from song Favorites and user-owned playlist memberships, deduplicates within each source, and filters deleted Song references; no aggregation or numeric recommendation weights yet
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -74,6 +75,7 @@ Melodify - Music Streaming Website/
 │   ├── services/catalogUpsertService.js # Idempotent YouTube catalog upsert service (09/43)
 │   ├── services/catalogSyncService.js # Bounded admin catalog-sync orchestrator (10/43)
 │   ├── services/listeningEventService.js # Listening interaction recording service (13/43)
+│   ├── services/explicitPreferenceSignalService.js # Bounded current Favorite/Playlist evidence (17/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events
 ├── client/                        # React + Vite frontend
@@ -237,6 +239,22 @@ node --test client/src/context/listeningTelemetry.test.js
 - Only confirmed playback of the same current track after natural completion emits `replay-started` with reason `repeat`, retaining `session_id` and continuing sequence numbers. Repeat toggle, reload request, and seek-to-zero alone emit no replay. Each confirmed replay resets the progress baseline and active/paused state, supporting subsequent progress, pause/resume, seek, completion, and multiple replay cycles. A skipped track selected again starts a fresh session instead.
 - Previous still wraps to the prior entry with no time-threshold restart rule. If a one-song list, shuffle, or direct selection reloads the same active song, it is not a skip or replay: an active reload is observed as a seek to zero when a valid position is available; a paused reload resets its baseline on confirmed resume. Restart behavior is otherwise unchanged; unavailable media positions cannot supply a seek observation.
 - Skip/replay sends share the existing serialized queue, never block playback/navigation/repeat, and have no retries or user-visible failure UI. Runtime 503 disables later listening-event sends while history remains independent. Neither skip nor same-session replay adds a PlayHistory write; a newly confirmed session records history once. Preference aggregation, evidence-based Trending, recommendation ranking, and ML remain unimplemented.
+
+### Current Favorite and Playlist evidence (17/43)
+
+`server/services/explicitPreferenceSignalService.js` exposes `createExplicitPreferenceSignalService({ FavoriteModel, PlaylistModel, SongModel, UserModel })` → `getUserExplicitPreferenceSignals({ userId })`. Models have production defaults and are injected as fakes in tests. The direct trusted user ID must be an ObjectId or 24-character hexadecimal string; malformed IDs fail before any read. Because existing Favorites use `user`/`song` ObjectIds while Playlist ownership uses `user_email`, one ID-scoped User lookup reads only `_id` and `email` to resolve the persisted owner. Caller-supplied emails or nested alternate users cannot change scope. A missing User yields empty evidence; malformed persisted identity or query failure throws the fixed `Explicit preference signal loading failed` error without original persistence details.
+
+The result is `{ signals, counts: { favorites, playlistMemberships, total }, truncated: { favorites, playlists, memberships } }`. Signals contain exactly `{ type, song_id, source_id, occurred_at }`; the frozen vocabulary is `favorite` and `playlist-membership`. Current Favorites produce explicit positive favorite evidence, deduplicated by song; within the bounded source window, the earliest valid `createdAt` wins, unknown timestamps sort last, and ties use the lowest Favorite ID. Playlist `items[{ songId, addedAt }]` are deduplicated by playlist + song, retaining the earliest known factual `addedAt`; the same song in different playlists remains separate evidence. Missing/invalid times are `null`: neither current time nor Playlist `createdAt`/`updatedAt` substitutes for membership time.
+
+Reads are lean, projection-limited and deterministic: source documents are ordered by ascending `_id`; **1,000 Favorite rows** and **250 Playlist documents** are retained, with one extra row per read solely to detect overflow. Each fetched playlist array is projected to at most **5,001 items** (including lookahead), and at most **5,000 raw membership slots total** are inspected across retained playlists in source-ID then persisted array order. Invalid and duplicate slots consume that conservative scan budget, so `truncated.memberships` means additional membership slots went unexamined, even if fewer than 5,000 distinct signals survive. The other truncation flags report source-document overflow; flags are independent and remain set after filtering. No pagination or retries occur. Unique referenced song IDs (at most 6,000) use **one bounded, ID-only Song query**, skipped entirely when no candidates exist. Deleted/stale references are dropped; counts reflect surviving signals. Final ordering is `type`, then canonical lowercase `song_id`, then `source_id`.
+
+Existing Favorite and Playlist state remains the source of truth: old records count automatically, and removed Favorites/memberships disappear on the next load. Removal is **not dislike** and produces no negative signal. Post/social likes, listening events, and playback history are excluded. No numeric recommendation weights, scores, or user-preference aggregation are implemented. No new API, write-event model, collection, route hook, or migration was added.
+
+Run the database-free service tests from the repository root:
+
+```bash
+node --test server/services/explicitPreferenceSignalService.test.js
+```
 
 ## 🔑 Admin Credentials
 
