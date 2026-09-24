@@ -2,6 +2,7 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Implement AI checkpoint 19/43: transparent time-decayed Trending score engine (pure 7-day ListeningEvent window, 24h half-life decay, fixed event coefficients, per-user/song [-3,8] cap, unique-listener breadth, deterministic ranking; not AI/personalization/API/UI); pass 105 new / 778 total backend tests, 94 telemetry + 17 Admin helper regressions, and syntax checks.
 - [x] `2026-09-15` Implement AI checkpoint 18/43: bounded factual user preference aggregation from windowed listening and current explicit evidence, with per-song/artist/genre/language totals and truncation; pass 155 new / 673 total backend tests, 94 telemetry + 17 Admin helper regressions, and syntax checks.
 - [x] `2026-09-15` Implement AI checkpoint 17/43: bounded current Favorite/Playlist explicit evidence loader with trusted ID-to-email ownership resolution, deterministic deduplication and stale-song filtering; pass 70 new / 518 total backend tests, 94 telemetry + 17 Admin helper regressions, and syntax checks.
 - [x] `2026-09-15` Implement AI checkpoint 16/43: manual next/previous/new-selection skips, confirmed same-session replay with continuing sequence, independent history after telemetry 503; pass 94 telemetry + 17 Admin helper + 448 backend regressions and client production build.

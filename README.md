@@ -17,6 +17,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Confirmed-playback telemetry (15–16/43)** — authenticated clients emit playback lifecycle evidence to `POST /api/listening-events` after real media confirmation, including manual `skipped` and same-session confirmed `replay-started`; 15s throttled progress with seek-safe listened-delta ≤120s; serialized queue; 503 runtime disable with no retry/toast/blocking
 - **Explicit preference evidence foundation (17/43)** — bounded internal loader derives current positive evidence from song Favorites and user-owned playlist memberships, deduplicates within each source, and filters deleted Song references; no numeric recommendation weights
 - **Factual user preference aggregation (18/43)** — bounded internal per-song and artist/genre/language summaries combine windowed listening with current explicit evidence; no recommendation scoring or active AI recommendations
+- **Transparent Trending score engine (19/43)** — pure global ranking of recent ListeningEvent activity over a fixed 7-day window with 24-hour half-life decay and documented coefficients; **not AI**, not personalized; no API, UI, fallback, or ML yet
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -78,6 +79,7 @@ Melodify - Music Streaming Website/
 │   ├── services/listeningEventService.js # Listening interaction recording service (13/43)
 │   ├── services/explicitPreferenceSignalService.js # Bounded current Favorite/Playlist evidence (17/43)
 │   ├── services/userPreferenceAggregationService.js # Windowed factual user evidence profiles (18/43)
+│   ├── services/trendingScoreEngine.js # Pure global Trending score engine (19/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events
 ├── client/                        # React + Vite frontend
@@ -240,7 +242,7 @@ node --test client/src/context/listeningTelemetry.test.js
 - Natural YouTube/HTML completion remains `completed`, never `skipped`. Automatic advance and error recovery carry no manual skip reason. A different auto-advanced song waits for confirmed playback before its fresh `play-started`.
 - Only confirmed playback of the same current track after natural completion emits `replay-started` with reason `repeat`, retaining `session_id` and continuing sequence numbers. Repeat toggle, reload request, and seek-to-zero alone emit no replay. Each confirmed replay resets the progress baseline and active/paused state, supporting subsequent progress, pause/resume, seek, completion, and multiple replay cycles. A skipped track selected again starts a fresh session instead.
 - Previous still wraps to the prior entry with no time-threshold restart rule. If a one-song list, shuffle, or direct selection reloads the same active song, it is not a skip or replay: an active reload is observed as a seek to zero when a valid position is available; a paused reload resets its baseline on confirmed resume. Restart behavior is otherwise unchanged; unavailable media positions cannot supply a seek observation.
-- Skip/replay sends share the existing serialized queue, never block playback/navigation/repeat, and have no retries or user-visible failure UI. Runtime 503 disables later listening-event sends while history remains independent. Neither skip nor same-session replay adds a PlayHistory write; a newly confirmed session records history once. Evidence-based Trending, recommendation ranking, and ML remain unimplemented.
+- Skip/replay sends share the existing serialized queue, never block playback/navigation/repeat, and have no retries or user-visible failure UI. Runtime 503 disables later listening-event sends while history remains independent. Neither skip nor same-session replay adds a PlayHistory write; a newly confirmed session records history once. Recommendation ranking and ML remain unimplemented; transparent Trending scoring exists only as the pure 19/43 engine (no API/UI yet).
 
 ### Current Favorite and Playlist evidence (17/43)
 
@@ -271,12 +273,45 @@ The result contains `window`, `songs`, `genres`, `artists`, `languages`, `counts
 - Artist, genre, and language groups contain `key`, `label`, distinct `song_count`, summed `listened_seconds`, per-song `session_count`, completion/skip/replay counts, distinct `favorite_song_count`, summed `playlist_membership_count`, and latest server `last_event_at`. Labels come from the lowest-ID contributing song. Profile `counts` contains surviving valid `listening_event_count`, `song_count`, `active_favorite_count`, `playlist_membership_count`, `total_listened_seconds`, `completed_count`, `skipped_count`, and `replay_count`.
 - Songs sort by canonical song ID; groups by key; playlist IDs lexically. `truncated.listeningEvents` reports source-row overflow before validity/stale filtering. `explicitFavorites`, `explicitPlaylists`, and `explicitMemberships` propagate 17/43's independent flags, including its conservative raw-membership scan limit. Unexpected query/service failures become the fixed `User preference aggregation failed` error without the original cause.
 
-This is read/derive-only factual aggregation: no numeric recommendation weights or scores, ranking, training, new model, persistence, API, or client behavior was added. AI recommendations are not active; Trending remains a later checkpoint.
+This is read/derive-only factual aggregation: no numeric recommendation weights or scores, ranking, training, new model, persistence, API, or client behavior was added. AI recommendations are not active; transparent Trending scoring lives in the pure 19/43 engine without API or UI.
 
 ```bash
 node --test server/services/userPreferenceAggregationService.test.js
 node --check server/services/userPreferenceAggregationService.js
 node --check server/services/userPreferenceAggregationService.test.js
+```
+
+### Transparent Trending score engine (19/43)
+
+`server/services/trendingScoreEngine.js` is a **pure, deterministic** global ranking function `scoreTrendingSongs(events, options)` → ranked array (default export also exported). It has **no** Mongoose query, DB, HTTP, filesystem, network, environment read, hidden clock, personalization, or ML. Callers inject `now` and optional `limit`. **Trending is not AI** — it is a transparent ranking formula over recent aggregate Melodify playback activity.
+
+Fixed exported constants and formula:
+
+| Constant | Value |
+|---|---|
+| `TRENDING_WINDOW_HOURS` | **168** (7 days) |
+| `TRENDING_HALF_LIFE_HOURS` | **24** |
+| `MAX_TRENDING_EVENT_INPUTS` | **50,000** (hard input cap; over-cap throws `Trending event input exceeds limit` — never silently sliced) |
+| `DEFAULT_TRENDING_LIMIT` / `MAX_TRENDING_LIMIT` | **20** / **100** (integer 1…100; 0, >100, fractions, non-numbers rejected) |
+| `PLAY_STARTED_WEIGHT` | **1.0** |
+| `COMPLETED_WEIGHT` | **2.0** |
+| `REPLAY_STARTED_WEIGHT` | **1.5** |
+| `SKIPPED_WEIGHT` | **-0.75** |
+| `LISTENED_MINUTE_WEIGHT` | **0.25** |
+| `UNIQUE_LISTENER_WEIGHT` | **0.5** |
+| `MIN_USER_SONG_CONTRIBUTION` / `MAX_USER_SONG_CONTRIBUTION` | **-3** / **8** |
+
+- **Window / recency:** only server `createdAt` in `[now − 168h, now]` contributes; older and future rows are ignored; `client_occurred_at` never controls recency. `trendingDecay(ageHours) = 0.5 ** (ageHours / 24)` (0h → 1, 24h → 0.5, 48h → 0.25).
+- **Per-event contribution:** `(eventTypeBaseWeight + listenedMinutes × 0.25) × decay(ageHours)`. Base weights apply only to `play-started`, `completed`, `replay-started`, `skipped`; `progress`/`paused`/`resumed`/`seeked`/`stopped` get no base weight and no invented `stopped` penalty. Only stored finite `listened_seconds_delta` in **[0, 120]** counts (malformed legacy values are ignored, never clamped into validity). Position, seek distance, and wall-clock gaps never fabricate listening.
+- **Per-user/song anti-spam cap:** summed decayed event contributions for each `user + song` are clamped to **[-3, 8]** (abuse-resistance / concentration-control — not ML), then the one unique-listener term is added. Each user contributes at most one `0.5 × decay(age of most recent play-started|replay-started)` term per song (`unique_listener_count` = distinct users with such a start). Repeating a song 20× does not count as 20 listeners.
+- **Final score:** `max(0, sum over users of (clamp(eventSum) + uniqueListenerTerm))`. Scores are ranked at full floating-point precision, then rounded to **6 decimal places** for output only. Zero-score songs are omitted (no fallback — 21/43 owns that). Tie-break order: internal score DESC → `unique_listener_count` DESC → `last_activity_at` DESC → `song_id` ASC. Identical input + `now` ⇒ deep-equal output.
+- **Output rows only:** `{ song_id, score, unique_listener_count, play_started_count, completed_count, replay_started_count, skipped_count, listened_seconds, last_activity_at }` — no user/session/event IDs, emails, tokens, raw events, `recommendation_score`, or `preference_score`. Counts and `listened_seconds` are factual non-decayed totals inside the window; `last_activity_at` is the latest server `createdAt` ISO string. Malformed rows (bad user/song/type/time) are ignored without failing valid rows. Canonical IDs: ObjectId-like / 24-hex strings / populated `{ _id }` only — arbitrary objects are never stringified.
+- **Not present yet:** no API endpoint, no DB/service wiring, no Song metadata lookup, no `recommendation_eligible` filter, no Dashboard UI, no personalization, no Favorite/Playlist imports, no fallback, no Python/ML. 20/43 will expose/load Trending; 21/43 hardens ranking/fallback; 22/43 adds Dashboard Trending Now. **Do not label Trending as AI.**
+
+```bash
+node --test server/services/trendingScoreEngine.test.js
+node --check server/services/trendingScoreEngine.js
+node --check server/services/trendingScoreEngine.test.js
 ```
 
 ## 🔑 Admin Credentials
