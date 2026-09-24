@@ -21,7 +21,8 @@ A full-featured music streaming web application with user authentication, a song
 - **Authenticated Trending API (20/43)** — `GET /api/trending` behind login (`protect`) and `RECOMMENDATION_TRENDING_ENABLED`; strict `limit` query only (default 10, max 50); bounded 7-day ListeningEvent read (50,000-row cap with observable truncation), engine ranking + Song eligibility/playability filters; empty list is 200; **not AI**, no personalization, no Dashboard UI yet
 - **Trending sparse-data fallback (21/43)** — when activity-ranked songs do not fill the public `limit`, one bounded catalog top-up query (`createdAt` DESC, `_id` ASC) appends playable recommendation-eligible songs marked `basis: "catalog-fallback"` with `score: null` and zeroed activity metrics; activity always ranks first with contiguous `1..N` ranks; meta `mode`/`activity_count`/`fallback_count`; deterministic, **not** AI/personalized/random/popularity evidence; still no Dashboard UI
 - **Dashboard Trending Now (22/43)** — Dashboard middle column order is **Recently Played → Trending Now → search → Recommended Songs**; one authenticated `GET /api/trending?limit=10` per mount via the existing API client; activity and catalog-fallback cards stay semantically distinct with **no numeric Trending score** and **no fabricated fallback activity metrics**; playback passes the full filtered Song list to `player.playSong(list, index)` for next/previous continuity; server **503** quietly hides the section; empty/error states are section-local; PlayHistory/listening events remain centralized in PlayerContext (no Dashboard rewrites); **not AI**, no personalized recommendation UI yet
-- **Offline Python recommender runtime foundation (23/43)** — new `ml/` package is a **CPU-only, offline, standard-library** training foundation only (not a production HTTP service): hard safety ceilings seed **42**, **250,000** raw events, **50,000** unique users, **25,000** unique songs, **one** worker, **one** numerical-library thread; `configure_cpu_runtime()` binds common numeric-library thread env vars to `1` and clears `CUDA_VISIBLE_DEVICES` for the current process only (idempotent; not an OS CPU quota); resource/data-shape safety bounds for the current 8 GB RAM development workflow, **not** production/API limits; **no** hard OS memory quota claimed; **no** training, model, evaluation, MongoDB access, HTTP server, GPU support, or third-party ML dependency yet; deterministic `runtime-info` summary only; **24/43** will begin time-aware dataset splitting
+- **Offline Python recommender runtime foundation (23/43)** — new `ml/` package is a **CPU-only, offline, standard-library** training foundation only (not a production HTTP service): hard safety ceilings seed **42**, **250,000** raw events, **50,000** unique users, **25,000** unique songs, **one** worker, **one** numerical-library thread; `configure_cpu_runtime()` binds common numeric-library thread env vars to `1` and clears `CUDA_VISIBLE_DEVICES` for the current process only (idempotent; not an OS CPU quota); resource/data-shape safety bounds for the current 8 GB RAM development workflow, **not** production/API limits; **no** hard OS memory quota claimed; **no** training, model, evaluation, MongoDB access, HTTP server, GPU support, or third-party ML dependency yet; deterministic `runtime-info` summary only
+- **Temporal raw-event split (24/43)** — offline recommender now has deterministic **per-user chronological** train/validation/test splitting of ListeningEvent-like records; **playback sessions are indivisible** across partitions; users with ≥3 non-overlapping sessions: all earlier sessions → train, second-latest → validation, latest → test; users with fewer than 3 sessions or overlapping session timelines remain **train-only**; server `createdAt` controls chronology (`client_occurred_at` ignored); same song may legitimately occur across partitions; 23/43 runtime hard caps enforced with **no silent truncation**; **no random split**, no sparse matrix/model/training yet; **25/43** will build the bounded sparse interaction representation
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -103,10 +104,11 @@ Melodify - Music Streaming Website/
 │   ├── src/api/                   # API client
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player)
 │   └── public/                    # Static assets only (no static pages left)
-├── ml/                            # Offline Python recommender runtime foundation (23/43; standard library only)
+├── ml/                            # Offline Python recommender runtime foundation (23–24/43; standard library only)
 │   ├── recommender/runtime.py      # Frozen hard limits + CPU env bootstrap + pure validators
+│   ├── recommender/temporal_split.py # Deterministic per-user session-level train/val/test split (24/43)
 │   ├── recommender/cli.py          # Bounded `runtime-info` CLI only (no train/serve)
-│   └── tests/                      # unittest suites (runtime + CLI)
+│   └── tests/                      # unittest suites (runtime + CLI + temporal split)
 ├── karaoke-app/                   # Real-time karaoke recorder (Node)
 │   ├── public/index.html          # Karaoke UI
 │   └── server/                    # Express + Socket.IO server
@@ -403,6 +405,41 @@ Melodify now has an offline Python recommender runtime foundation under `ml/`. I
 python -m unittest discover -s ml/tests -p "test_*.py"
 python -m ml.recommender.cli runtime-info --json
 python -m compileall -q ml/recommender ml/tests
+```
+
+### Time-aware raw interaction split (24/43)
+
+`ml/recommender/temporal_split.py` exposes `split_interactions_temporally(events)` — a deterministic, leakage-resistant chronological splitter for in-memory ListeningEvent-like records. Standard library only; no randomness, no current-time dependency, no file/DB/HTTP access.
+
+| Topic | Behavior |
+|---|---|
+| Split unit | **Per user**, not one global timestamp; each user has an independent chronological session timeline |
+| Session indivisibility | One `(user_id, session_id)` group belongs to **exactly one** partition (train **or** validation **or** test) |
+| Holdouts | `VALIDATION_SESSIONS_PER_USER = 1`, `TEST_SESSIONS_PER_USER = 1`, `MIN_TRAIN_SESSIONS_PER_EVALUATED_USER = 1` → `MIN_SESSIONS_FOR_EVALUATION = 3` |
+| Evaluable user (≥3 non-overlapping sessions) | earliest sessions → train; second-latest → validation; latest → test (e.g. 5 sessions: 1–3 train, 4 validation, 5 test) |
+| Sparse users (1–2 sessions) | **all events train-only**; no validation/test contribution |
+| Overlapping sessions | if any adjacent sorted sessions have `previous.session_end_at > next.session_start_at`, the whole user is **train-only** and `overlap_train_only_user_count` increments; other users unaffected |
+| Equal boundary timestamps | `previous.end == next.start` is **not** overlap (only strict `>`) |
+| Chronology authority | **server `createdAt` only** (timezone-aware datetime or ISO-8601 with offset/`Z`); normalized to UTC |
+| `client_occurred_at` | **ignored** for split ordering (may exist on input; never used) |
+| Event order within session | `created_at ASC`, then `sequence ASC`, then `event_id ASC` (input order never matters) |
+| Session order | `session_start_at ASC`, `session_end_at ASC`, `session_id ASC` |
+| Final partition order | `created_at ASC`, `user_id ASC`, `session_id ASC`, `sequence ASC`, `event_id ASC` |
+| Event vocabulary | fixed 9-type server set: `play-started`, `progress`, `paused`, `resumed`, `seeked`, `completed`, `skipped`, `stopped`, `replay-started` — unknown types reject |
+| IDs | 24-hex for `_id`/`user`/`song`, normalized lowercase; `session_id` trimmed non-empty ≤128 chars (not lowercased) |
+| Sequence | integer `0..1_000_000`, `bool` rejected; gaps allowed; sequence 0 not required; duplicate sequence in a session rejects |
+| Duplicate event `_id` | **reject** (even byte-identical rows) |
+| Multi-song session | **reject** (`session contains multiple song ids`) |
+| `listened_seconds_delta` | optional; if present: finite number in `[0, 120]`, `bool`/NaN/Inf rejected; never used for split decisions |
+| Same song across splits | **allowed** — 24/43 splits time, not unique items |
+| Runtime caps | reuses 23/43 `MAX_RAW_EVENTS` / `MAX_UNIQUE_USERS` / `MAX_UNIQUE_SONGS`; overflow raises `ResourceLimitError` — **no silent truncation** |
+| Result | frozen `TemporalSplitResult(train, validation, test, summary)` with frozen event/summary dataclasses and tuple partitions |
+| Count invariants | `input = train + validation + test` events; `session_count = train + validation + test` sessions |
+| Not present yet | no sparse matrix, interaction weighting, SVD, collaborative/content ranking, evaluation metrics, MongoDB, model artifacts, or snapshots — **25/43** will build the bounded sparse interaction representation |
+
+```bash
+python -m unittest discover -s ml/tests -p "test_*.py"
+python -m unittest ml.tests.test_temporal_split
 ```
 
 ## 🔑 Admin Credentials
