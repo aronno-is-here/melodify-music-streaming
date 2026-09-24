@@ -9,6 +9,21 @@ import {
 
 export const TRENDING_SERVICE_ERROR = 'Trending loading failed';
 
+export const TRENDING_ITEM_BASIS = Object.freeze({
+  ACTIVITY: 'activity',
+  CATALOG_FALLBACK: 'catalog-fallback',
+});
+
+export const TRENDING_MODE = Object.freeze({
+  ACTIVITY: 'activity',
+  ACTIVITY_PLUS_FALLBACK: 'activity-plus-fallback',
+  CATALOG_FALLBACK: 'catalog-fallback',
+});
+
+export const FALLBACK_CANDIDATE_MULTIPLIER = 3;
+export const MAX_FALLBACK_CANDIDATES = 150;
+export const MAX_FALLBACK_EXCLUSIONS = 100;
+
 const EVENT_SELECT =
   '_id user song event_type listened_seconds_delta createdAt';
 const SONG_SELECT =
@@ -18,6 +33,16 @@ const SONG_OUTPUT_FIELDS = Object.freeze([
   'duration', 'duration_seconds', 'release_date', 'language', 'category',
 ]);
 const HOUR_MS = 3600000;
+const FALLBACK_SORT = Object.freeze({ createdAt: -1, _id: 1 });
+const EMPTY_FALLBACK_ACTIVITY = Object.freeze({
+  unique_listener_count: 0,
+  play_started_count: 0,
+  completed_count: 0,
+  replay_started_count: 0,
+  skipped_count: 0,
+  listened_seconds: 0,
+  last_activity_at: null,
+});
 
 const canonicalId = (value) => {
   if (value === null || value === undefined) return null;
@@ -41,6 +66,12 @@ const isPlayable = (song) =>
 
 const isEligible = (song) => song.recommendation_eligible !== false;
 
+const isUsableSong = (song) => Boolean(song)
+  && isEligible(song)
+  && isPlayable(song)
+  && nonEmptyString(song.title)
+  && nonEmptyString(song.artist);
+
 const projectSong = (song) => {
   const output = {};
   for (const field of SONG_OUTPUT_FIELDS) {
@@ -49,6 +80,37 @@ const projectSong = (song) => {
   if (output._id !== undefined) output._id = canonicalId(output._id) ?? output._id;
   return output;
 };
+
+const buildActivityItem = (row, song) => ({
+  basis: TRENDING_ITEM_BASIS.ACTIVITY,
+  score: row.score,
+  activity: {
+    unique_listener_count: row.unique_listener_count,
+    play_started_count: row.play_started_count,
+    completed_count: row.completed_count,
+    replay_started_count: row.replay_started_count,
+    skipped_count: row.skipped_count,
+    listened_seconds: row.listened_seconds,
+    last_activity_at: row.last_activity_at,
+  },
+  song: projectSong(song),
+});
+
+const buildFallbackItem = (song) => ({
+  basis: TRENDING_ITEM_BASIS.CATALOG_FALLBACK,
+  score: null,
+  activity: { ...EMPTY_FALLBACK_ACTIVITY },
+  song: projectSong(song),
+});
+
+const resolveMode = (activityCount, fallbackCount) => {
+  if (activityCount > 0 && fallbackCount > 0) return TRENDING_MODE.ACTIVITY_PLUS_FALLBACK;
+  if (activityCount > 0) return TRENDING_MODE.ACTIVITY;
+  return TRENDING_MODE.CATALOG_FALLBACK;
+};
+
+const normalizePublicLimit = (limit) =>
+  typeof limit === 'number' && Number.isInteger(limit) && limit >= 1 ? limit : 0;
 
 export function createTrendingService({
   ListeningEventModel = ListeningEvent,
@@ -62,6 +124,7 @@ export function createTrendingService({
       if (!(nowDate instanceof Date) || Number.isNaN(nowDate.getTime())) {
         throw new Error(TRENDING_SERVICE_ERROR);
       }
+      const publicLimit = normalizePublicLimit(limit);
       const until = nowDate;
       const since = new Date(nowDate.getTime() - TRENDING_WINDOW_HOURS * HOUR_MS);
 
@@ -83,86 +146,107 @@ export function createTrendingService({
       }
 
       const eventCount = events.length;
-      const baseMeta = {
-        window_hours: TRENDING_WINDOW_HOURS,
-        requested_limit: limit,
-        returned_count: 0,
-        event_count: eventCount,
-        event_input_truncated: eventInputTruncated,
-        candidate_count: 0,
-      };
-
-      if (eventCount === 0) {
-        return { items: [], meta: baseMeta };
+      let ranked = [];
+      if (eventCount > 0) {
+        ranked = scoreTrendingSongs(events, {
+          now: nowDate,
+          limit: MAX_TRENDING_LIMIT,
+        });
+        if (!Array.isArray(ranked)) throw new Error(TRENDING_SERVICE_ERROR);
       }
 
-      const ranked = scoreTrendingSongs(events, {
-        now: nowDate,
-        limit: MAX_TRENDING_LIMIT,
-      });
-      if (!Array.isArray(ranked)) throw new Error(TRENDING_SERVICE_ERROR);
-
-      baseMeta.candidate_count = ranked.length;
-      if (ranked.length === 0) {
-        return { items: [], meta: baseMeta };
-      }
-
-      const songIds = [...new Set(
+      const rankedExclusions = [...new Set(
         ranked
           .map((row) => canonicalId(row?.song_id))
           .filter(Boolean),
-      )];
-      if (songIds.length === 0) {
-        return { items: [], meta: baseMeta };
+      )].slice(0, MAX_FALLBACK_EXCLUSIONS);
+
+      const activityItems = [];
+      if (ranked.length > 0) {
+        const songIds = [...new Set(
+          ranked
+            .map((row) => canonicalId(row?.song_id))
+            .filter(Boolean),
+        )];
+        if (songIds.length > 0) {
+          const songDocs = await SongModel.find({ _id: { $in: songIds } })
+            .select(SONG_SELECT)
+            .lean();
+          if (!Array.isArray(songDocs)) throw new Error(TRENDING_SERVICE_ERROR);
+
+          const songMap = new Map();
+          for (const doc of songDocs) {
+            const key = canonicalId(doc?._id);
+            if (key) songMap.set(key, doc);
+          }
+
+          for (const row of ranked) {
+            const key = canonicalId(row?.song_id);
+            if (!key) continue;
+            const song = songMap.get(key);
+            if (!isUsableSong(song)) continue;
+            activityItems.push(buildActivityItem(row, song));
+          }
+        }
       }
 
-      const songDocs = await SongModel.find({ _id: { $in: songIds } })
-        .select(SONG_SELECT)
-        .lean();
-      if (!Array.isArray(songDocs)) throw new Error(TRENDING_SERVICE_ERROR);
+      let finalActivity = activityItems;
+      let fallbackItems = [];
+      if (publicLimit > 0 && activityItems.length < publicLimit) {
+        const remainingSlots = publicLimit - activityItems.length;
+        const candidateLimit = Math.min(
+          remainingSlots * FALLBACK_CANDIDATE_MULTIPLIER,
+          MAX_FALLBACK_CANDIDATES,
+        );
+        const fallbackFilter = {};
+        if (rankedExclusions.length > 0) {
+          fallbackFilter._id = { $nin: rankedExclusions };
+        }
+        const fallbackDocs = await SongModel.find(fallbackFilter)
+          .sort({ ...FALLBACK_SORT })
+          .limit(candidateLimit)
+          .select(SONG_SELECT)
+          .lean();
+        if (!Array.isArray(fallbackDocs)) throw new Error(TRENDING_SERVICE_ERROR);
 
-      const songMap = new Map();
-      for (const doc of songDocs) {
-        const key = canonicalId(doc?._id);
-        if (key) songMap.set(key, doc);
+        const seen = new Set(finalActivity.map((item) => item.song._id));
+        for (const doc of fallbackDocs) {
+          if (fallbackItems.length >= remainingSlots) break;
+          const key = canonicalId(doc?._id);
+          if (!key || seen.has(key)) continue;
+          if (!isUsableSong(doc)) continue;
+          seen.add(key);
+          fallbackItems.push(buildFallbackItem(doc));
+        }
+      } else if (publicLimit > 0) {
+        finalActivity = activityItems.slice(0, publicLimit);
       }
 
-      const eligible = [];
-      for (const row of ranked) {
-        const key = canonicalId(row?.song_id);
-        if (!key) continue;
-        const song = songMap.get(key);
-        if (!song) continue;
-        if (!isEligible(song)) continue;
-        if (!isPlayable(song)) continue;
-        if (!nonEmptyString(song.title) || !nonEmptyString(song.artist)) continue;
-        eligible.push({ row, song });
-      }
-
-      const limited = typeof limit === 'number' && Number.isInteger(limit) && limit >= 1
-        ? eligible.slice(0, limit)
-        : eligible;
-
-      const items = limited.map(({ row, song }, index) => ({
+      const combined = publicLimit > 0
+        ? [...finalActivity, ...fallbackItems].slice(0, publicLimit)
+        : [...finalActivity, ...fallbackItems];
+      const items = combined.map((item, index) => ({
         rank: index + 1,
-        score: row.score,
-        activity: {
-          unique_listener_count: row.unique_listener_count,
-          play_started_count: row.play_started_count,
-          completed_count: row.completed_count,
-          replay_started_count: row.replay_started_count,
-          skipped_count: row.skipped_count,
-          listened_seconds: row.listened_seconds,
-          last_activity_at: row.last_activity_at,
-        },
-        song: projectSong(song),
+        ...item,
       }));
+
+      const activityCount = items.filter(
+        (item) => item.basis === TRENDING_ITEM_BASIS.ACTIVITY,
+      ).length;
+      const fallbackCount = items.length - activityCount;
 
       return {
         items,
         meta: {
-          ...baseMeta,
+          window_hours: TRENDING_WINDOW_HOURS,
+          requested_limit: limit,
           returned_count: items.length,
+          event_count: eventCount,
+          event_input_truncated: eventInputTruncated,
+          candidate_count: ranked.length,
+          mode: resolveMode(activityCount, fallbackCount),
+          activity_count: activityCount,
+          fallback_count: fallbackCount,
         },
       };
     } catch {

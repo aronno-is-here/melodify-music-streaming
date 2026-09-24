@@ -19,6 +19,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Factual user preference aggregation (18/43)** — bounded internal per-song and artist/genre/language summaries combine windowed listening with current explicit evidence; no recommendation scoring or active AI recommendations
 - **Transparent Trending score engine (19/43)** — pure global ranking of recent ListeningEvent activity over a fixed 7-day window with 24-hour half-life decay and documented coefficients; **not AI**, not personalized; no API, UI, fallback, or ML yet
 - **Authenticated Trending API (20/43)** — `GET /api/trending` behind login (`protect`) and `RECOMMENDATION_TRENDING_ENABLED`; strict `limit` query only (default 10, max 50); bounded 7-day ListeningEvent read (50,000-row cap with observable truncation), engine ranking + Song eligibility/playability filters; empty list is 200; **not AI**, no personalization, no Dashboard UI yet
+- **Trending sparse-data fallback (21/43)** — when activity-ranked songs do not fill the public `limit`, one bounded catalog top-up query (`createdAt` DESC, `_id` ASC) appends playable recommendation-eligible songs marked `basis: "catalog-fallback"` with `score: null` and zeroed activity metrics; activity always ranks first with contiguous `1..N` ranks; meta `mode`/`activity_count`/`fallback_count`; deterministic, **not** AI/personalized/random/popularity evidence; still no Dashboard UI
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -82,7 +83,7 @@ Melodify - Music Streaming Website/
 │   ├── services/explicitPreferenceSignalService.js # Bounded current Favorite/Playlist evidence (17/43)
 │   ├── services/userPreferenceAggregationService.js # Windowed factual user evidence profiles (18/43)
 │   ├── services/trendingScoreEngine.js # Pure global Trending score engine (19/43)
-│   ├── services/trendingService.js  # Authenticated Trending load/filter/reconstruct service (20/43)
+│   ├── services/trendingService.js  # Authenticated Trending load/filter/fallback service (20–21/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
 │   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events, /api/trending
 ├── client/                        # React + Vite frontend
@@ -245,7 +246,7 @@ node --test client/src/context/listeningTelemetry.test.js
 - Natural YouTube/HTML completion remains `completed`, never `skipped`. Automatic advance and error recovery carry no manual skip reason. A different auto-advanced song waits for confirmed playback before its fresh `play-started`.
 - Only confirmed playback of the same current track after natural completion emits `replay-started` with reason `repeat`, retaining `session_id` and continuing sequence numbers. Repeat toggle, reload request, and seek-to-zero alone emit no replay. Each confirmed replay resets the progress baseline and active/paused state, supporting subsequent progress, pause/resume, seek, completion, and multiple replay cycles. A skipped track selected again starts a fresh session instead.
 - Previous still wraps to the prior entry with no time-threshold restart rule. If a one-song list, shuffle, or direct selection reloads the same active song, it is not a skip or replay: an active reload is observed as a seek to zero when a valid position is available; a paused reload resets its baseline on confirmed resume. Restart behavior is otherwise unchanged; unavailable media positions cannot supply a seek observation.
-- Skip/replay sends share the existing serialized queue, never block playback/navigation/repeat, and have no retries or user-visible failure UI. Runtime 503 disables later listening-event sends while history remains independent. Neither skip nor same-session replay adds a PlayHistory write; a newly confirmed session records history once. Recommendation ranking and ML remain unimplemented; transparent Trending scoring exists only as the pure 19/43 engine (no API/UI yet).
+- Skip/replay sends share the existing serialized queue, never block playback/navigation/repeat, and have no retries or user-visible failure UI. Runtime 503 disables later listening-event sends while history remains independent. Neither skip nor same-session replay adds a PlayHistory write; a newly confirmed session records history once. Recommendation ranking and ML remain unimplemented; transparent Trending scoring lives in the pure 19/43 engine, exposed by the 20/43 authenticated API with 21/43 catalog fallback (no Dashboard UI yet).
 
 ### Current Favorite and Playlist evidence (17/43)
 
@@ -276,7 +277,7 @@ The result contains `window`, `songs`, `genres`, `artists`, `languages`, `counts
 - Artist, genre, and language groups contain `key`, `label`, distinct `song_count`, summed `listened_seconds`, per-song `session_count`, completion/skip/replay counts, distinct `favorite_song_count`, summed `playlist_membership_count`, and latest server `last_event_at`. Labels come from the lowest-ID contributing song. Profile `counts` contains surviving valid `listening_event_count`, `song_count`, `active_favorite_count`, `playlist_membership_count`, `total_listened_seconds`, `completed_count`, `skipped_count`, and `replay_count`.
 - Songs sort by canonical song ID; groups by key; playlist IDs lexically. `truncated.listeningEvents` reports source-row overflow before validity/stale filtering. `explicitFavorites`, `explicitPlaylists`, and `explicitMemberships` propagate 17/43's independent flags, including its conservative raw-membership scan limit. Unexpected query/service failures become the fixed `User preference aggregation failed` error without the original cause.
 
-This is read/derive-only factual aggregation: no numeric recommendation weights or scores, ranking, training, new model, persistence, API, or client behavior was added. AI recommendations are not active; transparent Trending scoring lives in the pure 19/43 engine without API or UI.
+This is read/derive-only factual aggregation: no numeric recommendation weights or scores, ranking, training, new model, persistence, API, or client behavior was added. AI recommendations are not active; transparent Trending scoring lives in the pure 19/43 engine, served by the 20/43 API with 21/43 catalog fallback (no Dashboard UI yet).
 
 ```bash
 node --test server/services/userPreferenceAggregationService.test.js
@@ -307,9 +308,9 @@ Fixed exported constants and formula:
 - **Window / recency:** only server `createdAt` in `[now − 168h, now]` contributes; older and future rows are ignored; `client_occurred_at` never controls recency. `trendingDecay(ageHours) = 0.5 ** (ageHours / 24)` (0h → 1, 24h → 0.5, 48h → 0.25).
 - **Per-event contribution:** `(eventTypeBaseWeight + listenedMinutes × 0.25) × decay(ageHours)`. Base weights apply only to `play-started`, `completed`, `replay-started`, `skipped`; `progress`/`paused`/`resumed`/`seeked`/`stopped` get no base weight and no invented `stopped` penalty. Only stored finite `listened_seconds_delta` in **[0, 120]** counts (malformed legacy values are ignored, never clamped into validity). Position, seek distance, and wall-clock gaps never fabricate listening.
 - **Per-user/song anti-spam cap:** summed decayed event contributions for each `user + song` are clamped to **[-3, 8]** (abuse-resistance / concentration-control — not ML), then the one unique-listener term is added. Each user contributes at most one `0.5 × decay(age of most recent play-started|replay-started)` term per song (`unique_listener_count` = distinct users with such a start). Repeating a song 20× does not count as 20 listeners.
-- **Final score:** `max(0, sum over users of (clamp(eventSum) + uniqueListenerTerm))`. Scores are ranked at full floating-point precision, then rounded to **6 decimal places** for output only. Zero-score songs are omitted (no fallback — 21/43 owns that). Tie-break order: internal score DESC → `unique_listener_count` DESC → `last_activity_at` DESC → `song_id` ASC. Identical input + `now` ⇒ deep-equal output.
+- **Final score:** `max(0, sum over users of (clamp(eventSum) + uniqueListenerTerm))`. Scores are ranked at full floating-point precision, then rounded to **6 decimal places** for output only. Zero-score songs are omitted (the engine never invents fallback songs — 21/43 owns service-level catalog top-up). Tie-break order: internal score DESC → `unique_listener_count` DESC → `last_activity_at` DESC → `song_id` ASC. Identical input + `now` ⇒ deep-equal output.
 - **Output rows only:** `{ song_id, score, unique_listener_count, play_started_count, completed_count, replay_started_count, skipped_count, listened_seconds, last_activity_at }` — no user/session/event IDs, emails, tokens, raw events, `recommendation_score`, or `preference_score`. Counts and `listened_seconds` are factual non-decayed totals inside the window; `last_activity_at` is the latest server `createdAt` ISO string. Malformed rows (bad user/song/type/time) are ignored without failing valid rows. Canonical IDs: ObjectId-like / 24-hex strings / populated `{ _id }` only — arbitrary objects are never stringified.
-- **Not present yet:** no Dashboard UI, no personalization, no Favorite/Playlist imports in ranking, no fallback, no Python/ML. 21/43 hardens ranking/fallback; 22/43 adds Dashboard Trending Now. **Do not label Trending as AI.**
+- **Not present yet:** no Dashboard UI, no personalization, no Favorite/Playlist imports in ranking, no Python/ML in the engine itself. Service-level catalog fallback (21/43) lives only in `trendingService`; 22/43 adds Dashboard Trending Now. **Do not label Trending as AI.**
 
 ```bash
 node --test server/services/trendingScoreEngine.test.js
@@ -317,7 +318,7 @@ node --check server/services/trendingScoreEngine.js
 node --check server/services/trendingScoreEngine.test.js
 ```
 
-### Authenticated Trending API (20/43)
+### Authenticated Trending API with catalog fallback (20–21/43)
 
 `GET /api/trending` is mounted from `server/routes/trendingRoutes.js` (protect → `recommendationConfig.trendingEnabled` → parser → service). It is a **global** activity ranking for signed-in users; `req.user` is never passed into ranking. **Trending is not AI.**
 
@@ -328,13 +329,16 @@ node --check server/services/trendingScoreEngine.test.js
 | Query | only `limit` (integer **1–50**, default **10**); any other key or malformed value → **400** `Invalid trending query` |
 | Window | one injected `now`; server `createdAt` in `[now − 168h, now]`; sort `createdAt` desc, `_id` desc; lookahead **50,001** |
 | Overflow | if 50,001 rows return, drop the oldest lookahead row → retain **50,000**, `meta.event_input_truncated: true`, `event_count: 50000` (never passes 50,001 to the engine) |
-| Engine | exactly one `scoreTrendingSongs(events, { now, limit: 100 })` call per non-empty request; empty events or empty ranking skip Song lookup |
-| Song load | at most one `$in` query; drops missing docs, `recommendation_eligible === false` (legacy absent = eligible), unplayable (`youtube_id` and `file_path` both empty), and blank `title`/`artist` |
+| Engine | exactly one `scoreTrendingSongs(events, { now, limit: 100 })` call when events exist; zero events skip the engine |
+| Song load | at most one `$in` query when the engine ranked songs; drops missing docs, `recommendation_eligible === false` (legacy absent = eligible), unplayable (`youtube_id` and `file_path` both empty), and blank `title`/`artist` (shared with fallback) |
 | Order / limit | engine rank order preserved through filtering; public `limit` applied last; ranks renumbered `1..N` with no gaps |
-| Empty | `items: []` is HTTP **200** (never 404, never fallback songs) |
-| Failure | service throws fixed `Trending loading failed`; route returns fixed **500** `Unable to load Trending songs` (no raw DB/stack leak) |
+| Fallback (21/43) | if filtered activity items `< limit`, **one** additional Song query tops up from the playable eligible catalog sorted `createdAt` DESC, `_id` ASC; candidate read = `min(remaining × 3, 150)`; excludes ranked candidate IDs via `$nin` (max 100); no pagination, no second query |
+| Basis / mode | each item carries `basis: "activity"` or `"catalog-fallback"`; meta `mode` ∈ `activity` \| `activity-plus-fallback` \| `catalog-fallback` plus `activity_count` / `fallback_count` (`returned_count = activity_count + fallback_count`) |
+| Fallback item shape | same 12-field `song` as activity; `score: null`; activity block all zeros / `last_activity_at: null`; never invented popularity score |
+| Empty | activity-only empty list is HTTP **200**; with sparse/zero activity the service still returns HTTP **200** (empty `items` only if the catalog is also empty — never 404) |
+| Failure | service throws fixed `Trending loading failed` (including sanitized fallback-query failure); route returns fixed **500** `Unable to load Trending songs` (no raw DB/stack leak) |
 
-Success body: `{ "success": true, "data": { "items": [ { "rank", "score", "activity": { unique_listener_count, play_started_count, completed_count, replay_started_count, skipped_count, listened_seconds, last_activity_at }, "song": { _id, title, artist, genre, youtube_id, file_path, poster_url, duration, duration_seconds, release_date, language, category } } ], "meta": { window_hours: 168, requested_limit, returned_count, event_count, event_input_truncated, candidate_count } } }`. Items never include user/session/event IDs, emails, tokens, or raw Mongo documents.
+Success body: `{ "success": true, "data": { "items": [ { "rank", "basis", "score", "activity": { unique_listener_count, play_started_count, completed_count, replay_started_count, skipped_count, listened_seconds, last_activity_at }, "song": { _id, title, artist, genre, youtube_id, file_path, poster_url, duration, duration_seconds, release_date, language, category } } ], "meta": { window_hours: 168, requested_limit, returned_count, event_count, event_input_truncated, candidate_count, mode, activity_count, fallback_count } } }. Items never include user/session/event IDs, emails, tokens, raw Mongo documents, or internal `createdAt`. Activity items always precede fallback items; ranks stay contiguous across the combined list.
 
 ```bash
 node --test server/utils/trendingRequest.test.js server/routes/trendingRoutes.test.js server/services/trendingService.test.js
