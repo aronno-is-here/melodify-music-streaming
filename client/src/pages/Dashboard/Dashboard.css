@@ -1576,3 +1576,72 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
 }
 .new-pl-chip button:hover { color: #dc3545; }
 
+/* Trending Now section (22/43) */
+.trending-container {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.trending-container h2 {
+  font-size: 22px;
+  font-family: "Roboto", sans-serif;
+  color: var(--white);
+  margin-bottom: 10px;
+}
+
+.trending-status {
+  color: var(--gray);
+  font-size: 14px;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.trending-grid {
+  align-items: flex-start;
+}
+
+.trending-item {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.trending-item:focus-visible {
+  outline: 2px solid var(--sky-blue);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.trending-poster-wrapper {
+  display: block;
+  width: 150px;
+}
+
+.trending-item .play-button {
+  pointer-events: none;
+}
+
+.trending-item:hover .play-button,
+.trending-item:focus-visible .play-button {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.trending-item .song-info {
+  display: block;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .trending-poster-wrapper {
+    width: 120px;
+  }
+}
+

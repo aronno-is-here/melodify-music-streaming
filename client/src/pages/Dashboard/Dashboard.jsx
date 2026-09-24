@@ -6,6 +6,15 @@ import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
 import cssRaw from './Dashboard.css?raw';
 import FullScreenPlayer from './FullScreenPlayer.jsx';
 import LyricsChordsPanel from './LyricsChordsPanel.jsx';
+import {
+  TRENDING_REQUEST_PATH,
+  TRENDING_LOADING_MESSAGE,
+  TRENDING_EMPTY_MESSAGE,
+  TRENDING_ERROR_MESSAGE,
+  normalizeTrendingResponse,
+  buildTrendingSongs,
+  classifyTrendingResult,
+} from './trendingUi.js';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
 
@@ -24,6 +33,8 @@ export default function Dashboard() {
   const [songs, setSongs] = useState([]);
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [history, setHistory] = useState([]);
+  const [trendingStatus, setTrendingStatus] = useState('loading');
+  const [trendingItems, setTrendingItems] = useState([]);
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
@@ -99,6 +110,38 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadTrending = async () => {
+      try {
+        const data = await api.get(TRENDING_REQUEST_PATH);
+        if (cancelled) return;
+        const kind = classifyTrendingResult(data);
+        if (kind === 'disabled') {
+          setTrendingStatus('disabled');
+          setTrendingItems([]);
+          return;
+        }
+        if (kind !== 'ok') {
+          setTrendingStatus('error');
+          setTrendingItems([]);
+          return;
+        }
+        const { items } = normalizeTrendingResponse(data);
+        if (cancelled) return;
+        setTrendingItems(items);
+        setTrendingStatus(items.length > 0 ? 'ready' : 'empty');
+      } catch {
+        if (!cancelled) {
+          setTrendingStatus('error');
+          setTrendingItems([]);
+        }
+      }
+    };
+    loadTrending();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     const term = search.toLowerCase();
     if (!term) {
       setFilteredSongs(songs);
@@ -148,6 +191,18 @@ export default function Dashboard() {
       player.togglePlay();
     } else {
       player.playSong(list, songIndex);
+    }
+  };
+
+  const trendingSongs = buildTrendingSongs(trendingItems);
+
+  const playTrendingSong = (index) => {
+    const song = trendingSongs[index];
+    if (!song) return;
+    if (player.currentSong?._id === song._id) {
+      player.togglePlay();
+    } else {
+      player.playSong(trendingSongs, index);
     }
   };
 
@@ -619,6 +674,49 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              {trendingStatus !== 'disabled' && (
+                <div className="trending-container" aria-busy={trendingStatus === 'loading'}>
+                  <h2>Trending Now</h2>
+                  {trendingStatus === 'loading' && (
+                    <p className="trending-status" role="status">{TRENDING_LOADING_MESSAGE}</p>
+                  )}
+                  {trendingStatus === 'ready' && (
+                    <div className="recent-grid trending-grid" role="list">
+                      {trendingItems.map((item, index) => (
+                        <button
+                          type="button"
+                          className="song-item recent-item trending-item"
+                          key={item.song._id}
+                          role="listitem"
+                          onClick={() => playTrendingSong(index)}
+                        >
+                          <span className="song-poster-wrapper trending-poster-wrapper">
+                            <img
+                              className="song-poster"
+                              src={item.song.poster_url || DEFAULT_POSTER}
+                              alt={`${item.song.title} Poster`}
+                              onError={(e) => { e.target.src = DEFAULT_POSTER; }}
+                            />
+                            <span className="play-button" aria-hidden="true">
+                              <i className="fa-solid fa-play"></i>
+                            </span>
+                          </span>
+                          <span className="song-info">
+                            <span className="song-name">{item.song.title}</span>
+                            <span className="artist-name">{item.song.artist}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {trendingStatus === 'empty' && (
+                    <p className="trending-status" role="status">{TRENDING_EMPTY_MESSAGE}</p>
+                  )}
+                  {trendingStatus === 'error' && (
+                    <p className="trending-status" role="status">{TRENDING_ERROR_MESSAGE}</p>
+                  )}
+                </div>
+              )}
               <div className="search-container">
                 <div className="search-bar">
                   <i className="fa-solid fa-magnifying-glass"></i>
