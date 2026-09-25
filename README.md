@@ -14,7 +14,9 @@ A full-featured music streaming web application with user authentication, a song
 - **Stale access-token invalidation (06/43)** — access tokens issued before a user's `passwordChangedAt` are rejected with the generic 401; tokens issued at or after that time remain valid (same-second tokens count as fresh). Password change and reset flows update `passwordChangedAt`; signup and fresh logins are unaffected.
 - **Modern authenticated app shell** — `/dashboard`, `/search`, `/library`, `/profile`, `/playlist/:id`, `/song/:id`, `/feed`, `/studio`, and `/user/:id` share a responsive shell with a fixed top bar, desktop sidebar navigation, mobile bottom navigation, and a persistent global player bar/mini-player
 - **Song library and discovery views** — dedicated Search and Library routes plus a redesigned Dashboard discovery flow (Continue Listening, Trending Now, Recommended For You, Recently Added, Quick Picks, genre/artist mixes, and fast library access)
+- **Provider-backed catalog search** — authenticated `/api/catalog/search` powers Search with regional filter chips (Bangla, Kolkata Bengali, Hindi, English), merged local/external results, lazy `/api/catalog/import` before external play/favorite so actions resolve to canonical Song IDs, and Library/External source badges
 - **Modernized social + creator pages (B02B)** — `/feed`, `/studio`, and `/user/:id` now use the shared design system and shell contracts with responsive layouts, dialog-driven secondary actions, and global-player-safe playback behavior
+- **Melodify Studio** (`/studio`) — regional karaoke discovery (Bangla, Kolkata Bengali, Hindi, English) with provider-backed search, deterministic dedupe, and classified tracks: `KARAOKE_READY` (direct backing mix) or `SING_ALONG` (provider backing with synchronized mic recording)
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history; written once on confirmed playback start, not on click)
 - **Confirmed-playback telemetry (15–16/43)** — authenticated clients emit playback lifecycle evidence to `POST /api/listening-events` after real media confirmation, including manual `skipped` and same-session confirmed `replay-started`; 15s throttled progress with seek-safe listened-delta ≤120s; serialized queue; 503 runtime disable with no retry/toast/blocking
 - **Explicit preference evidence foundation (17/43)** — bounded internal loader derives current positive evidence from song Favorites and user-owned playlist memberships, deduplicates within each source, and filters deleted Song references; no numeric recommendation weights
@@ -58,7 +60,7 @@ A full-featured music streaming web application with user authentication, a song
 - Dedicated admin login (demo credentials, see below)
 - Dashboard with analytics cards (users, songs, plays, revenue)
 - User management (search, edit, ban)
-- Music catalog management (add songs)
+- Music catalog management (add songs + edit lyrics/chords verification metadata)
 - Content moderation (resolve reports)
 - Subscription & payment management
 - System settings
@@ -114,7 +116,7 @@ Melodify - Music Streaming Website/
 │   ├── services/personalizedRecommendationService.js # Snapshot→Song availability loader (35/43)
 │   ├── services/adminRecommendationMetricsService.js # Latest evaluation-run projection for Admin metrics (38/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
-│   ├── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin, /api/listening-events, /api/trending, /api/recommendations, /api/admin/recommendations/metrics
+│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/catalog, /api/admin, /api/listening-events, /api/trending, /api/recommendations, /api/admin/recommendations/metrics
 ├── client/                        # React + Vite frontend
 │   ├── src/pages/                 # One folder per page (React)
 │   │   ├── Home/                  # Landing page
@@ -196,7 +198,25 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-### 5. Run the karaoke app (optional)
+### 5. Optional catalog content audit
+```bash
+cd server
+npm run audit:catalog-content
+```
+
+### 6. Optional regional catalog import (bounded)
+```bash
+cd server
+npm run catalog:import-region -- --region bn-bd --import-limit 10 --dry-run
+```
+
+### 7. Optional lyrics prefetch (bounded)
+```bash
+cd server
+npm run lyrics:prefetch -- --limit 25 --dry-run
+```
+
+### 8. Run the karaoke app (optional)
 ```bash
 cd karaoke-app/server
 npm install
@@ -1024,7 +1044,10 @@ ADMIN_PASSWORD=your-strong-password
 ## ⚠️ Important Notes
 
 - **Songs stream from YouTube** — the 14 seeded songs play through the YouTube IFrame API (each has a `youtube_id` + official YouTube thumbnail poster), so no local MP3 files are needed for them. Local files are only used for songs uploaded by users (`assets/songs/uploads/`, not tracked in git).
+- **Studio recording modes** — `MIXED` recordings include microphone + direct local backing in one file, while `COMPOSITE` recordings keep microphone audio in the file and synchronize provider backing separately (no iframe/audio ripping or provider capture).
+- **Studio metadata compatibility** — legacy recordings without synchronization metadata continue to work; new recordings may include `recordingMode`, backing provider identifiers, and start-offset metadata for synchronized playback.
 - **YouTube thumbnails** are fetched from `https://img.youtube.com/vi/<youtube_id>/hqdefault.jpg` at seed time and stored as `poster_url`; the UI falls back to a placeholder if a thumbnail ever fails to load.
+- **Provider-backed discovery requirement** — external catalog discovery/import depends on server provider configuration (`YOUTUBE_API_KEY`); when not configured, search falls back to local catalog-only behavior.
 - The old PHP + MySQL implementation (including `all_data.sql`) and the former static pages (`playlist/`, `song-details/`, `premium/`) are archived in `legacy/` for reference.
 - **All pages are now dynamic React pages** — no dummy/static content remains in the app; Playlist, Song Details, and Premium are fully backed by the API.
 - This is a university/project build; some admin actions (ban, edit, delete) are demo stubs.

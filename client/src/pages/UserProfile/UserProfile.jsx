@@ -343,10 +343,15 @@ export default function UserProfile() {
               {recordings.map((recording) => (
                 <article key={recording._id} className="up-recording-card">
                   <header>
-                    {recording.karaoke?.poster_url ? <img src={recording.karaoke.poster_url} alt="" /> : null}
+                    {(recording.karaoke?.poster_url || recording.backingSong?.poster_url) ? (
+                      <img src={recording.karaoke?.poster_url || recording.backingSong?.poster_url} alt="" />
+                    ) : null}
                     <div>
                       <h3>{recording.title}</h3>
-                      <p>{recording.karaoke?.title} - {recording.karaoke?.artist}</p>
+                      <p>
+                        {recording.karaoke?.title || recording.backingSong?.title || 'Unknown track'} -{' '}
+                        {recording.karaoke?.artist || recording.backingSong?.artist || 'Unknown artist'}
+                      </p>
                       {recording.effects?.preset ? <small>Effect: {recording.effects.preset}</small> : null}
                     </div>
                     <span>{recording.visibility}</span>

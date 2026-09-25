@@ -254,6 +254,30 @@ th {
 .form-divider::before { left: 0; }
 .form-divider::after { right: 0; }
 
+.admin-multiline-input {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.admin-verify-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.admin-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+  color: #cbe7ee;
+  font-size: 13px;
+}
+
+.admin-checkbox-row input {
+  width: auto;
+}
+
 .stat-card {
   text-align: center;
   padding: 15px !important;

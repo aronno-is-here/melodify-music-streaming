@@ -115,3 +115,69 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Scoped themed scrollbars for section scroll containers. */
+.scroll-grid,
+.recent-grid,
+.playlist-list,
+.music-row-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 182, 225, 0.75) rgba(255, 255, 255, 0.06);
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-grid,
+.recent-grid,
+.playlist-list,
+.playlist-add-results,
+.playlist-create-modal,
+.new-pl-results {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 182, 225, 0.75) rgba(255, 255, 255, 0.06);
+}
+
+.scroll-grid::-webkit-scrollbar,
+.recent-grid::-webkit-scrollbar,
+.playlist-list::-webkit-scrollbar,
+.music-row-scroll::-webkit-scrollbar,
+.playlist-add-results::-webkit-scrollbar,
+.playlist-create-modal::-webkit-scrollbar,
+.new-pl-results::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scroll-grid::-webkit-scrollbar-track,
+.recent-grid::-webkit-scrollbar-track,
+.playlist-list::-webkit-scrollbar-track,
+.music-row-scroll::-webkit-scrollbar-track,
+.playlist-add-results::-webkit-scrollbar-track,
+.playlist-create-modal::-webkit-scrollbar-track,
+.new-pl-results::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.scroll-grid::-webkit-scrollbar-thumb,
+.recent-grid::-webkit-scrollbar-thumb,
+.playlist-list::-webkit-scrollbar-thumb,
+.music-row-scroll::-webkit-scrollbar-thumb,
+.playlist-add-results::-webkit-scrollbar-thumb,
+.playlist-create-modal::-webkit-scrollbar-thumb,
+.new-pl-results::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0, 180, 216, 0.78) 0%, rgba(59, 130, 246, 0.78) 100%);
+  border-radius: 999px;
+  border: 1px solid rgba(9, 20, 31, 0.75);
+}
+
+.scroll-grid::-webkit-scrollbar-thumb:hover,
+.recent-grid::-webkit-scrollbar-thumb:hover,
+.playlist-list::-webkit-scrollbar-thumb:hover,
+.music-row-scroll::-webkit-scrollbar-thumb:hover,
+.playlist-add-results::-webkit-scrollbar-thumb:hover,
+.playlist-create-modal::-webkit-scrollbar-thumb:hover,
+.new-pl-results::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(49, 201, 236, 0.9) 0%, rgba(96, 165, 250, 0.9) 100%);
+}

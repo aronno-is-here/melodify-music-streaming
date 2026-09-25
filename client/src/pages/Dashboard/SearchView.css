@@ -108,3 +108,48 @@
     grid-template-columns: 1fr;
   }
 }
+
+.search-region-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.search-region-chip {
+  border: 1px solid var(--mel-border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--mel-text-soft);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.search-region-chip.active {
+  border-color: rgba(0, 180, 216, 0.6);
+  color: #d2f7ff;
+  background: rgba(0, 180, 216, 0.18);
+}
+
+.search-feedback {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--mel-text-soft);
+}
+
+.song-source-badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(127, 230, 255, 0.45);
+  background: rgba(0, 0, 0, 0.56);
+  color: #7fe6ff;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.song-source-badge.external {
+  border-color: rgba(251, 191, 36, 0.55);
+  color: #ffe28a;
+}

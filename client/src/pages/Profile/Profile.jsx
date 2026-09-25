@@ -270,12 +270,19 @@ export default function Profile() {
               {recordings.map((recording) => (
                 <article key={recording._id} className="profile-recording-card">
                   <header>
-                    {recording.karaoke?.poster_url ? (
-                      <img src={recording.karaoke.poster_url} alt="" className="profile-recording-art" />
+                    {(recording.karaoke?.poster_url || recording.backingSong?.poster_url) ? (
+                      <img
+                        src={recording.karaoke?.poster_url || recording.backingSong?.poster_url}
+                        alt=""
+                        className="profile-recording-art"
+                      />
                     ) : null}
                     <div>
                       <h3>{recording.title}</h3>
-                      <p>{recording.karaoke?.title} - {recording.karaoke?.artist}</p>
+                      <p>
+                        {recording.karaoke?.title || recording.backingSong?.title || 'Unknown track'} -{' '}
+                        {recording.karaoke?.artist || recording.backingSong?.artist || 'Unknown artist'}
+                      </p>
                       <small>
                         {recording.effects?.preset ? `Effect: ${recording.effects.preset}` : 'No effect preset'}
                         {recording.duration > 0 ? ` • ${Math.floor(recording.duration / 60)}:${String(recording.duration % 60).padStart(2, '0')}` : ''}

@@ -30,6 +30,46 @@ const STEP_ITEMS = Object.freeze([
   { key: STEPS.PUBLISH, label: 'Publish' },
 ]);
 
+const DISCOVERY_PAGE_SIZE = 12;
+const DISCOVERY_REGION_OPTIONS = [
+  { id: '', label: 'All' },
+  { id: 'bn-bd', label: 'Bangla' },
+  { id: 'bn-in', label: 'Kolkata Bengali' },
+  { id: 'hi-in', label: 'Hindi' },
+  { id: 'en', label: 'English' },
+];
+
+const getPosterUrl = (song) => song?.posterUrl || song?.poster_url || 'https://picsum.photos/120/120?random';
+const YOUTUBE_API_URL = 'https://www.youtube.com/iframe_api';
+let youtubeApiPromise = null;
+
+const loadYoutubeApi = () => {
+  if (typeof window === 'undefined') return Promise.reject(new Error('youtube api unavailable'));
+  if (window.YT && typeof window.YT.Player === 'function') {
+    return Promise.resolve(window.YT);
+  }
+  if (youtubeApiPromise) return youtubeApiPromise;
+
+  youtubeApiPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-melodify-youtube-api="1"]');
+    const script = existing || document.createElement('script');
+    if (!existing) {
+      script.src = YOUTUBE_API_URL;
+      script.async = true;
+      script.setAttribute('data-melodify-youtube-api', '1');
+      script.onerror = () => reject(new Error('youtube api failed to load'));
+      document.head.appendChild(script);
+    }
+    const previous = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof previous === 'function') previous();
+      resolve(window.YT);
+    };
+  });
+
+  return youtubeApiPromise;
+};
+
 function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -49,6 +89,11 @@ export default function MelodifyStudio() {
 
   const [karaokeTracks, setKaraokeTracks] = useState([]);
   const [songQuery, setSongQuery] = useState('');
+  const [discoveryRegion, setDiscoveryRegion] = useState('');
+  const [discoveryPage, setDiscoveryPage] = useState(1);
+  const [discoveryPages, setDiscoveryPages] = useState(1);
+  const [discoveryExternalState, setDiscoveryExternalState] = useState('skipped');
+  const [discoveryError, setDiscoveryError] = useState('');
   const [searching, setSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [step, setStep] = useState(STEPS.SELECT);
@@ -57,17 +102,23 @@ export default function MelodifyStudio() {
   const [recordTime, setRecordTime] = useState(0);
   const [recordBlob, setRecordBlob] = useState(null);
   const [recordUrl, setRecordUrl] = useState('');
+  const [recordingMeta, setRecordingMeta] = useState(null);
   const [micPermission, setMicPermission] = useState('prompt');
   const [recordingError, setRecordingError] = useState('');
 
   const [effects, setEffects] = useState({ ...EFFECTS_PRESETS.clean });
   const [activePreset, setActivePreset] = useState('clean');
+  const [backingVolume, setBackingVolume] = useState(0.9);
+  const [vocalGain, setVocalGain] = useState(1);
 
   const [postTitle, setPostTitle] = useState('');
   const [postCaption, setPostCaption] = useState('');
   const [postVisibility, setPostVisibility] = useState('public');
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState('');
+  const [uploadState, setUploadState] = useState('idle');
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadStatusText, setUploadStatusText] = useState('');
 
   const [lyrics, setLyrics] = useState('');
 
@@ -76,6 +127,9 @@ export default function MelodifyStudio() {
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
   const gainNodeRef = useRef(null);
+  const backingSourceNodeRef = useRef(null);
+  const backingSpeakerGainRef = useRef(null);
+  const backingRecorderGainRef = useRef(null);
   const convolverRef = useRef(null);
   const delayNodeRef = useRef(null);
   const delayGainRef = useRef(null);
@@ -83,7 +137,21 @@ export default function MelodifyStudio() {
   const trebleFilterRef = useRef(null);
   const streamRef = useRef(null);
   const timerRef = useRef(null);
+  const recordTimeRef = useRef(0);
   const previewAudioRef = useRef(null);
+  const backingAudioRef = useRef(null);
+  const mediaDestinationRef = useRef(null);
+  const youtubePlayerRef = useRef(null);
+  const activeRecordingMetaRef = useRef(null);
+  const previewSyncReadyRef = useRef(false);
+
+  const stopYoutubeBacking = () => {
+    if (!youtubePlayerRef.current) return;
+    try {
+      youtubePlayerRef.current.pauseVideo();
+      youtubePlayerRef.current.seekTo(0, true);
+    } catch {}
+  };
 
   const cleanupRecording = useCallback(() => {
     if (timerRef.current) {
@@ -91,8 +159,16 @@ export default function MelodifyStudio() {
       timerRef.current = null;
     }
 
+    if (backingAudioRef.current) {
+      backingAudioRef.current.pause();
+      backingAudioRef.current.currentTime = 0;
+      backingAudioRef.current.src = '';
+      backingAudioRef.current = null;
+    }
+    stopYoutubeBacking();
+
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
 
@@ -103,22 +179,44 @@ export default function MelodifyStudio() {
 
     sourceNodeRef.current = null;
     gainNodeRef.current = null;
+    backingSourceNodeRef.current = null;
+    backingSpeakerGainRef.current = null;
+    backingRecorderGainRef.current = null;
     convolverRef.current = null;
     delayNodeRef.current = null;
     delayGainRef.current = null;
     bassFilterRef.current = null;
     trebleFilterRef.current = null;
+    mediaDestinationRef.current = null;
+    activeRecordingMetaRef.current = null;
+    previewSyncReadyRef.current = false;
+    recordTimeRef.current = 0;
   }, []);
 
-  const fetchKaraoke = useCallback(async (query = '') => {
+  const fetchKaraoke = useCallback(async (query = '', region = '', page = 1) => {
     setSearching(true);
-    const params = query
-      ? `/api/karaoke?q=${encodeURIComponent(query)}&limit=50`
-      : '/api/karaoke?limit=50';
-
-    const data = await api.get(params);
-    if (data.success) {
-      setKaraokeTracks(data.karaoke || []);
+    setDiscoveryError('');
+    try {
+      const searchQuery = query ? `&q=${encodeURIComponent(query)}` : '';
+      const regionQuery = region ? `&region=${encodeURIComponent(region)}` : '';
+      const params = `/api/karaoke/discovery?limit=${DISCOVERY_PAGE_SIZE}&page=${page}${regionQuery}${searchQuery}`;
+      const data = await api.get(params);
+      if (data.success && data.data) {
+        setKaraokeTracks(Array.isArray(data.data.items) ? data.data.items : []);
+        setDiscoveryPages(Math.max(1, Number(data.data.pages) || 1));
+        setDiscoveryExternalState(data.data.externalState || 'skipped');
+        if (data.data.externalState === 'error' && data.data.externalError) {
+          setDiscoveryError('External provider is temporarily unavailable.');
+        }
+      } else {
+        setKaraokeTracks([]);
+        setDiscoveryPages(1);
+        setDiscoveryError('Failed to load karaoke discovery.');
+      }
+    } catch {
+      setKaraokeTracks([]);
+      setDiscoveryPages(1);
+      setDiscoveryError('Failed to load karaoke discovery.');
     }
     setSearching(false);
   }, []);
@@ -127,14 +225,14 @@ export default function MelodifyStudio() {
     let cancelled = false;
     const timeoutId = setTimeout(async () => {
       if (cancelled) return;
-      await fetchKaraoke(songQuery.trim());
+      await fetchKaraoke(songQuery.trim(), discoveryRegion, discoveryPage);
     }, 250);
 
     return () => {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [fetchKaraoke, songQuery]);
+  }, [discoveryPage, discoveryRegion, fetchKaraoke, songQuery]);
 
   useEffect(() => {
     return () => {
@@ -163,13 +261,85 @@ export default function MelodifyStudio() {
     setLyrics(plain);
   }, [selectedSong]);
 
+  const loadBackingAudio = (song) => {
+    if (!song || song.playbackType !== 'audio' || !song.backingAudioUrl) {
+      return Promise.resolve(null);
+    }
+
+    return new Promise((resolve, reject) => {
+      const backingAudio = new Audio(song.backingAudioUrl);
+      backingAudio.preload = 'auto';
+      backingAudio.crossOrigin = 'anonymous';
+      const onReady = () => {
+        backingAudio.removeEventListener('canplaythrough', onReady);
+        backingAudio.removeEventListener('error', onError);
+        resolve(backingAudio);
+      };
+      const onError = () => {
+        backingAudio.removeEventListener('canplaythrough', onReady);
+        backingAudio.removeEventListener('error', onError);
+        reject(new Error('backing track failed to load'));
+      };
+      backingAudio.addEventListener('canplaythrough', onReady, { once: true });
+      backingAudio.addEventListener('error', onError, { once: true });
+      backingAudio.load();
+    });
+  };
+
+  const selectRecorderMimeType = () => {
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+    for (const candidate of candidates) {
+      if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(candidate)) {
+        return candidate;
+      }
+    }
+    return '';
+  };
+
+  const ensureYoutubePlayer = async (videoId) => {
+    const trackId = typeof videoId === 'string' ? videoId.trim() : '';
+    if (!trackId) throw new Error('youtube track id is required');
+    const YT = await loadYoutubeApi();
+
+    if (!youtubePlayerRef.current) {
+      await new Promise((resolve) => {
+        youtubePlayerRef.current = new YT.Player('studio-youtube-player', {
+          width: '0',
+          height: '0',
+          videoId: trackId,
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            disablekb: 1,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1,
+          },
+          events: {
+            onReady: () => resolve(),
+          },
+        });
+      });
+    } else {
+      youtubePlayerRef.current.cueVideoById(trackId);
+    }
+
+    return youtubePlayerRef.current;
+  };
+
   const selectSong = (song) => {
     setSelectedSong(song);
     setPostTitle(`${user?.name || 'My'} - ${song.title}`);
     setStep(STEPS.RECORD);
     setRecordBlob(null);
+    setRecordUrl('');
+    setRecordingMeta(null);
     setRecordTime(0);
+    recordTimeRef.current = 0;
     setPublishMsg('');
+    setUploadState('idle');
+    setUploadProgress(null);
+    setUploadStatusText('');
     setRecordingError('');
     if (recordUrl) {
       URL.revokeObjectURL(recordUrl);
@@ -181,6 +351,26 @@ export default function MelodifyStudio() {
     setRecordingError('');
 
     try {
+      if (!selectedSong) {
+        setRecordingError('Please select a karaoke track first.');
+        return;
+      }
+      if (typeof MediaRecorder === 'undefined') {
+        setRecordingError('MediaRecorder is not supported in this browser.');
+        return;
+      }
+      if (selectedSong.playbackType !== 'audio' && selectedSong.playbackType !== 'youtube') {
+        setRecordingError('Selected track cannot be used for recording. Please choose another track.');
+        return;
+      }
+
+      if (selectedSong.playbackType === 'audio') {
+        const backingAudio = await loadBackingAudio(selectedSong);
+        backingAudioRef.current = backingAudio;
+      } else if (selectedSong.playbackType === 'youtube') {
+        await ensureYoutubePlayer(selectedSong.backingProviderTrackId || selectedSong.youtubeId);
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
@@ -199,7 +389,7 @@ export default function MelodifyStudio() {
       sourceNodeRef.current = source;
 
       const gainNode = audioCtx.createGain();
-      gainNode.gain.value = effects.gain;
+      gainNode.gain.value = effects.gain * vocalGain;
       gainNodeRef.current = gainNode;
 
       const bassFilter = audioCtx.createBiquadFilter();
@@ -240,6 +430,14 @@ export default function MelodifyStudio() {
       delayGain.gain.value = effects.echo;
       delayGainRef.current = delayGain;
 
+      const backingSpeakerGain = audioCtx.createGain();
+      backingSpeakerGain.gain.value = backingVolume;
+      backingSpeakerGainRef.current = backingSpeakerGain;
+
+      const backingRecorderGain = audioCtx.createGain();
+      backingRecorderGain.gain.value = backingVolume;
+      backingRecorderGainRef.current = backingRecorderGain;
+
       source.connect(bassFilter);
       bassFilter.connect(trebleFilter);
       trebleFilter.connect(gainNode);
@@ -256,12 +454,28 @@ export default function MelodifyStudio() {
       delayNode.connect(delayGain);
       delayGain.connect(merger);
 
-      merger.connect(audioCtx.destination);
+      const dest = audioCtx.createMediaStreamDestination();
+      merger.connect(dest);
+      mediaDestinationRef.current = dest;
 
-      const destination = audioCtx.createMediaStreamDestination();
-      merger.connect(destination);
+      if (backingAudioRef.current) {
+        const backingSourceNode = audioCtx.createMediaElementSource(backingAudioRef.current);
+        backingSourceNodeRef.current = backingSourceNode;
+        backingSourceNode.connect(backingSpeakerGain);
+        backingSourceNode.connect(backingRecorderGain);
+        backingSpeakerGain.connect(audioCtx.destination);
+        backingRecorderGain.connect(dest);
+      }
 
-      const recorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
+      const mimeType = selectRecorderMimeType();
+      let recorder;
+      try {
+        recorder = mimeType
+          ? new MediaRecorder(dest.stream, { mimeType })
+          : new MediaRecorder(dest.stream, { mimeType: 'audio/webm' });
+      } catch {
+        recorder = new MediaRecorder(dest.stream);
+      }
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
@@ -272,21 +486,61 @@ export default function MelodifyStudio() {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const durationMs = Math.max(0, Math.round(recordTimeRef.current * 1000));
+        if (activeRecordingMetaRef.current) {
+          const nextMeta = {
+            ...activeRecordingMetaRef.current,
+            recordingDurationMs: durationMs,
+          };
+          activeRecordingMetaRef.current = nextMeta;
+          setRecordingMeta(nextMeta);
+        }
         setRecordBlob(blob);
         if (recordUrl) {
           URL.revokeObjectURL(recordUrl);
         }
         setRecordUrl(URL.createObjectURL(blob));
         setStep(STEPS.PREVIEW);
+        setIsRecording(false);
         cleanupRecording();
       };
+
+      if (backingAudioRef.current) {
+        backingAudioRef.current.currentTime = 0;
+        backingAudioRef.current.onended = () => {
+          stopRecording();
+        };
+        await backingAudioRef.current.play();
+      }
+
+      if (selectedSong.playbackType === 'youtube' && youtubePlayerRef.current) {
+        youtubePlayerRef.current.seekTo(0, true);
+        youtubePlayerRef.current.playVideo();
+      }
+
+      const recordingMode = selectedSong.recordingMode || (selectedSong.playbackType === 'audio' ? 'MIXED' : 'COMPOSITE');
+      const baseMeta = {
+        recordingMode,
+        backingSongId: selectedSong.catalogSongId || '',
+        backingProvider: selectedSong.backingProvider || '',
+        backingProviderId: selectedSong.backingProviderTrackId || selectedSong.youtubeId || '',
+        backingStartOffsetMs: 0,
+        recordingDurationMs: 0,
+      };
+      activeRecordingMetaRef.current = baseMeta;
+      setRecordingMeta(baseMeta);
 
       recorder.start(100);
       setIsRecording(true);
       setRecordTime(0);
+      recordTimeRef.current = 0;
       timerRef.current = setInterval(() => {
-        setRecordTime((time) => time + 1);
+        setRecordTime((t) => {
+          const next = t + 1;
+          recordTimeRef.current = next;
+          return next;
+        });
       }, 1000);
     } catch (error) {
       if (error.name === 'NotAllowedError') {
@@ -294,13 +548,24 @@ export default function MelodifyStudio() {
         setRecordingError('Microphone permission denied. Please allow microphone access in your browser settings.');
       } else if (error.name === 'NotFoundError') {
         setRecordingError('No microphone found. Please connect a microphone and try again.');
+      } else if (error.message === 'backing track failed to load') {
+        setRecordingError('Backing track failed to load. Try another track.');
+      } else if (error.message === 'youtube api failed to load') {
+        setRecordingError('YouTube backing failed to load. Please try again later.');
       } else {
         setRecordingError(`Could not start recording: ${error.message}`);
       }
+      cleanupRecording();
+      setIsRecording(false);
     }
   };
 
   const stopRecording = () => {
+    if (backingAudioRef.current) {
+      backingAudioRef.current.pause();
+      backingAudioRef.current.currentTime = 0;
+    }
+    stopYoutubeBacking();
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
@@ -315,7 +580,7 @@ export default function MelodifyStudio() {
     const next = EFFECTS_PRESETS[presetKey];
     setEffects({ ...next });
     setActivePreset(presetKey);
-    if (gainNodeRef.current) gainNodeRef.current.gain.value = next.gain;
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = next.gain * vocalGain;
     if (bassFilterRef.current) bassFilterRef.current.gain.value = next.bass * 30;
     if (trebleFilterRef.current) trebleFilterRef.current.gain.value = next.treble * 30;
     if (delayGainRef.current) delayGainRef.current.gain.value = next.echo;
@@ -326,10 +591,23 @@ export default function MelodifyStudio() {
     setEffects((prev) => ({ ...prev, [effectKey]: numeric }));
     setActivePreset('');
 
-    if (effectKey === 'gain' && gainNodeRef.current) gainNodeRef.current.gain.value = numeric;
+    if (effectKey === 'gain' && gainNodeRef.current) gainNodeRef.current.gain.value = numeric * vocalGain;
     if (effectKey === 'bass' && bassFilterRef.current) bassFilterRef.current.gain.value = numeric * 30;
     if (effectKey === 'treble' && trebleFilterRef.current) trebleFilterRef.current.gain.value = numeric * 30;
     if (effectKey === 'echo' && delayGainRef.current) delayGainRef.current.gain.value = numeric;
+  };
+
+  const updateBackingVolume = (value) => {
+    const next = parseFloat(value);
+    setBackingVolume(next);
+    if (backingSpeakerGainRef.current) backingSpeakerGainRef.current.gain.value = next;
+    if (backingRecorderGainRef.current) backingRecorderGainRef.current.gain.value = next;
+  };
+
+  const updateVocalGain = (value) => {
+    const next = parseFloat(value);
+    setVocalGain(next);
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = effects.gain * next;
   };
 
   const retryRecording = () => {
@@ -339,43 +617,168 @@ export default function MelodifyStudio() {
       setRecordUrl('');
     }
     setRecordTime(0);
+    recordTimeRef.current = 0;
+    setUploadState('idle');
+    setUploadProgress(null);
+    setUploadStatusText('');
     setStep(STEPS.RECORD);
     setRecordingError('');
   };
+
+  const uploadRecordingWithProgress = (formData, token) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/recordings');
+    xhr.responseType = 'json';
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        const percentage = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        setUploadProgress(percentage);
+      } else {
+        setUploadProgress(null);
+      }
+    };
+
+    xhr.upload.onload = () => {
+      setUploadState('processing');
+      setUploadProgress(100);
+      setUploadStatusText('Processing and saving your recording...');
+    };
+
+    xhr.onerror = () => reject(new Error('Upload failed'));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.response || {});
+      } else {
+        const message = xhr.response?.error || 'Upload failed';
+        reject(new Error(message));
+      }
+    };
+
+    xhr.send(formData);
+  });
 
   const publishPerformance = async () => {
     if (!recordBlob || !selectedSong || publishing) return;
 
     setPublishing(true);
     setPublishMsg('');
+    setUploadState('uploading');
+    setUploadProgress(0);
+    setUploadStatusText('Uploading recording...');
 
-    const formData = new FormData();
-    formData.append('audio', recordBlob, 'recording.webm');
-    formData.append('karaokeId', selectedSong._id);
-    formData.append('title', postTitle || `${user?.name || 'My'} - ${selectedSong.title}`);
-    formData.append('caption', postCaption);
-    formData.append('duration', String(recordTime));
-    formData.append('effects', JSON.stringify({ ...effects, preset: activePreset || null }));
-    formData.append('visibility', postVisibility);
+    try {
+      const formData = new FormData();
+      formData.append('audio', recordBlob, 'recording.webm');
+      const karaokeId = selectedSong.karaokeId || selectedSong._id || '';
+      if (karaokeId) formData.append('karaokeId', karaokeId);
+      formData.append('title', postTitle || `${user?.name || 'My'} - ${selectedSong.title}`);
+      formData.append('caption', postCaption);
+      formData.append('duration', String(recordTime));
+      formData.append('effects', JSON.stringify({ ...effects, preset: activePreset || null }));
+      formData.append('visibility', postVisibility);
+      formData.append('recordingMode', recordingMeta?.recordingMode || selectedSong.recordingMode || 'MIC_ONLY');
+      if (recordingMeta?.backingSongId || selectedSong.catalogSongId) {
+        formData.append('backingSongId', recordingMeta?.backingSongId || selectedSong.catalogSongId);
+      }
+      if (recordingMeta?.backingProvider || selectedSong.backingProvider) {
+        formData.append('backingProvider', recordingMeta?.backingProvider || selectedSong.backingProvider);
+      }
+      if (recordingMeta?.backingProviderId || selectedSong.backingProviderTrackId || selectedSong.youtubeId) {
+        formData.append('backingProviderId', recordingMeta?.backingProviderId || selectedSong.backingProviderTrackId || selectedSong.youtubeId);
+      }
+      formData.append('backingStartOffsetMs', String(recordingMeta?.backingStartOffsetMs || 0));
+      formData.append('recordingDurationMs', String(recordingMeta?.recordingDurationMs || (recordTimeRef.current * 1000)));
 
-    const result = await api.post('/api/recordings', formData);
-    setPublishing(false);
+      const token = localStorage.getItem('melodify_token');
+      let result;
+      try {
+        result = await uploadRecordingWithProgress(formData, token);
+      } catch (err) {
+        if (err.message === 'Upload failed') {
+          result = await api.post('/api/recordings', formData);
+        } else {
+          throw err;
+        }
+      }
 
-    if (!result.success) {
-      setPublishMsg(`Failed to save recording: ${result.error || 'Unknown error'}`);
-      return;
+      if (!result.success) {
+        setUploadState('error');
+        setUploadStatusText('Could not save this recording.');
+        setPublishMsg(`Failed to save recording: ${result.error || 'Unknown error'}`);
+        setPublishing(false);
+        return;
+      }
+
+      setUploadState('success');
+      setUploadProgress(100);
+      setUploadStatusText('Upload complete. Recording saved.');
+      setPublishMsg('Recording saved successfully!');
+      setStep(STEPS.SELECT);
+      setSelectedSong(null);
+      setRecordBlob(null);
+      if (recordUrl) {
+        URL.revokeObjectURL(recordUrl);
+        setRecordUrl('');
+      }
+      setRecordingMeta(null);
+      setPostTitle('');
+      setPostCaption('');
+    } catch (err) {
+      setUploadState('error');
+      setUploadStatusText('Upload failed. Please try again.');
+      setPublishMsg(`Save failed: ${err.message}`);
     }
+    setPublishing(false);
+  };
 
-    setPublishMsg('Recording saved successfully!');
+  const isCompositeRecording = recordingMeta?.recordingMode === 'COMPOSITE' && !!recordingMeta?.backingProviderId;
+
+  useEffect(() => {
+    if (step !== STEPS.PREVIEW || !isCompositeRecording) {
+      previewSyncReadyRef.current = false;
+      stopYoutubeBacking();
+      return undefined;
+    }
+    let cancelled = false;
+    ensureYoutubePlayer(recordingMeta.backingProviderId)
+      .then(() => {
+        if (cancelled) return;
+        previewSyncReadyRef.current = true;
+      })
+      .catch(() => {
+        if (cancelled) return;
+        previewSyncReadyRef.current = false;
+      });
+
+    return () => {
+      cancelled = true;
+      stopYoutubeBacking();
+      previewSyncReadyRef.current = false;
+    };
+  }, [step, isCompositeRecording, recordingMeta?.backingProviderId]);
+
+  const syncCompositePreviewPlayback = (audioTimeSeconds, shouldPlay) => {
+    if (!isCompositeRecording) return;
+    if (!previewSyncReadyRef.current || !youtubePlayerRef.current) return;
+    const offsetSeconds = (recordingMeta.backingStartOffsetMs || 0) / 1000;
+    const targetSeconds = Math.max(0, offsetSeconds + Math.max(0, audioTimeSeconds));
+    try {
+      youtubePlayerRef.current.seekTo(targetSeconds, true);
+      if (shouldPlay) {
+        youtubePlayerRef.current.playVideo();
+      } else {
+        youtubePlayerRef.current.pauseVideo();
+      }
+    } catch {}
+  };
+
+  const changeSong = () => {
+    if (isRecording) stopRecording();
+    cleanupRecording();
     setStep(STEPS.SELECT);
     setSelectedSong(null);
-    setRecordBlob(null);
-    if (recordUrl) {
-      URL.revokeObjectURL(recordUrl);
-      setRecordUrl('');
-    }
-    setPostTitle('');
-    setPostCaption('');
   };
 
   return (
@@ -410,14 +813,39 @@ export default function MelodifyStudio() {
               id="studio-song-query"
               type="text"
               value={songQuery}
-              onChange={(event) => setSongQuery(event.target.value)}
+              onChange={(event) => {
+                setSongQuery(event.target.value);
+                setDiscoveryPage(1);
+              }}
               placeholder="Search karaoke tracks"
             />
           </div>
 
+          <div className="studio-region-filters" role="tablist" aria-label="Discovery region filters">
+            {DISCOVERY_REGION_OPTIONS.map((regionOption) => (
+              <button
+                key={regionOption.id || 'all'}
+                type="button"
+                className={`studio-region-chip${discoveryRegion === regionOption.id ? ' active' : ''}`}
+                aria-pressed={discoveryRegion === regionOption.id}
+                onClick={() => {
+                  setDiscoveryRegion(regionOption.id);
+                  setDiscoveryPage(1);
+                }}
+              >
+                {regionOption.label}
+              </button>
+            ))}
+          </div>
+
+          {discoveryError ? <div className="studio-discovery-status error">{discoveryError}</div> : null}
+          {!discoveryError && discoveryExternalState === 'disabled' ? (
+            <div className="studio-discovery-status">External provider is unavailable right now.</div>
+          ) : null}
+
           {searching ? <p className="studio-status" role="status">Searching karaoke tracks...</p> : null}
 
-          {!searching && karaokeTracks.length === 0 ? (
+          {!searching && karaokeTracks.length === 0 && !discoveryError ? (
             <EmptyState
               icon="fa-music"
               title={songQuery.trim() ? 'No karaoke tracks found' : 'No karaoke tracks available'}
@@ -428,12 +856,17 @@ export default function MelodifyStudio() {
           {karaokeTracks.length > 0 ? (
             <div className="studio-song-grid" aria-label="Karaoke tracks">
               {karaokeTracks.map((song) => (
-                <article key={song._id} className="studio-song-card">
-                  <img
-                    src={song.poster_url || DEFAULT_POSTER}
-                    alt={`${song.title} artwork`}
-                    onError={(event) => { event.currentTarget.src = DEFAULT_POSTER; }}
-                  />
+                <article key={song.id || song._id} className="studio-song-card">
+                  <div className="studio-song-poster">
+                    <img
+                      src={getPosterUrl(song)}
+                      alt={`${song.title} artwork`}
+                      onError={(event) => { event.currentTarget.src = DEFAULT_POSTER; }}
+                    />
+                    <span className={`studio-track-badge ${song.classification === 'KARAOKE_READY' ? 'ready' : 'singalong'}`}>
+                      {song.classification === 'KARAOKE_READY' ? 'KARAOKE_READY' : 'SING_ALONG'}
+                    </span>
+                  </div>
                   <div className="studio-song-info">
                     <h3>{song.title}</h3>
                     <p>{song.artist}</p>
@@ -443,6 +876,28 @@ export default function MelodifyStudio() {
                   </button>
                 </article>
               ))}
+            </div>
+          ) : null}
+
+          {discoveryPages > 1 ? (
+            <div className="studio-pagination">
+              <button
+                type="button"
+                className="studio-page-btn"
+                onClick={() => setDiscoveryPage((prev) => Math.max(1, prev - 1))}
+                disabled={discoveryPage <= 1 || searching}
+              >
+                Previous
+              </button>
+              <span className="studio-page-indicator">Page {discoveryPage} of {discoveryPages}</span>
+              <button
+                type="button"
+                className="studio-page-btn"
+                onClick={() => setDiscoveryPage((prev) => Math.min(discoveryPages, prev + 1))}
+                disabled={discoveryPage >= discoveryPages || searching}
+              >
+                Next
+              </button>
             </div>
           ) : null}
         </section>
@@ -457,10 +912,7 @@ export default function MelodifyStudio() {
               <button
                 type="button"
                 className="music-outline-btn"
-                onClick={() => {
-                  setStep(STEPS.SELECT);
-                  setSelectedSong(null);
-                }}
+                onClick={changeSong}
               >
                 Change song
               </button>
@@ -469,7 +921,7 @@ export default function MelodifyStudio() {
 
           <div className="studio-now-playing">
             <img
-              src={selectedSong.poster_url || DEFAULT_POSTER}
+              src={getPosterUrl(selectedSong)}
               alt=""
               onError={(event) => { event.currentTarget.src = DEFAULT_POSTER; }}
             />
@@ -507,6 +959,14 @@ export default function MelodifyStudio() {
               <input id="studio-gain" type="range" min="0" max="1.5" step="0.05" value={effects.gain} onChange={(event) => updateEffect('gain', event.target.value)} />
               <span>{Math.round(effects.gain * 100)}%</span>
 
+              <label>Backing</label>
+              <input type="range" min="0" max="1.5" step="0.05" value={backingVolume} onChange={(event) => updateBackingVolume(event.target.value)} />
+              <span>{Math.round(backingVolume * 100)}%</span>
+
+              <label>Vocal</label>
+              <input type="range" min="0" max="2" step="0.05" value={vocalGain} onChange={(event) => updateVocalGain(event.target.value)} />
+              <span>{Math.round(vocalGain * 100)}%</span>
+
               <label htmlFor="studio-reverb">Reverb</label>
               <input id="studio-reverb" type="range" min="0" max="1" step="0.05" value={effects.reverb} onChange={(event) => updateEffect('reverb', event.target.value)} />
               <span>{Math.round(effects.reverb * 100)}%</span>
@@ -543,6 +1003,14 @@ export default function MelodifyStudio() {
               </button>
             )}
           </div>
+
+          <p className="studio-headphone-hint">
+            For best results, use headphones to avoid microphone feedback.
+          </p>
+
+          <button type="button" className="music-outline-btn" onClick={changeSong}>
+            Back to song selection
+          </button>
         </section>
       ) : null}
 
@@ -550,7 +1018,25 @@ export default function MelodifyStudio() {
         <section className="music-section app-surface studio-panel">
           <SectionHeader title="Preview your take" subtitle="Listen to your recording before publishing" />
 
-          <audio ref={previewAudioRef} controls src={recordUrl} className="studio-preview-audio"></audio>
+          <audio
+            ref={previewAudioRef}
+            controls
+            src={recordUrl}
+            className="studio-preview-audio"
+            onPlay={(event) => {
+              syncCompositePreviewPlayback(event.currentTarget.currentTime, true);
+            }}
+            onPause={(event) => {
+              syncCompositePreviewPlayback(event.currentTarget.currentTime, false);
+            }}
+            onSeeked={(event) => {
+              const shouldPlay = !event.currentTarget.paused;
+              syncCompositePreviewPlayback(event.currentTarget.currentTime, shouldPlay);
+            }}
+            onEnded={() => {
+              stopYoutubeBacking();
+            }}
+          ></audio>
           <p className="studio-status">Recorded duration: {formatTime(recordTime)}</p>
 
           <div className="studio-inline-actions">
@@ -598,6 +1084,25 @@ export default function MelodifyStudio() {
               <option value="private">Private - only you can see this post</option>
             </select>
 
+            {uploadState !== 'idle' ? (
+              <div className={`studio-upload-status ${uploadState}`} aria-live="polite">
+                <div className="studio-upload-header">
+                  <span className="studio-upload-state-label">{uploadState === 'error' ? 'Upload failed' : uploadState === 'success' ? 'Upload complete' : uploadState === 'processing' ? 'Processing' : 'Uploading'}</span>
+                  <span className="studio-upload-percent">{typeof uploadProgress === 'number' ? `${uploadProgress}%` : '...'}</span>
+                </div>
+                <div
+                  className="studio-upload-progress"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={typeof uploadProgress === 'number' ? uploadProgress : undefined}
+                >
+                  <div className="studio-upload-progress-fill" style={{ width: `${typeof uploadProgress === 'number' ? uploadProgress : 35}%` }}></div>
+                </div>
+                <p className="studio-upload-text">{uploadStatusText}</p>
+              </div>
+            ) : null}
+
             {publishMsg ? (
               <p className={`studio-publish-message ${publishMsg.includes('successfully') ? 'is-success' : 'is-error'}`} role="status" aria-live="polite">
                 {publishMsg}
@@ -618,6 +1123,10 @@ export default function MelodifyStudio() {
           </form>
         </section>
       ) : null}
+
+      <div className="studio-youtube-shell" aria-hidden="true">
+        <div id="studio-youtube-player"></div>
+      </div>
     </div>
   );
 }
