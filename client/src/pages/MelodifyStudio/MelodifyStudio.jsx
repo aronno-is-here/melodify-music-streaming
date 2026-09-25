@@ -55,6 +55,8 @@ export default function MelodifyStudio() {
 
   const [effects, setEffects] = useState({ ...EFFECTS_PRESETS.clean });
   const [activePreset, setActivePreset] = useState('clean');
+  const [backingVolume, setBackingVolume] = useState(0.9);
+  const [vocalGain, setVocalGain] = useState(1);
 
   const [postTitle, setPostTitle] = useState('');
   const [postCaption, setPostCaption] = useState('');
@@ -70,6 +72,9 @@ export default function MelodifyStudio() {
   const audioContextRef = useRef(null);
   const sourceNodeRef = useRef(null);
   const gainNodeRef = useRef(null);
+  const backingSourceNodeRef = useRef(null);
+  const backingSpeakerGainRef = useRef(null);
+  const backingRecorderGainRef = useRef(null);
   const convolverRef = useRef(null);
   const delayNodeRef = useRef(null);
   const delayGainRef = useRef(null);
@@ -159,6 +164,9 @@ export default function MelodifyStudio() {
     }
     sourceNodeRef.current = null;
     gainNodeRef.current = null;
+    backingSourceNodeRef.current = null;
+    backingSpeakerGainRef.current = null;
+    backingRecorderGainRef.current = null;
     convolverRef.current = null;
     delayNodeRef.current = null;
     delayGainRef.current = null;
@@ -190,6 +198,16 @@ export default function MelodifyStudio() {
       backingAudio.addEventListener('error', onError, { once: true });
       backingAudio.load();
     });
+  };
+
+  const selectRecorderMimeType = () => {
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+    for (const candidate of candidates) {
+      if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(candidate)) {
+        return candidate;
+      }
+    }
+    return '';
   };
 
   const selectSong = (song) => {
@@ -235,7 +253,7 @@ export default function MelodifyStudio() {
       sourceNodeRef.current = source;
 
       const gainNode = audioCtx.createGain();
-      gainNode.gain.value = effects.gain;
+      gainNode.gain.value = effects.gain * vocalGain;
       gainNodeRef.current = gainNode;
 
       const bassFilter = audioCtx.createBiquadFilter();
@@ -276,6 +294,14 @@ export default function MelodifyStudio() {
       delayGain.gain.value = effects.echo;
       delayGainRef.current = delayGain;
 
+      const backingSpeakerGain = audioCtx.createGain();
+      backingSpeakerGain.gain.value = backingVolume;
+      backingSpeakerGainRef.current = backingSpeakerGain;
+
+      const backingRecorderGain = audioCtx.createGain();
+      backingRecorderGain.gain.value = backingVolume;
+      backingRecorderGainRef.current = backingRecorderGain;
+
       source.connect(bassFilter);
       bassFilter.connect(trebleFilter);
       trebleFilter.connect(gainNode);
@@ -296,7 +322,19 @@ export default function MelodifyStudio() {
       merger.connect(dest);
       mediaDestinationRef.current = dest;
 
-      const recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/webm' });
+      if (backingAudioRef.current) {
+        const backingSourceNode = audioCtx.createMediaElementSource(backingAudioRef.current);
+        backingSourceNodeRef.current = backingSourceNode;
+        backingSourceNode.connect(backingSpeakerGain);
+        backingSourceNode.connect(backingRecorderGain);
+        backingSpeakerGain.connect(audioCtx.destination);
+        backingRecorderGain.connect(dest);
+      }
+
+      const mimeType = selectRecorderMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(dest.stream, { mimeType })
+        : new MediaRecorder(dest.stream);
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
@@ -305,7 +343,7 @@ export default function MelodifyStudio() {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         setRecordBlob(blob);
         setRecordUrl(URL.createObjectURL(blob));
         setStep(STEPS.PREVIEW);
@@ -356,7 +394,7 @@ export default function MelodifyStudio() {
   const applyPreset = (key) => {
     setEffects({ ...EFFECTS_PRESETS[key] });
     setActivePreset(key);
-    if (gainNodeRef.current) gainNodeRef.current.gain.value = EFFECTS_PRESETS[key].gain;
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = EFFECTS_PRESETS[key].gain * vocalGain;
     if (bassFilterRef.current) bassFilterRef.current.gain.value = EFFECTS_PRESETS[key].bass * 30;
     if (trebleFilterRef.current) trebleFilterRef.current.gain.value = EFFECTS_PRESETS[key].treble * 30;
     if (convolverRef.current && convolverRef.current.context) {
@@ -369,10 +407,23 @@ export default function MelodifyStudio() {
     const val = parseFloat(value);
     setEffects((prev) => ({ ...prev, [key]: val }));
     setActivePreset('');
-    if (key === 'gain' && gainNodeRef.current) gainNodeRef.current.gain.value = val;
+    if (key === 'gain' && gainNodeRef.current) gainNodeRef.current.gain.value = val * vocalGain;
     if (key === 'bass' && bassFilterRef.current) bassFilterRef.current.gain.value = val * 30;
     if (key === 'treble' && trebleFilterRef.current) trebleFilterRef.current.gain.value = val * 30;
     if (key === 'echo' && delayGainRef.current) delayGainRef.current.gain.value = val;
+  };
+
+  const updateBackingVolume = (value) => {
+    const next = parseFloat(value);
+    setBackingVolume(next);
+    if (backingSpeakerGainRef.current) backingSpeakerGainRef.current.gain.value = next;
+    if (backingRecorderGainRef.current) backingRecorderGainRef.current.gain.value = next;
+  };
+
+  const updateVocalGain = (value) => {
+    const next = parseFloat(value);
+    setVocalGain(next);
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = effects.gain * next;
   };
 
   const retryRecording = () => {
@@ -604,6 +655,16 @@ export default function MelodifyStudio() {
                   <label>Gain</label>
                   <input type="range" min="0" max="1.5" step="0.05" value={effects.gain} onChange={(e) => updateEffect('gain', e.target.value)} />
                   <span>{Math.round(effects.gain * 100)}%</span>
+                </div>
+                <div className="studio-slider-row">
+                  <label>Backing</label>
+                  <input type="range" min="0" max="1.5" step="0.05" value={backingVolume} onChange={(e) => updateBackingVolume(e.target.value)} />
+                  <span>{Math.round(backingVolume * 100)}%</span>
+                </div>
+                <div className="studio-slider-row">
+                  <label>Vocal</label>
+                  <input type="range" min="0" max="2" step="0.05" value={vocalGain} onChange={(e) => updateVocalGain(e.target.value)} />
+                  <span>{Math.round(vocalGain * 100)}%</span>
                 </div>
                 <div className="studio-slider-row">
                   <label>Reverb</label>
