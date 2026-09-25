@@ -1,10 +1,40 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { api } from '../../api/client.js';
-import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
+import usePlayer from '../../hooks/usePlayer.js';
+import SectionHeader from '../../components/music/SectionHeader.jsx';
+import SongRow from '../../components/music/SongRow.jsx';
+import EmptyState from '../../components/music/EmptyState.jsx';
+import AppDialog from '../../components/ui/AppDialog.jsx';
+import LyricsChordsPanel from '../Dashboard/LyricsChordsPanel.jsx';
 import cssRaw from './SongDetails.css?raw';
 
-const DEFAULT_POSTER = 'https://picsum.photos/300/300?random';
+const DEFAULT_POSTER = 'https://picsum.photos/500/500?random';
+
+function buildRelatedSongs(targetSong, allSongs) {
+  if (!targetSong || !Array.isArray(allSongs)) return [];
+
+  const others = allSongs.filter((song) => String(song._id) !== String(targetSong._id));
+  const targetArtist = String(targetSong.artist || '').toLowerCase();
+  const targetGenre = String(targetSong.genre || '').toLowerCase();
+
+  const sameArtist = others.filter((song) => String(song.artist || '').toLowerCase() === targetArtist);
+  const sameGenre = others.filter((song) => String(song.genre || '').toLowerCase() === targetGenre);
+
+  const grouped = [...sameArtist, ...sameGenre, ...others];
+  const seen = new Set();
+  const deduped = [];
+
+  for (const song of grouped) {
+    const songId = String(song._id);
+    if (seen.has(songId)) continue;
+    seen.add(songId);
+    deduped.push(song);
+    if (deduped.length >= 14) break;
+  }
+
+  return deduped;
+}
 
 export default function SongDetails() {
   useLayoutEffect(() => {
@@ -16,194 +46,196 @@ export default function SongDetails() {
   }, []);
 
   const { id } = useParams();
-  const navigate = useNavigate();
-  const [song, setSong] = useState(null);
-  const [related, setRelated] = useState([]);
-  const [notFound, setNotFound] = useState(false);
-  const [favorite, setFavorite] = useState(false);
-  const [shuffled, setShuffled] = useState(false);
+  const {
+    favoritedIds,
+    toggleFavorite,
+  } = useOutletContext();
+
   const player = usePlayer();
+  const [song, setSong] = useState(null);
+  const [relatedSongs, setRelatedSongs] = useState([]);
+  const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [lyricsOpen, setLyricsOpen] = useState(false);
 
   useEffect(() => {
-    const fetchSong = async () => {
-      const data = await api.get(`/api/songs/${id}`);
-      if (!data.success) {
+    let cancelled = false;
+
+    const loadSong = async () => {
+      setLoading(true);
+      const detail = await api.get(`/api/songs/${id}`);
+      if (cancelled) return;
+
+      if (!detail.success) {
         setNotFound(true);
+        setLoading(false);
         return;
       }
-      setSong(data.song);
+
+      setSong(detail.song);
+      setNotFound(false);
+
       const all = await api.get('/api/songs?limit=100');
+      if (cancelled) return;
+
       if (all.success) {
-        const others = all.songs.filter((s) => String(s._id) !== String(data.song._id));
-        const sameArtist = others.filter((s) => s.artist.toLowerCase() === data.song.artist.toLowerCase());
-        const sameGenre = others.filter((s) => s.genre.toLowerCase() === data.song.genre.toLowerCase());
-        const rest = others.filter((s) => !sameArtist.includes(s) && !sameGenre.includes(s));
-        setRelated([...sameArtist, ...sameGenre, ...rest].slice(0, 10));
+        setRelatedSongs(buildRelatedSongs(detail.song, all.songs));
+      } else {
+        setRelatedSongs([]);
       }
+
+      setLoading(false);
     };
-    fetchSong();
+
+    loadSong();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
+
+  const queue = useMemo(() => (song ? [song, ...relatedSongs] : []), [song, relatedSongs]);
+  const currentSongId = player.currentSong?._id ? String(player.currentSong._id) : null;
+  const isCurrentSong = song && currentSongId === String(song._id);
+  const isFavorited = song ? favoritedIds.has(String(song._id)) : false;
+
+  const playFromQueue = (index) => {
+    const target = queue[index];
+    if (!target) return;
+    if (currentSongId === String(target._id)) {
+      player.togglePlay();
+      return;
+    }
+    player.playSong(queue, index);
+  };
+
+  const playPrimary = () => {
+    if (!song) return;
+    if (isCurrentSong) {
+      player.togglePlay();
+      return;
+    }
+    player.playSong(queue, 0);
+  };
+
+  const openSource = () => {
+    if (!song) return;
+    if (song.youtube_id) {
+      window.open(`https://www.youtube.com/watch?v=${song.youtube_id}`, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (song.file_path) {
+      window.open(`/assets/${song.file_path.replace(/^assets\//, '')}`, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   if (notFound) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#121212', color: '#fff', fontFamily: 'Roboto, sans-serif' }}>
-        <h2>Song not found</h2>
-        <Link to="/dashboard" style={{ color: '#00b4d8', marginTop: '12px' }}>Back to Dashboard</Link>
+      <div className="song-details-page">
+        <section className="music-section app-surface song-details-state">
+          <EmptyState
+            icon="fa-circle-exclamation"
+            title="Song not found"
+            detail="The song may have been removed from the catalog."
+          />
+          <Link to="/dashboard" className="music-outline-btn">Back to dashboard</Link>
+        </section>
       </div>
     );
   }
 
-  if (!song) return null;
-
-  const tracks = [song, ...related];
-  const displayTracks = useMemo(() => {
-    if (!shuffled) return tracks;
-    const copy = [...tracks];
-    for (let i = copy.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-  }, [tracks, shuffled]);
-  const playingId = player.currentSong?._id;
-  const subtitle = `${song.artist} • ${String(song.release_date || '').slice(0, 4) || 'Unknown year'} • ${displayTracks.length} songs`;
-  const totalDuration = displayTracks.reduce((sum, t) => {
-    const parts = String(t.duration || '0:00').split(':').map(Number);
-    return sum + (parts.length === 2 ? parts[0] * 60 + parts[1] : 0);
-  }, 0);
-  const totalLabel = `${Math.floor(totalDuration / 60)} min ${totalDuration % 60} sec`;
-
-  const playTrack = (trackIndex) => {
-    if (player.isPlaying && playingId === displayTracks[trackIndex]._id) player.pause();
-    else player.playSong(displayTracks, trackIndex);
-  };
-
-  const togglePlay = () => {
-    if (player.currentSong) player.togglePlay();
-    else player.playSong(displayTracks, 0);
-  };
-
-  const toggleShuffle = () => {
-    setShuffled((s) => {
-      const nextVal = !s;
-      if (nextVal && player.isPlaying) player.playSong(displayTracks, 0);
-      return nextVal;
-    });
-  };
-
-  const downloadSong = () => {
-    if (song.youtube_id) window.open(`https://www.youtube.com/watch?v=${song.youtube_id}`, '_blank');
-    else if (song.file_path) window.open(`/assets/${song.file_path.replace(/^assets\//, '')}`, '_blank');
-  };
-
-  const menuClick = () => {
-    window.alert('Menu options:\n\n• Add to Playlist\n• Share Album\n• Go to Artist');
-  };
-
-  const seekFromEvent = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = (e.clientX - rect.left) / rect.width;
-    player.seek(Math.max(0, Math.min(1, ratio)));
-  };
+  if (loading || !song) {
+    return (
+      <div className="song-details-page">
+        <section className="music-section app-surface song-details-state">
+          <p className="song-details-status" role="status">Loading song details...</p>
+        </section>
+      </div>
+    );
+  }
 
   return (
-    <div className="container">
-      <div className="header">
-        <button className="back-button" onClick={() => navigate(-1)}>
-          <i className="fas fa-chevron-left"></i>
-        </button>
-        <span>Album</span>
-      </div>
+    <div className="song-details-page">
+      <section className="song-details-hero app-surface">
+        <img
+          className="song-details-art"
+          src={song.poster_url || DEFAULT_POSTER}
+          alt={`${song.title} artwork`}
+          onError={(event) => { event.currentTarget.src = DEFAULT_POSTER; }}
+        />
 
-      <div className="album-container">
-        <div className="album-art">
-          <img src={song.poster_url} alt={`${song.title} Poster`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => (e.target.src = DEFAULT_POSTER)} />
-        </div>
-        <div className="album-info">
-          <div className="album-type">Song</div>
-          <h1 className="album-title">{song.title}</h1>
-          <p className="album-subtitle">
-            {subtitle} • {totalLabel}
-          </p>
+        <div className="song-details-meta">
+          <p className="song-details-kicker">Song Details</p>
+          <h1>{song.title}</h1>
+          <p>{song.artist}</p>
+          <div className="song-details-tags">
+            {song.genre ? <span>{song.genre}</span> : null}
+            {song.language ? <span>{song.language}</span> : null}
+            {song.release_date ? <span>{String(song.release_date).slice(0, 4)}</span> : null}
+            {song.duration ? <span>{song.duration}</span> : null}
+          </div>
 
-          <div className="album-actions">
-            <button className="play-btn" id="playBtn" onClick={togglePlay}>
-              <i className={`fas ${player.isPlaying && player.currentSong ? 'fa-pause' : 'fa-play'}`}></i>
+          <div className="song-details-actions">
+            <button type="button" className="music-pill-btn" onClick={playPrimary}>
+              <i className={`fa-solid ${isCurrentSong && player.isPlaying ? 'fa-pause' : 'fa-play'}`} aria-hidden="true"></i>
+              {isCurrentSong && player.isPlaying ? 'Pause' : 'Play'}
             </button>
-            <button className={`action-btn${favorite ? ' added' : ''}`} id="addBtn" onClick={() => setFavorite(!favorite)}>
-              <i className={`${favorite ? 'fas' : 'far'} fa-heart`}></i>
+            <button type="button" className="music-outline-btn" onClick={() => toggleFavorite(song._id)}>
+              <i className={`${isFavorited ? 'fa-solid' : 'fa-regular'} fa-heart`} aria-hidden="true"></i>
+              {isFavorited ? 'Liked' : 'Like'}
             </button>
-            <button className="action-btn" id="downloadBtn" onClick={downloadSong}>
-              <i className="fas fa-download"></i>
+            <button type="button" className="music-outline-btn" onClick={() => setLyricsOpen(true)}>
+              <i className="fa-solid fa-music" aria-hidden="true"></i>
+              Lyrics & Chords
             </button>
-            <button className="action-btn" id="menuBtn" onClick={menuClick}>
-              <i className="fas fa-ellipsis-h"></i>
+            <button type="button" className="music-outline-btn" onClick={openSource}>
+              <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+              Open Source
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="tracklist">
-        <div className="track-header">
-          <div>#</div>
-          <div>Title</div>
-          <div>Time</div>
+      <section className="music-section app-surface">
+        <SectionHeader
+          title="Related Tracks"
+          subtitle="Curated from matching artist and genre"
+        />
+
+        {queue.length === 0 ? (
+          <EmptyState
+            icon="fa-compact-disc"
+            title="No tracks available"
+          />
+        ) : (
+          <div>
+            {queue.map((track, index) => (
+              <SongRow
+                key={`${track._id}-${index}`}
+                song={track}
+                subtitle={track.artist}
+                isPlaying={player.isPlaying}
+                isActive={currentSongId === String(track._id)}
+                isFavorited={favoritedIds.has(String(track._id))}
+                onPlay={() => playFromQueue(index)}
+                onToggleFavorite={() => toggleFavorite(track._id)}
+                trailing={<span className="song-details-duration">{track.duration || '0:00'}</span>}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <AppDialog
+        open={lyricsOpen}
+        title="Lyrics & Chords"
+        onClose={() => setLyricsOpen(false)}
+        labelledBy="song-details-lyrics-title"
+        width="720px"
+      >
+        <div className="song-details-lyrics-wrap">
+          <LyricsChordsPanel onClose={() => setLyricsOpen(false)} />
         </div>
-
-        {displayTracks.map((track, trackIndex) => (
-          <div className={`track-item${playingId === track._id ? ' playing' : ''}`} key={track._id} onClick={() => playTrack(trackIndex)}>
-            <div className="track-number">{trackIndex + 1}</div>
-            <div className="track-info">
-              <div className="track-title">{track.title}</div>
-              <div className="track-artist">{track.artist}</div>
-            </div>
-            <div className="track-duration">{track.duration || '0:00'}</div>
-            <div className="progress-bar" style={{ transform: `scaleX(${playingId === track._id ? player.progress / 100 : 0})` }}></div>
-          </div>
-        ))}
-      </div>
-
-      <div className="footer-player">
-        <div className="now-playing">
-          <div className="now-playing-img">
-            {player.currentSong && <img src={player.currentSong.poster_url} alt="Now playing" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => (e.target.src = DEFAULT_POSTER)} />}
-          </div>
-          <div className="now-playing-info">
-            <div className="now-playing-title">{player.currentSong?.title || 'Not Playing'}</div>
-            <div className="now-playing-artist">{player.currentSong ? player.currentSong.artist : 'Select a song to play'}</div>
-          </div>
-        </div>
-
-        <div className="player-controls">
-          <div className="control-buttons">
-            <button className="control-btn" onClick={toggleShuffle} style={shuffled ? { color: '#00b4d8' } : undefined}><i className="fas fa-random"></i></button>
-            <button className="control-btn" onClick={player.prev}><i className="fas fa-step-backward"></i></button>
-            <button className="control-btn play-pause" id="footerPlayBtn" onClick={togglePlay}>
-              <i className={`fas ${player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
-            </button>
-            <button className="control-btn" onClick={player.next}><i className="fas fa-step-forward"></i></button>
-            <button className="control-btn" onClick={() => player.setPlayMode(player.playMode === 'single' ? 'list' : 'single')} style={player.playMode === 'single' ? { color: '#00b4d8' } : undefined}><i className="fas fa-repeat"></i></button>
-          </div>
-
-          <div className="progress-container" onClick={seekFromEvent} style={{ cursor: 'pointer' }}>
-            <div className="progress-time">{formatTime(player.currentTime)}</div>
-            <div className="progress-bar-full">
-              <div className="progress-bar-current" style={{ width: `${player.progress}%` }}></div>
-            </div>
-            <div className="progress-time">{formatTime(player.duration)}</div>
-          </div>
-        </div>
-
-        <div className="volume-controls">
-          <i className={`fas ${player.muted ? 'fa-volume-mute' : 'fa-volume-up'} volume-icon`} onClick={player.toggleMute}></i>
-          <div className="volume-bar" onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            player.setVolume(Math.round(((e.clientX - rect.left) / rect.width) * 100));
-          }} style={{ cursor: 'pointer' }}>
-            <div className="volume-level" style={{ width: `${player.muted ? 0 : player.volume}%` }}></div>
-          </div>
-        </div>
-      </div>
+      </AppDialog>
     </div>
   );
 }

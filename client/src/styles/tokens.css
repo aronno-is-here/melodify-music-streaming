@@ -1,0 +1,61 @@
+:root {
+  --mel-font-ui: 'Montserrat', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --mel-font-heading: 'Merienda', 'Montserrat', 'Segoe UI', sans-serif;
+  --mel-bg: #030913;
+  --mel-bg-elev-1: #071426;
+  --mel-bg-elev-2: #0d1d35;
+  --mel-bg-glass: rgba(6, 16, 34, 0.82);
+  --mel-text: #edf5ff;
+  --mel-text-soft: #b5c8e6;
+  --mel-text-muted: #8ca3c6;
+  --mel-cyan: #00b4d8;
+  --mel-cyan-soft: #90e0ef;
+  --mel-indigo: #5b57d9;
+  --mel-border: rgba(112, 150, 220, 0.25);
+  --mel-border-strong: rgba(135, 168, 232, 0.45);
+  --mel-shadow-soft: 0 10px 30px rgba(1, 7, 20, 0.45);
+  --mel-radius-6: 6px;
+  --mel-radius-10: 10px;
+  --mel-radius-12: 12px;
+  --mel-pill: 999px;
+  --mel-space-2: 8px;
+  --mel-space-3: 12px;
+  --mel-space-4: 16px;
+  --mel-space-5: 20px;
+  --mel-space-6: 24px;
+  --mel-space-8: 32px;
+  --mel-top-header-h: 72px;
+  --mel-player-h: 78px;
+  --mel-mobile-nav-h: 72px;
+  --mel-mini-player-h: 64px;
+  --mel-transition: 180ms ease;
+  --white: #ffffff;
+  --gray: #b5c8e6;
+  --sky-blue: #00b4d8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--mel-font-ui);
+  background: radial-gradient(circle at 78% 12%, #112d63 0, rgba(17, 45, 99, 0) 45%),
+    radial-gradient(circle at 24% 0, #311a69 0, rgba(49, 26, 105, 0) 35%),
+    var(--mel-bg);
+  color: var(--mel-text);
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mel-cyan);
+  outline-offset: 2px;
+}

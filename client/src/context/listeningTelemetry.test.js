@@ -630,13 +630,18 @@ test('static: no client secret keys or ML score fields', () => {
 });
 
 test('static: Dashboard click history write removed', () => {
-  const src = readFileSync(
+  const dashboardSrc = readFileSync(
     join(__dirname, '..', 'pages', 'Dashboard', 'Dashboard.jsx'),
     'utf8',
   );
-  assert.equal(src.includes("api.post('/api/history'"), false);
-  assert.equal(src.includes('recordPlay'), false);
-  assert.match(src, /api\.get\('\/api\/history'\)/);
+  const shellSrc = readFileSync(
+    join(__dirname, '..', 'components', 'app', 'AuthenticatedAppShell.jsx'),
+    'utf8',
+  );
+  assert.equal(dashboardSrc.includes("api.post('/api/history'"), false);
+  assert.equal(dashboardSrc.includes('recordPlay'), false);
+  assert.equal(dashboardSrc.includes("api.get('/api/history'"), false);
+  assert.match(shellSrc, /api\.get\('\/api\/history'\)/);
 });
 
 const eventTypes = (h) => h.sent.map((event) => event.event_type);
