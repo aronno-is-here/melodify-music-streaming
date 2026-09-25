@@ -8,6 +8,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(__dirname, 'PlayerContext.jsx'), 'utf8');
 const telemetrySrc = readFileSync(join(__dirname, 'listeningTelemetry.js'), 'utf8');
 const dashboardSrc = readFileSync(join(__dirname, '..', 'pages', 'Dashboard', 'Dashboard.jsx'), 'utf8');
+const shellPlayerSrc = readFileSync(join(__dirname, '..', 'components', 'app', 'GlobalPlayerBar.jsx'), 'utf8');
+const fullPlayerSrc = readFileSync(join(__dirname, '..', 'pages', 'Dashboard', 'FullScreenPlayer.jsx'), 'utf8');
 const statusUiSrc = readFileSync(join(__dirname, '..', 'pages', 'Dashboard', 'playbackStatusUi.js'), 'utf8');
 
 const slice = (text, from, to) => text.slice(text.indexOf(from), text.indexOf(to));
@@ -67,8 +69,8 @@ test('16: HTML audio pause confirms paused', () => {
 test('17: blocked or deferred path retries from an explicit user action', () => {
   assert.match(valueBlock, /\n    retryPlayback,\r?\n/);
   assert.equal((src.match(/retryPlayback\(/g) || []).length, 0);
-  assert.match(dashboardSrc, /onClick=\{player\.retryPlayback\}/);
-  assert.match(dashboardSrc, /aria-label=\{playbackStatusUi\.retryAriaLabel\}/);
+  assert.match(shellPlayerSrc, /onClick=\{player\.retryPlayback\}/);
+  assert.match(fullPlayerSrc, /onClick=\{player\.retryPlayback\}/);
   assert.match(confirmTimerBlock, /setStatus\(PLAYBACK_STATUS\.BLOCKED\)/);
 });
 
@@ -250,9 +252,11 @@ test('deferred YouTube container has no negative stacking', () => {
 });
 
 test('dashboard renders the status surface with an accessible retry button', () => {
-  assert.match(dashboardSrc, /selectPlaybackStatusPresentation\(/);
-  assert.match(dashboardSrc, /<div className="np-status" role="status" aria-live="polite">/);
-  assert.match(dashboardSrc, /<button\s+type="button"\s+className="np-retry-btn"/);
+  assert.match(shellPlayerSrc, /selectPlaybackStatusPresentation\(/);
+  assert.match(shellPlayerSrc, /role="status"/);
+  assert.match(fullPlayerSrc, /role="status"/);
+  assert.match(shellPlayerSrc, /onClick=\{player\.retryPlayback\}/);
+  assert.match(fullPlayerSrc, /onClick=\{player\.retryPlayback\}/);
   assert.equal(dashboardSrc.includes('setInterval'), false);
   assert.equal(dashboardSrc.includes('refresh()'), false);
 });
