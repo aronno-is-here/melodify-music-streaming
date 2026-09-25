@@ -733,6 +733,15 @@
 .studio-publish-btn:hover { background: #90e0ef; transform: scale(1.02); }
 .studio-publish-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
+.studio-youtube-shell {
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+}
+
 @media (max-width: 768px) {
   .studio-song-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
   .studio-hero h1 { font-size: 22px; }

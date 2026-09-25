@@ -23,6 +23,35 @@ const DISCOVERY_REGION_OPTIONS = [
 ];
 
 const getPosterUrl = (song) => song?.posterUrl || song?.poster_url || 'https://picsum.photos/120/120?random';
+const YOUTUBE_API_URL = 'https://www.youtube.com/iframe_api';
+let youtubeApiPromise = null;
+
+const loadYoutubeApi = () => {
+  if (typeof window === 'undefined') return Promise.reject(new Error('youtube api unavailable'));
+  if (window.YT && typeof window.YT.Player === 'function') {
+    return Promise.resolve(window.YT);
+  }
+  if (youtubeApiPromise) return youtubeApiPromise;
+
+  youtubeApiPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-melodify-youtube-api="1"]');
+    const script = existing || document.createElement('script');
+    if (!existing) {
+      script.src = YOUTUBE_API_URL;
+      script.async = true;
+      script.setAttribute('data-melodify-youtube-api', '1');
+      script.onerror = () => reject(new Error('youtube api failed to load'));
+      document.head.appendChild(script);
+    }
+    const previous = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof previous === 'function') previous();
+      resolve(window.YT);
+    };
+  });
+
+  return youtubeApiPromise;
+};
 
 export default function MelodifyStudio() {
   useLayoutEffect(() => {
@@ -50,6 +79,7 @@ export default function MelodifyStudio() {
   const [recordTime, setRecordTime] = useState(0);
   const [recordBlob, setRecordBlob] = useState(null);
   const [recordUrl, setRecordUrl] = useState(null);
+  const [recordingMeta, setRecordingMeta] = useState(null);
   const [micPermission, setMicPermission] = useState('prompt');
   const [recordingError, setRecordingError] = useState('');
 
@@ -82,9 +112,13 @@ export default function MelodifyStudio() {
   const trebleFilterRef = useRef(null);
   const streamRef = useRef(null);
   const timerRef = useRef(null);
+  const recordTimeRef = useRef(0);
   const previewAudioRef = useRef(null);
   const backingAudioRef = useRef(null);
   const mediaDestinationRef = useRef(null);
+  const youtubePlayerRef = useRef(null);
+  const activeRecordingMetaRef = useRef(null);
+  const previewSyncReadyRef = useRef(false);
 
   useEffect(() => {
     fetchKaraoke();
@@ -94,6 +128,7 @@ export default function MelodifyStudio() {
         previewAudioRef.current.pause();
         previewAudioRef.current = null;
       }
+      stopYoutubeBacking();
     };
   }, []);
 
@@ -154,6 +189,7 @@ export default function MelodifyStudio() {
       backingAudioRef.current.src = '';
       backingAudioRef.current = null;
     }
+    stopYoutubeBacking();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -173,6 +209,9 @@ export default function MelodifyStudio() {
     bassFilterRef.current = null;
     trebleFilterRef.current = null;
     mediaDestinationRef.current = null;
+    activeRecordingMetaRef.current = null;
+    previewSyncReadyRef.current = false;
+    recordTimeRef.current = 0;
   };
 
   const loadBackingAudio = (song) => {
@@ -210,13 +249,54 @@ export default function MelodifyStudio() {
     return '';
   };
 
+  const ensureYoutubePlayer = async (videoId) => {
+    const trackId = typeof videoId === 'string' ? videoId.trim() : '';
+    if (!trackId) throw new Error('youtube track id is required');
+    const YT = await loadYoutubeApi();
+
+    if (!youtubePlayerRef.current) {
+      await new Promise((resolve) => {
+        youtubePlayerRef.current = new YT.Player('studio-youtube-player', {
+          width: '0',
+          height: '0',
+          videoId: trackId,
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            disablekb: 1,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1,
+          },
+          events: {
+            onReady: () => resolve(),
+          },
+        });
+      });
+    } else {
+      youtubePlayerRef.current.cueVideoById(trackId);
+    }
+
+    return youtubePlayerRef.current;
+  };
+
+  const stopYoutubeBacking = () => {
+    if (!youtubePlayerRef.current) return;
+    try {
+      youtubePlayerRef.current.pauseVideo();
+      youtubePlayerRef.current.seekTo(0, true);
+    } catch {}
+  };
+
   const selectSong = (song) => {
     setSelectedSong(song);
     setPostTitle(`${user?.name || 'My'} - ${song.title}`);
     setStep(STEPS.RECORD);
     setRecordBlob(null);
     setRecordUrl(null);
+    setRecordingMeta(null);
     setRecordTime(0);
+    recordTimeRef.current = 0;
     setPublishMsg('');
     setRecordingError('');
   };
@@ -232,13 +312,17 @@ export default function MelodifyStudio() {
         setRecordingError('MediaRecorder is not supported in this browser.');
         return;
       }
-      if (selectedSong.playbackType !== 'audio') {
-        setRecordingError('This track supports sing-along mode only. Select a KARAOKE_READY track to record with backing audio.');
+      if (selectedSong.playbackType !== 'audio' && selectedSong.playbackType !== 'youtube') {
+        setRecordingError('Selected track cannot be used for recording. Please choose another track.');
         return;
       }
 
-      const backingAudio = await loadBackingAudio(selectedSong);
-      backingAudioRef.current = backingAudio;
+      if (selectedSong.playbackType === 'audio') {
+        const backingAudio = await loadBackingAudio(selectedSong);
+        backingAudioRef.current = backingAudio;
+      } else if (selectedSong.playbackType === 'youtube') {
+        await ensureYoutubePlayer(selectedSong.backingProviderTrackId || selectedSong.youtubeId);
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
@@ -344,6 +428,15 @@ export default function MelodifyStudio() {
 
       recorder.onstop = () => {
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const durationMs = Math.max(0, Math.round(recordTimeRef.current * 1000));
+        if (activeRecordingMetaRef.current) {
+          const nextMeta = {
+            ...activeRecordingMetaRef.current,
+            recordingDurationMs: durationMs,
+          };
+          activeRecordingMetaRef.current = nextMeta;
+          setRecordingMeta(nextMeta);
+        }
         setRecordBlob(blob);
         setRecordUrl(URL.createObjectURL(blob));
         setStep(STEPS.PREVIEW);
@@ -359,10 +452,34 @@ export default function MelodifyStudio() {
         await backingAudioRef.current.play();
       }
 
+      if (selectedSong.playbackType === 'youtube' && youtubePlayerRef.current) {
+        youtubePlayerRef.current.seekTo(0, true);
+        youtubePlayerRef.current.playVideo();
+      }
+
+      const recordingMode = selectedSong.recordingMode || (selectedSong.playbackType === 'audio' ? 'MIXED' : 'COMPOSITE');
+      const baseMeta = {
+        recordingMode,
+        backingSongId: selectedSong.catalogSongId || '',
+        backingProvider: selectedSong.backingProvider || '',
+        backingProviderId: selectedSong.backingProviderTrackId || selectedSong.youtubeId || '',
+        backingStartOffsetMs: 0,
+        recordingDurationMs: 0,
+      };
+      activeRecordingMetaRef.current = baseMeta;
+      setRecordingMeta(baseMeta);
+
       recorder.start(100);
       setIsRecording(true);
       setRecordTime(0);
-      timerRef.current = setInterval(() => setRecordTime((t) => t + 1), 1000);
+      recordTimeRef.current = 0;
+      timerRef.current = setInterval(() => {
+        setRecordTime((t) => {
+          const next = t + 1;
+          recordTimeRef.current = next;
+          return next;
+        });
+      }, 1000);
     } catch (err) {
       if (err.name === 'NotAllowedError') {
         setMicPermission('denied');
@@ -371,6 +488,8 @@ export default function MelodifyStudio() {
         setRecordingError('No microphone found. Please connect a microphone and try again.');
       } else if (err.message === 'backing track failed to load') {
         setRecordingError('Backing track failed to load. Try another track.');
+      } else if (err.message === 'youtube api failed to load') {
+        setRecordingError('YouTube backing failed to load. Please try again later.');
       } else {
         setRecordingError('Could not start recording: ' + err.message);
       }
@@ -384,6 +503,7 @@ export default function MelodifyStudio() {
       backingAudioRef.current.pause();
       backingAudioRef.current.currentTime = 0;
     }
+    stopYoutubeBacking();
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
@@ -430,6 +550,7 @@ export default function MelodifyStudio() {
     setRecordBlob(null);
     setRecordUrl(null);
     setRecordTime(0);
+    recordTimeRef.current = 0;
     setStep(STEPS.RECORD);
     setRecordingError('');
   };
@@ -442,12 +563,25 @@ export default function MelodifyStudio() {
     try {
       const formData = new FormData();
       formData.append('audio', recordBlob, 'recording.webm');
-      formData.append('karaokeId', selectedSong._id);
+      const karaokeId = selectedSong.karaokeId || selectedSong._id || '';
+      if (karaokeId) formData.append('karaokeId', karaokeId);
       formData.append('title', postTitle || `${user?.name} - ${selectedSong.title}`);
       formData.append('caption', postCaption);
       formData.append('duration', String(recordTime));
       formData.append('effects', JSON.stringify({ ...effects, preset: activePreset }));
       formData.append('visibility', postVisibility);
+      formData.append('recordingMode', recordingMeta?.recordingMode || selectedSong.recordingMode || 'MIC_ONLY');
+      if (recordingMeta?.backingSongId || selectedSong.catalogSongId) {
+        formData.append('backingSongId', recordingMeta?.backingSongId || selectedSong.catalogSongId);
+      }
+      if (recordingMeta?.backingProvider || selectedSong.backingProvider) {
+        formData.append('backingProvider', recordingMeta?.backingProvider || selectedSong.backingProvider);
+      }
+      if (recordingMeta?.backingProviderId || selectedSong.backingProviderTrackId || selectedSong.youtubeId) {
+        formData.append('backingProviderId', recordingMeta?.backingProviderId || selectedSong.backingProviderTrackId || selectedSong.youtubeId);
+      }
+      formData.append('backingStartOffsetMs', String(recordingMeta?.backingStartOffsetMs || 0));
+      formData.append('recordingDurationMs', String(recordingMeta?.recordingDurationMs || (recordTimeRef.current * 1000)));
 
       const token = localStorage.getItem('melodify_token');
       const res = await fetch('/api/recordings', {
@@ -463,6 +597,7 @@ export default function MelodifyStudio() {
         setSelectedSong(null);
         setRecordBlob(null);
         setRecordUrl(null);
+        setRecordingMeta(null);
         setPostTitle('');
         setPostCaption('');
       } else {
@@ -478,6 +613,47 @@ export default function MelodifyStudio() {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const isCompositeRecording = recordingMeta?.recordingMode === 'COMPOSITE' && !!recordingMeta?.backingProviderId;
+
+  useEffect(() => {
+    if (step !== STEPS.PREVIEW || !isCompositeRecording) {
+      previewSyncReadyRef.current = false;
+      stopYoutubeBacking();
+      return;
+    }
+    let cancelled = false;
+    ensureYoutubePlayer(recordingMeta.backingProviderId)
+      .then(() => {
+        if (cancelled) return;
+        previewSyncReadyRef.current = true;
+      })
+      .catch(() => {
+        if (cancelled) return;
+        previewSyncReadyRef.current = false;
+      });
+
+    return () => {
+      cancelled = true;
+      stopYoutubeBacking();
+      previewSyncReadyRef.current = false;
+    };
+  }, [step, isCompositeRecording, recordingMeta?.backingProviderId]);
+
+  const syncCompositePreviewPlayback = (audioTimeSeconds, shouldPlay) => {
+    if (!isCompositeRecording) return;
+    if (!previewSyncReadyRef.current || !youtubePlayerRef.current) return;
+    const offsetSeconds = (recordingMeta.backingStartOffsetMs || 0) / 1000;
+    const targetSeconds = Math.max(0, offsetSeconds + Math.max(0, audioTimeSeconds));
+    try {
+      youtubePlayerRef.current.seekTo(targetSeconds, true);
+      if (shouldPlay) {
+        youtubePlayerRef.current.playVideo();
+      } else {
+        youtubePlayerRef.current.pauseVideo();
+      }
+    } catch {}
   };
 
   return (
@@ -621,7 +797,12 @@ export default function MelodifyStudio() {
                 <span className="studio-np-title">{selectedSong.title}</span>
                 <span className="studio-np-artist">{selectedSong.artist}</span>
               </div>
-              <button className="studio-change-btn" onClick={() => { setStep(STEPS.SELECT); setSelectedSong(null); }}>
+              <button className="studio-change-btn" onClick={() => {
+                if (isRecording) stopRecording();
+                cleanupRecording();
+                setStep(STEPS.SELECT);
+                setSelectedSong(null);
+              }}>
                 Change
               </button>
             </div>
@@ -715,7 +896,12 @@ export default function MelodifyStudio() {
                 For best results, use headphones to avoid microphone feedback.
               </p>
 
-              <button className="studio-back-link" onClick={() => { setStep(STEPS.SELECT); setSelectedSong(null); }}>
+              <button className="studio-back-link" onClick={() => {
+                if (isRecording) stopRecording();
+                cleanupRecording();
+                setStep(STEPS.SELECT);
+                setSelectedSong(null);
+              }}>
                 Back to song selection
               </button>
             </div>
@@ -743,6 +929,19 @@ export default function MelodifyStudio() {
               controls
               src={recordUrl}
               className="studio-preview-audio"
+              onPlay={(event) => {
+                syncCompositePreviewPlayback(event.currentTarget.currentTime, true);
+              }}
+              onPause={(event) => {
+                syncCompositePreviewPlayback(event.currentTarget.currentTime, false);
+              }}
+              onSeeked={(event) => {
+                const shouldPlay = !event.currentTarget.paused;
+                syncCompositePreviewPlayback(event.currentTarget.currentTime, shouldPlay);
+              }}
+              onEnded={() => {
+                stopYoutubeBacking();
+              }}
             ></audio>
 
             <div className="studio-preview-meta">
@@ -832,6 +1031,10 @@ export default function MelodifyStudio() {
             </div>
           </div>
         )}
+
+        <div className="studio-youtube-shell" aria-hidden="true">
+          <div id="studio-youtube-player"></div>
+        </div>
       </main>
     </div>
   );

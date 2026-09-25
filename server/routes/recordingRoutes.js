@@ -1,6 +1,7 @@
 import express from 'express';
 import Recording from '../models/Recording.js';
 import Karaoke from '../models/Karaoke.js';
+import Song from '../models/Song.js';
 import Post from '../models/Post.js';
 import { protect } from '../middleware/auth.js';
 import multer from 'multer';
@@ -8,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { parseRecordingSyncPayload, RECORDING_MODE } from '../utils/recordingSyncPayload.js';
 
 const router = express.Router();
 
@@ -47,6 +49,7 @@ router.get('/', protect, async (req, res) => {
     const [recordings, total] = await Promise.all([
       Recording.find(query)
         .populate('karaoke', 'title artist poster_url duration')
+        .populate('backingSong', 'title artist poster_url duration youtube_id')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -73,6 +76,7 @@ router.get('/user/:userId', protect, async (req, res) => {
     const [recordings, total] = await Promise.all([
       Recording.find(query)
         .populate('karaoke', 'title artist poster_url duration')
+        .populate('backingSong', 'title artist poster_url duration youtube_id')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -89,7 +93,8 @@ router.get('/:id', protect, async (req, res) => {
   try {
     const recording = await Recording.findById(req.params.id)
       .populate('author', 'name email avatar')
-      .populate('karaoke', 'title artist poster_url duration');
+      .populate('karaoke', 'title artist poster_url duration')
+      .populate('backingSong', 'title artist poster_url duration youtube_id');
 
     if (!recording) return res.status(404).json({ success: false, error: 'Recording not found' });
     if (recording.visibility === 'private' && String(recording.author._id) !== String(req.user._id)) {
@@ -109,29 +114,59 @@ router.post('/', protect, upload.single('audio'), async (req, res) => {
     }
 
     const { karaokeId, title, caption, duration, effects, visibility } = req.body;
-    if (!karaokeId || !title) {
-      return res.status(400).json({ success: false, error: 'Karaoke track and title are required.' });
+    if (!title) {
+      return res.status(400).json({ success: false, error: 'Recording title is required.' });
     }
 
-    const karaoke = await Karaoke.findById(karaokeId);
-    if (!karaoke) return res.status(404).json({ success: false, error: 'Karaoke track not found' });
+    const syncMeta = parseRecordingSyncPayload(req.body);
+    if (!syncMeta.ok) {
+      return res.status(400).json({ success: false, error: syncMeta.error });
+    }
+
+    let karaoke = null;
+    if (karaokeId) {
+      karaoke = await Karaoke.findById(karaokeId);
+      if (!karaoke) return res.status(404).json({ success: false, error: 'Karaoke track not found' });
+    }
+
+    let backingSong = null;
+    if (syncMeta.value.backingSongId) {
+      backingSong = await Song.findById(syncMeta.value.backingSongId);
+      if (!backingSong) return res.status(404).json({ success: false, error: 'Backing song not found' });
+    }
+
+    if (!karaoke && !backingSong && !syncMeta.value.backingProviderId) {
+      return res.status(400).json({ success: false, error: 'Backing track reference is required.' });
+    }
 
     let parsedEffects = {};
     try { parsedEffects = effects ? JSON.parse(effects) : {}; } catch {}
 
+    const parsedDurationSeconds = parseInt(duration, 10) || 0;
+    const recordingDurationMs = syncMeta.value.recordingDurationMs > 0
+      ? syncMeta.value.recordingDurationMs
+      : parsedDurationSeconds * 1000;
+
     const recording = await Recording.create({
       author: req.user._id,
-      karaoke: karaokeId,
+      karaoke: karaoke?._id || null,
+      backingSong: backingSong?._id || null,
+      recordingMode: syncMeta.value.recordingMode || RECORDING_MODE.MIC_ONLY,
+      backingProvider: syncMeta.value.backingProvider || '',
+      backingProviderId: syncMeta.value.backingProviderId || '',
+      backingStartOffsetMs: syncMeta.value.backingStartOffsetMs || 0,
+      recordingDurationMs,
       title: String(title).slice(0, 200),
       caption: String(caption || '').slice(0, 1000),
       audioUrl: `/assets/recordings/${req.file.filename}`,
-      duration: parseInt(duration) || 0,
+      duration: parsedDurationSeconds,
       effects: parsedEffects,
       visibility: ['public', 'private'].includes(visibility) ? visibility : 'public',
     });
 
     const populated = await Recording.findById(recording._id)
-      .populate('karaoke', 'title artist poster_url duration');
+      .populate('karaoke', 'title artist poster_url duration')
+      .populate('backingSong', 'title artist poster_url duration youtube_id');
 
     res.json({ success: true, recording: populated });
   } catch (error) {
@@ -156,7 +191,8 @@ router.put('/:id', protect, async (req, res) => {
     }
 
     const updated = await Recording.findByIdAndUpdate(req.params.id, update, { new: true })
-      .populate('karaoke', 'title artist poster_url duration');
+      .populate('karaoke', 'title artist poster_url duration')
+      .populate('backingSong', 'title artist poster_url duration youtube_id');
 
     res.json({ success: true, recording: updated });
   } catch (error) {
@@ -187,7 +223,8 @@ router.delete('/:id', protect, async (req, res) => {
 router.post('/:id/publish', protect, async (req, res) => {
   try {
     const recording = await Recording.findById(req.params.id)
-      .populate('karaoke', 'title artist poster_url');
+      .populate('karaoke', 'title artist poster_url')
+      .populate('backingSong', 'title artist poster_url');
 
     if (!recording) return res.status(404).json({ success: false, error: 'Recording not found' });
     if (String(recording.author) !== String(req.user._id)) {
@@ -201,7 +238,8 @@ router.post('/:id/publish', protect, async (req, res) => {
 
     const post = await Post.create({
       author: req.user._id,
-      karaoke: recording.karaoke._id,
+      karaoke: recording.karaoke?._id || undefined,
+      song: recording.backingSong?._id || undefined,
       title: recording.title,
       caption: caption || recording.caption || '',
       audioUrl: recording.audioUrl,

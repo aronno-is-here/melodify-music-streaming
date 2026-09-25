@@ -252,13 +252,13 @@ export default function Profile() {
                   {recordings.map((rec) => (
                     <div key={rec._id} style={{ background: '#1a1a1a', borderRadius: 10, padding: 16 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                        {rec.karaoke?.poster_url && (
-                          <img src={rec.karaoke.poster_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }} />
+                        {(rec.karaoke?.poster_url || rec.backingSong?.poster_url) && (
+                          <img src={rec.karaoke?.poster_url || rec.backingSong?.poster_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }} />
                         )}
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 15, fontWeight: 600 }}>{rec.title}</div>
                           <div style={{ fontSize: 12, color: '#b3b3b3' }}>
-                            {rec.karaoke?.title} - {rec.karaoke?.artist}
+                            {(rec.karaoke?.title || rec.backingSong?.title || 'Unknown track')} - {(rec.karaoke?.artist || rec.backingSong?.artist || 'Unknown artist')}
                           </div>
                           <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
                             {rec.effects?.preset && `Effect: ${rec.effects.preset} · `}
