@@ -2,6 +2,8 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Extend Admin music edit flow on `mimi` with lyrics/chords verification controls: added dedicated save path that updates song metadata plus `/api/songs/:id/content` verification fields (lyrics/chords text, source/provider IDs, match status, URLs, checked timestamps, verified flags), added admin editor styling for multiline/verification grids, added regression checks in `client/src/pages/Admin/adminSongContentEditor.test.js`, and updated README admin feature docs.
+
 - [x] `2026-09-15` Implement Dashboard provider-backed search UX on `mimi`: switched search to authenticated `/api/catalog/search` with debounced regional chips + merged local/external mapping, added lazy `/api/catalog/import` before external play/favorite so actions resolve to canonical local Song IDs, added source/import state badges and feedback UI in Dashboard CSS, added regression checks in `client/src/pages/Dashboard/dashboardSearchProvider.test.js`, and updated README route/feature docs.
 
 - [x] `2026-08-06` Add To-Do tracking system to AGENTS.md (track all user requests here)

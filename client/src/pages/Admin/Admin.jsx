@@ -6,6 +6,25 @@ import KaraokeForm from './KaraokeForm.jsx';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions'];
 
+const LYRICS_SOURCE_OPTIONS = ['db_verified', 'lrclib', 'legacy_unverified', 'none'];
+const CHORDS_SOURCE_OPTIONS = ['db_verified', 'chordify', 'other', 'none'];
+const LYRICS_MATCH_STATUS_OPTIONS = ['EXACT', 'HIGH', 'AMBIGUOUS', 'NONE'];
+
+const toText = (value) => (typeof value === 'string' ? value : '');
+const toTrimmedText = (value) => toText(value).trim();
+
+const formatDateTimeLocal = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  const hours = String(parsed.getHours()).padStart(2, '0');
+  const minutes = String(parsed.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function Admin() {
   useLayoutEffect(() => {
     const style = document.createElement('style');
@@ -105,15 +124,72 @@ export default function Admin() {
     }
   };
 
-  const updateSong = async (id, updates) => {
+  const updateSong = async (id, updates, options = {}) => {
+    const closeEditor = options.closeEditor !== false;
+    const showSuccess = options.showSuccess !== false;
     const data = await api.put(`/api/songs/${id}`, updates);
     if (data.success) {
-      showMessage('Song updated');
+      if (showSuccess) showMessage('Song updated');
       setSongs((prev) => prev.map((s) => (s._id === id ? data.song : s)));
-      setEditingSong(null);
+      if (closeEditor) setEditingSong(null);
+      return data.song;
     } else {
       showMessage(data.error || 'Failed to update song', true);
+      return null;
     }
+  };
+
+  const updateSongContent = async (id, updates) => {
+    const data = await api.put(`/api/songs/${id}/content`, updates);
+    if (data.success) {
+      return data.song;
+    }
+    showMessage(data.error || 'Failed to update song content', true);
+    return null;
+  };
+
+  const saveSongEdits = async (event) => {
+    event.preventDefault();
+    if (!editingSong?._id) return;
+
+    const formData = new FormData(event.target);
+    const metadataPayload = {
+      title: toTrimmedText(formData.get('title')),
+      artist: toTrimmedText(formData.get('artist')),
+      genre: toTrimmedText(formData.get('genre')),
+      duration: toTrimmedText(formData.get('duration')),
+    };
+
+    const contentPayload = {
+      lyrics: toText(formData.get('lyrics')),
+      lyrics_verified: formData.get('lyrics_verified') === 'on',
+      lyrics_source: toTrimmedText(formData.get('lyrics_source')) || 'none',
+      lyrics_provider_id: toTrimmedText(formData.get('lyrics_provider_id')),
+      lyrics_language: toTrimmedText(formData.get('lyrics_language')),
+      lyrics_match_status: toTrimmedText(formData.get('lyrics_match_status')) || 'NONE',
+      lyrics_last_checked_at: toText(formData.get('lyrics_last_checked_at')),
+      chords: toText(formData.get('chords')),
+      chords_verified: formData.get('chords_verified') === 'on',
+      chords_source: toTrimmedText(formData.get('chords_source')) || 'none',
+      chords_provider_id: toTrimmedText(formData.get('chords_provider_id')),
+      chordify_url: toTrimmedText(formData.get('chordify_url')),
+      chordify_embed_url: toTrimmedText(formData.get('chordify_embed_url')),
+      chords_reference_url: toTrimmedText(formData.get('chords_reference_url')),
+      chords_last_checked_at: toText(formData.get('chords_last_checked_at')),
+    };
+
+    const metadataSong = await updateSong(editingSong._id, metadataPayload, { closeEditor: false, showSuccess: false });
+    if (!metadataSong) return;
+
+    const contentSong = await updateSongContent(editingSong._id, contentPayload);
+    if (!contentSong) {
+      setEditingSong({ ...editingSong, ...metadataSong });
+      return;
+    }
+
+    showMessage('Song updated');
+    setSongs((prev) => prev.map((song) => (song._id === editingSong._id ? contentSong : song)));
+    setEditingSong(null);
   };
 
   const resolveReport = async (id, status) => {
@@ -378,11 +454,33 @@ export default function Admin() {
               {editingSong && (
                 <div style={{ marginBottom: 20, padding: 15, border: '1px solid #00b4d8', borderRadius: 8 }}>
                   <h3>Edit Song</h3>
-                  <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target); updateSong(editingSong._id, Object.fromEntries(fd)); }}>
+                  <form onSubmit={saveSongEdits}>
                     <div className="form-group"><label>Title</label><input type="text" name="title" defaultValue={editingSong.title} required /></div>
                     <div className="form-group"><label>Artist</label><input type="text" name="artist" defaultValue={editingSong.artist} required /></div>
                     <div className="form-group"><label>Genre</label><input type="text" name="genre" defaultValue={editingSong.genre} required /></div>
                     <div className="form-group"><label>Duration</label><input type="text" name="duration" defaultValue={editingSong.duration} /></div>
+                    <div className="form-divider"><span>Lyrics Verification</span></div>
+                    <div className="form-group"><label>Lyrics</label><textarea name="lyrics" defaultValue={editingSong.lyrics || ''} rows={5} className="admin-multiline-input" /></div>
+                    <div className="admin-verify-grid">
+                      <div className="form-group"><label>Lyrics Source</label><select name="lyrics_source" defaultValue={editingSong.lyrics_source || 'none'}>{LYRICS_SOURCE_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+                      <div className="form-group"><label>Match Status</label><select name="lyrics_match_status" defaultValue={editingSong.lyrics_match_status || 'NONE'}>{LYRICS_MATCH_STATUS_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+                      <div className="form-group"><label>Provider ID</label><input type="text" name="lyrics_provider_id" defaultValue={editingSong.lyrics_provider_id || ''} /></div>
+                      <div className="form-group"><label>Language</label><input type="text" name="lyrics_language" defaultValue={editingSong.lyrics_language || ''} /></div>
+                      <div className="form-group"><label>Last Checked</label><input type="datetime-local" name="lyrics_last_checked_at" defaultValue={formatDateTimeLocal(editingSong.lyrics_last_checked_at)} /></div>
+                    </div>
+                    <label className="admin-checkbox-row"><input type="checkbox" name="lyrics_verified" defaultChecked={editingSong.lyrics_verified === true} /> Lyrics verified</label>
+
+                    <div className="form-divider"><span>Chords Verification</span></div>
+                    <div className="form-group"><label>Chords</label><textarea name="chords" defaultValue={editingSong.chords || ''} rows={4} className="admin-multiline-input" /></div>
+                    <div className="admin-verify-grid">
+                      <div className="form-group"><label>Chords Source</label><select name="chords_source" defaultValue={editingSong.chords_source || 'none'}>{CHORDS_SOURCE_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+                      <div className="form-group"><label>Provider ID</label><input type="text" name="chords_provider_id" defaultValue={editingSong.chords_provider_id || ''} /></div>
+                      <div className="form-group"><label>Chordify URL</label><input type="url" name="chordify_url" defaultValue={editingSong.chordify_url || ''} /></div>
+                      <div className="form-group"><label>Chordify Embed URL</label><input type="url" name="chordify_embed_url" defaultValue={editingSong.chordify_embed_url || ''} /></div>
+                      <div className="form-group"><label>Reference URL</label><input type="url" name="chords_reference_url" defaultValue={editingSong.chords_reference_url || ''} /></div>
+                      <div className="form-group"><label>Last Checked</label><input type="datetime-local" name="chords_last_checked_at" defaultValue={formatDateTimeLocal(editingSong.chords_last_checked_at)} /></div>
+                    </div>
+                    <label className="admin-checkbox-row"><input type="checkbox" name="chords_verified" defaultChecked={editingSong.chords_verified === true} /> Chords verified</label>
                     <button type="submit" className="btn">Save</button>
                     <button type="button" className="btn" onClick={() => setEditingSong(null)} style={{ marginLeft: 10 }}>Cancel</button>
                   </form>

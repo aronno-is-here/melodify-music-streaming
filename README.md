@@ -24,7 +24,7 @@ A full-featured music streaming web application with user authentication, a song
 - Dedicated admin login (demo credentials, see below)
 - Dashboard with analytics cards (users, songs, plays, revenue)
 - User management (search, edit, ban)
-- Music catalog management (add songs)
+- Music catalog management (add songs + edit lyrics/chords verification metadata)
 - Content moderation (resolve reports)
 - Subscription & payment management
 - System settings
