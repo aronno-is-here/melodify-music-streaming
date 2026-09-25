@@ -516,6 +516,12 @@
 
 .studio-back-link:hover { color: #fff; }
 
+.studio-headphone-hint {
+  color: #9cb2ba;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+
 .studio-preview {
   text-align: center;
 }

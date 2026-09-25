@@ -1,7 +1,6 @@
-import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-import usePlayer from '../../hooks/usePlayer.js';
 import { api } from '../../api/client.js';
 import cssRaw from './MelodifyStudio.css?raw';
 
@@ -35,7 +34,6 @@ export default function MelodifyStudio() {
   }, []);
 
   const { user } = useAuth();
-  const player = usePlayer();
 
   const [karaokeTracks, setKaraokeTracks] = useState([]);
   const [songQuery, setSongQuery] = useState('');
@@ -80,6 +78,8 @@ export default function MelodifyStudio() {
   const streamRef = useRef(null);
   const timerRef = useRef(null);
   const previewAudioRef = useRef(null);
+  const backingAudioRef = useRef(null);
+  const mediaDestinationRef = useRef(null);
 
   useEffect(() => {
     fetchKaraoke();
@@ -142,6 +142,13 @@ export default function MelodifyStudio() {
 
   const cleanupRecording = () => {
     if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    if (backingAudioRef.current) {
+      backingAudioRef.current.pause();
+      backingAudioRef.current.currentTime = 0;
+      backingAudioRef.current.src = '';
+      backingAudioRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -157,6 +164,32 @@ export default function MelodifyStudio() {
     delayGainRef.current = null;
     bassFilterRef.current = null;
     trebleFilterRef.current = null;
+    mediaDestinationRef.current = null;
+  };
+
+  const loadBackingAudio = (song) => {
+    if (!song || song.playbackType !== 'audio' || !song.backingAudioUrl) {
+      return Promise.resolve(null);
+    }
+
+    return new Promise((resolve, reject) => {
+      const backingAudio = new Audio(song.backingAudioUrl);
+      backingAudio.preload = 'auto';
+      backingAudio.crossOrigin = 'anonymous';
+      const onReady = () => {
+        backingAudio.removeEventListener('canplaythrough', onReady);
+        backingAudio.removeEventListener('error', onError);
+        resolve(backingAudio);
+      };
+      const onError = () => {
+        backingAudio.removeEventListener('canplaythrough', onReady);
+        backingAudio.removeEventListener('error', onError);
+        reject(new Error('backing track failed to load'));
+      };
+      backingAudio.addEventListener('canplaythrough', onReady, { once: true });
+      backingAudio.addEventListener('error', onError, { once: true });
+      backingAudio.load();
+    });
   };
 
   const selectSong = (song) => {
@@ -173,6 +206,22 @@ export default function MelodifyStudio() {
   const startRecording = async () => {
     setRecordingError('');
     try {
+      if (!selectedSong) {
+        setRecordingError('Please select a karaoke track first.');
+        return;
+      }
+      if (typeof MediaRecorder === 'undefined') {
+        setRecordingError('MediaRecorder is not supported in this browser.');
+        return;
+      }
+      if (selectedSong.playbackType !== 'audio') {
+        setRecordingError('This track supports sing-along mode only. Select a KARAOKE_READY track to record with backing audio.');
+        return;
+      }
+
+      const backingAudio = await loadBackingAudio(selectedSong);
+      backingAudioRef.current = backingAudio;
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
       });
@@ -243,10 +292,9 @@ export default function MelodifyStudio() {
       delayNode.connect(delayGain);
       delayGain.connect(merger);
 
-      merger.connect(audioCtx.destination);
-
       const dest = audioCtx.createMediaStreamDestination();
       merger.connect(dest);
+      mediaDestinationRef.current = dest;
 
       const recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = recorder;
@@ -261,8 +309,17 @@ export default function MelodifyStudio() {
         setRecordBlob(blob);
         setRecordUrl(URL.createObjectURL(blob));
         setStep(STEPS.PREVIEW);
+        setIsRecording(false);
         cleanupRecording();
       };
+
+      if (backingAudioRef.current) {
+        backingAudioRef.current.currentTime = 0;
+        backingAudioRef.current.onended = () => {
+          stopRecording();
+        };
+        await backingAudioRef.current.play();
+      }
 
       recorder.start(100);
       setIsRecording(true);
@@ -274,13 +331,21 @@ export default function MelodifyStudio() {
         setRecordingError('Microphone permission denied. Please allow microphone access in your browser settings.');
       } else if (err.name === 'NotFoundError') {
         setRecordingError('No microphone found. Please connect a microphone and try again.');
+      } else if (err.message === 'backing track failed to load') {
+        setRecordingError('Backing track failed to load. Try another track.');
       } else {
         setRecordingError('Could not start recording: ' + err.message);
       }
+      cleanupRecording();
+      setIsRecording(false);
     }
   };
 
   const stopRecording = () => {
+    if (backingAudioRef.current) {
+      backingAudioRef.current.pause();
+      backingAudioRef.current.currentTime = 0;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
@@ -584,6 +649,10 @@ export default function MelodifyStudio() {
                   </button>
                 )}
               </div>
+
+              <p className="studio-headphone-hint">
+                For best results, use headphones to avoid microphone feedback.
+              </p>
 
               <button className="studio-back-link" onClick={() => { setStep(STEPS.SELECT); setSelectedSong(null); }}>
                 Back to song selection
