@@ -219,6 +219,56 @@
   color: var(--mel-text-soft);
 }
 
+.music-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(2, 8, 18, 0.78);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: var(--mel-space-4);
+}
+
+.music-dialog {
+  width: min(100%, 640px);
+  max-height: min(88dvh, 760px);
+  border: 1px solid var(--mel-border-strong);
+  border-radius: var(--mel-radius-12);
+  background: linear-gradient(160deg, rgba(10, 24, 44, 0.98), rgba(7, 17, 33, 0.98));
+  box-shadow: var(--mel-shadow-soft);
+  display: flex;
+  flex-direction: column;
+}
+
+.music-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid var(--mel-border);
+}
+
+.music-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.2px;
+}
+
+.music-dialog-body {
+  padding: 14px;
+  overflow: auto;
+}
+
+.music-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--mel-border);
+}
+
 @media (max-width: 768px) {
   .music-section {
     padding: 14px;
@@ -231,5 +281,14 @@
   .music-row-scroll {
     grid-auto-columns: minmax(150px, 74vw);
     scroll-snap-type: x mandatory;
+  }
+
+  .music-dialog-backdrop {
+    padding: 10px;
+  }
+
+  .music-dialog {
+    width: 100%;
+    max-height: min(92dvh, 760px);
   }
 }

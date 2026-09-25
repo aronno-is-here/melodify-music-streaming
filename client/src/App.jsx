@@ -51,34 +51,13 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/search" element={<SearchView />} />
         <Route path="/library" element={<LibraryView />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/playlist/:id" element={<Playlist />} />
+        <Route path="/song/:id" element={<SongDetails />} />
       </Route>
       <Route
         path="/liked"
         element={<Navigate to="/library?tab=liked" replace />}
-      />
-      <Route
-        path="/profile"
-        element={
-          <Protected>
-            <Profile />
-          </Protected>
-        }
-      />
-      <Route
-        path="/playlist/:id"
-        element={
-          <Protected>
-            <Playlist />
-          </Protected>
-        }
-      />
-      <Route
-        path="/song/:id"
-        element={
-          <Protected>
-            <SongDetails />
-          </Protected>
-        }
       />
       <Route path="/premium" element={<Premium />} />
       <Route

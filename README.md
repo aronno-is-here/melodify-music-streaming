@@ -8,7 +8,7 @@ A full-featured music streaming web application with user authentication, a song
 
 ### User Side
 - **Multi-step sign-up flow** — email → password → profile details (name, DOB, gender, country)
-- **Login / Logout** with JWT authentication and bcrypt password hashing
+- **Login / Logout + recovery** with JWT authentication and bcrypt password hashing, plus modernized Login, Forgot Password, and Reset Password pages
 - **JWT purpose separation (04/43)** — access tokens carry `token_use: "access"`; password-reset tokens carry `token_use: "password-reset"`. Each flow rejects cross-purpose, missing, unknown, or malformed purposes. Existing sessions require re-login, and older reset links must be requested again.
 - **Reset-token handling (05/43)** — reset JWTs are not logged or returned to clients; reset-route failures and reset-sensitive global errors use fixed safe responses without logging raw errors or request bodies. Purpose separation remains enforced. Secure reset-token delivery is not yet implemented; the generic forgot-password acknowledgement does not indicate actual email delivery.
 - **Stale access-token invalidation (06/43)** — access tokens issued before a user's `passwordChangedAt` are rejected with the generic 401; tokens issued at or after that time remain valid (same-second tokens count as fresh). Password change and reset flows update `passwordChangedAt`; signup and fresh logins are unaffected.
@@ -48,9 +48,9 @@ A full-featured music streaming web application with user authentication, a song
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
 - **Upload songs** — any user can add songs with MP3/WAV audio + JPG/PNG poster via a modal form
-- **Profile page** — view/edit personal info, change password
-- **Dynamic Playlist page** (`/playlist/:id`) — per-user playlists with real songs, add/remove/rename/delete, search the library to add songs, built-in floating player (YouTube streaming)
-- **Dynamic Song Details page** (`/song/:id`) — real song metadata + related tracks (same artist/genre), full footer player with shuffle/repeat/seek/volume
+- **Profile page** — modernized account workspace with dialog-based account edit, password change, settings, and recording actions
+- **Dynamic Playlist page** (`/playlist/:id`) — modernized per-user playlist workspace (add/remove/rename/delete/search), integrated with the shared global player queue
+- **Dynamic Song Details page** (`/song/:id`) — modernized song metadata + related tracks + lyrics/chords surface, integrated with the shared global player
 - **Dynamic Premium page** (`/premium`) — live subscription status, subscribe/cancel plans (Individual/Student/Duo) via `/api/subscriptions`
 
 ### Admin Side
@@ -127,11 +127,12 @@ Melodify - Music Streaming Website/
 │   │   └── Admin/                 # Admin panel + login (incl. catalog-sync form, 11/43)
 │   ├── src/components/app/        # Authenticated shell + global player bar
 │   ├── src/components/music/      # Reusable song cards/rows and control primitives
+│   ├── src/components/ui/         # Shared UI primitives (dialogs/modals)
 │   ├── src/context/               # Auth context (JWT), PlayerContext + listeningTelemetry (15–16/43)
 │   ├── src/api/                   # API client
 │   ├── src/services/              # Personalized recommendation client states/fetch (36/43)
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player) + usePersonalizedRecommendations (36/43)
-│   ├── src/styles/                # Shared design tokens, shell layout, and music UI primitives
+│   ├── src/styles/                # Shared design tokens, shell layout, music UI primitives, and auth page styling
 │   └── public/                    # Static assets only (no static pages left)
 ├── ml/                            # Offline Python recommender foundation (23–31/43)
 │   ├── requirements.txt           # numpy>=1.26,<3 + scipy>=1.12,<2 + scikit-learn>=1.5,<2
