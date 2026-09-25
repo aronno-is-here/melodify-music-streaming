@@ -23,6 +23,11 @@ import commentRoutes from './routes/commentRoutes.js';
 import mediaRoutes from './routes/mediaRoutes.js';
 import karaokeRoutes from './routes/karaokeRoutes.js';
 import recordingRoutes from './routes/recordingRoutes.js';
+import listeningEventRoutes from './routes/listeningEventRoutes.js';
+import trendingRoutes from './routes/trendingRoutes.js';
+import recommendationRoutes from './routes/recommendationRoutes.js';
+import adminRecommendationRoutes from './routes/adminRecommendationRoutes.js';
+import { isSensitiveResetPath, getSafeResetError } from './utils/resetSecurity.js';
 
 dotenv.config();
 
@@ -95,6 +100,7 @@ app.use('/api/songs', songRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/admin/recommendations', adminRecommendationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/lyrics', lyricsRoutes);
@@ -107,6 +113,9 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/karaoke', karaokeRoutes);
 app.use('/api/recordings', recordingRoutes);
+app.use('/api/listening-events', listeningEventRoutes);
+app.use('/api/trending', trendingRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ success: true, message: 'Melodify API is running' }));
@@ -118,6 +127,11 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
+  // Parser errors may contain the raw reset request body; never log or echo them.
+  if (isSensitiveResetPath(req.originalUrl)) {
+    const { status, body } = getSafeResetError(err);
+    return res.status(status).json(body);
+  }
   console.error(err);
   const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
   res.status(err.statusCode || 500).json({ success: false, error: message });

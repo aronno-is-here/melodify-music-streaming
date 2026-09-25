@@ -1,8 +1,36 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
+import SectionHeader from '../../components/music/SectionHeader.jsx';
+import EmptyState from '../../components/music/EmptyState.jsx';
+import AppDialog from '../../components/ui/AppDialog.jsx';
 import cssRaw from './Profile.css?raw';
+
+const COUNTRY_OPTIONS = [
+  'Bangladesh',
+  'India',
+  'Pakistan',
+  'United States',
+  'United Kingdom',
+  'Canada',
+  'Australia',
+  'Germany',
+  'Japan',
+  'Brazil',
+];
+
+const GENDER_OPTIONS = [
+  { value: 'man', label: 'Man' },
+  { value: 'woman', label: 'Woman' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+];
+
+function buildSuccessTone(message) {
+  return message.includes('success') || message.includes('deleted') || message.includes('published')
+    ? 'success'
+    : 'error';
+}
 
 export default function Profile() {
   useLayoutEffect(() => {
@@ -12,11 +40,14 @@ export default function Profile() {
     document.head.appendChild(style);
     return () => style.remove();
   }, []);
+
   const { user, logout, refreshUser } = useAuth();
-  const navigate = useNavigate();
+  const { playlists, favorites, history } = useOutletContext();
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deleteRecordingOpen, setDeleteRecordingOpen] = useState(false);
+  const [recordingToDelete, setRecordingToDelete] = useState(null);
   const [name, setName] = useState(user?.name || '');
   const [dob, setDob] = useState(user?.dob ? String(user.dob).slice(0, 10) : '');
   const [gender, setGender] = useState(user?.gender || '');
@@ -26,378 +57,415 @@ export default function Profile() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [msg, setMsg] = useState('');
+  const [message, setMessage] = useState('');
   const [recordings, setRecordings] = useState([]);
   const [recordingsLoading, setRecordingsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    if (user) {
-      setName(user.name || '');
-      setDob(user.dob ? String(user.dob).slice(0, 10) : '');
-      setGender(user.gender || '');
-      setCountry(user.country || '');
-      setBio(user.bio || '');
-      setLibraryVisibility(user.libraryVisibility || 'private');
+    if (!user) return;
 
-      const fetchRecordings = async () => {
-        setRecordingsLoading(true);
-        const data = await api.get('/api/recordings');
-        if (data.success) setRecordings(data.recordings);
-        setRecordingsLoading(false);
-      };
-      fetchRecordings();
-    }
+    setName(user.name || '');
+    setDob(user.dob ? String(user.dob).slice(0, 10) : '');
+    setGender(user.gender || '');
+    setCountry(user.country || '');
+    setBio(user.bio || '');
+    setLibraryVisibility(user.libraryVisibility || 'private');
+
+    const fetchRecordings = async () => {
+      setRecordingsLoading(true);
+      const data = await api.get('/api/recordings');
+      if (data.success) {
+        setRecordings(data.recordings || []);
+      }
+      setRecordingsLoading(false);
+    };
+
+    fetchRecordings();
   }, [user]);
 
   if (!user) return null;
 
   const initials = (user.name || 'U')
     .split(' ')
-    .map((w) => w[0])
+    .map((word) => word[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();
 
-  const saveProfile = async (e) => {
-    e.preventDefault();
-    setMsg('');
-    const data = await api.put('/api/auth/me', { name, dob, gender, country });
-    if (data.success) {
-      await api.put('/api/users/me/settings', { bio });
-      await refreshUser();
-      setMsg('Profile updated successfully');
-      setEditOpen(false);
-    } else {
-      setMsg(data.error || 'Update failed');
-    }
+  const setApiMessage = (text) => {
+    setMessage(text || 'Something went wrong');
   };
 
-  const changePassword = async (e) => {
-    e.preventDefault();
-    setMsg('');
-    if (newPassword !== confirmPassword) {
-      setMsg('New passwords do not match');
+  const saveProfile = async (event) => {
+    event.preventDefault();
+    setMessage('');
+
+    const data = await api.put('/api/auth/me', { name, dob, gender, country });
+    if (!data.success) {
+      setApiMessage(data.error || 'Update failed');
       return;
     }
+
+    await api.put('/api/users/me/settings', { bio });
+    await refreshUser();
+    setApiMessage('Profile updated successfully');
+    setEditOpen(false);
+  };
+
+  const changePassword = async (event) => {
+    event.preventDefault();
+    setMessage('');
+
+    if (newPassword !== confirmPassword) {
+      setApiMessage('New passwords do not match');
+      return;
+    }
+
     const data = await api.post('/api/auth/me/password', { currentPassword, newPassword });
-    if (data.success) {
-      setMsg('Password changed successfully');
-      setPasswordOpen(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } else {
-      setMsg(data.error || 'Password change failed');
+    if (!data.success) {
+      setApiMessage(data.error || 'Password change failed');
+      return;
     }
+
+    setApiMessage('Password changed successfully');
+    setPasswordOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
   };
 
-  const saveSettings = async (e) => {
-    e.preventDefault();
-    setMsg('');
+  const saveSettings = async (event) => {
+    event.preventDefault();
+    setMessage('');
+
     const data = await api.put('/api/users/me/settings', { bio, libraryVisibility });
-    if (data.success) {
-      await refreshUser();
-      setMsg('Settings updated successfully');
-      setSettingsOpen(false);
-    } else {
-      setMsg(data.error || 'Update failed');
+    if (!data.success) {
+      setApiMessage(data.error || 'Update failed');
+      return;
     }
+
+    await refreshUser();
+    setApiMessage('Settings updated successfully');
+    setSettingsOpen(false);
   };
 
-  const deleteRecording = async (id) => {
-    if (!confirm('Are you sure you want to delete this recording?')) return;
-    const data = await api.del(`/api/recordings/${id}`);
+  const confirmDeleteRecording = async () => {
+    if (!recordingToDelete) return;
+    const data = await api.del(`/api/recordings/${recordingToDelete}`);
     if (data.success) {
-      setRecordings((prev) => prev.filter((r) => r._id !== id));
-      setMsg('Recording deleted');
+      setRecordings((prev) => prev.filter((recording) => recording._id !== recordingToDelete));
+      setApiMessage('Recording deleted');
     } else {
-      setMsg(data.error || 'Failed to delete recording');
+      setApiMessage(data.error || 'Failed to delete recording');
     }
+    setDeleteRecordingOpen(false);
+    setRecordingToDelete(null);
   };
 
-  const publishRecording = async (id) => {
-    const data = await api.post(`/api/recordings/${id}/publish`, {});
+  const publishRecording = async (recordingId) => {
+    const data = await api.post(`/api/recordings/${recordingId}/publish`, {});
     if (data.success) {
-      setRecordings((prev) => prev.map((r) => r._id === id ? { ...r, publishedAsPost: true } : r));
-      setMsg('Recording published to feed!');
+      setRecordings((prev) => prev.map((recording) => (
+        recording._id === recordingId
+          ? { ...recording, publishedAsPost: true }
+          : recording
+      )));
+      setApiMessage('Recording published to feed!');
     } else {
-      setMsg(data.error || 'Failed to publish');
+      setApiMessage(data.error || 'Failed to publish');
     }
   };
 
   return (
-    <>
-      <header className="header">
-        <div className="logo">
-          MELOD<span>IFY</span>
-        </div>
-        <nav className="nav-links">
-          <Link to="/dashboard">Dashboard</Link>
-          <Link to="/premium">Premium</Link>
-        </nav>
-      </header>
-
-      <div className="main-container">
-        <aside className="sidebar">
-          <h3>Profile Menu</h3>
-          <ul>
-            <li>
-              <a href="#" onClick={(e) => e.preventDefault()}>Overview</a>
-            </li>
-            <li>
-              <a href="#" onClick={(e) => { e.preventDefault(); setEditOpen(true); }}>Edit Profile</a>
-            </li>
-            <li>
-              <a href="#" onClick={(e) => { e.preventDefault(); setPasswordOpen(true); }}>Change Password</a>
-            </li>
-            <li>
-              <a href="#" onClick={(e) => { e.preventDefault(); setSettingsOpen(true); }}>Privacy & Settings</a>
-            </li>
-            <li>
-              <a href="#" onClick={(e) => e.preventDefault()}>Account</a>
-            </li>
-            <li>
-              <a href="#" onClick={(e) => { e.preventDefault(); logout(); navigate('/login'); }}>Logout</a>
-            </li>
-          </ul>
-        </aside>
-
-        <main className="content">
-          <div className="profile-header">
-            <div className="avatar">{initials}</div>
-            <div className="profile-info">
-              <h1>{user.name}</h1>
-              <p>{user.email}</p>
-            </div>
+    <div className="profile-page">
+      <section className="profile-hero app-surface">
+        <div className="profile-avatar" aria-hidden="true">{initials}</div>
+        <div className="profile-hero-meta">
+          <h1>{user.name}</h1>
+          <p>{user.email}</p>
+          <div className="profile-hero-stats" aria-label="Profile quick stats">
+            <span>{favorites.length} liked songs</span>
+            <span>{playlists.length} playlists</span>
+            <span>{history.length} recent plays</span>
           </div>
-
-          <div className="action-buttons">
-            <a href="#" className="action-btn" id="editProfileBtn" onClick={(e) => { e.preventDefault(); setEditOpen(true); }}>
-              Edit Profile
-            </a>
-            <a href="#" className="action-btn secondary" onClick={(e) => { e.preventDefault(); logout(); navigate('/login'); }}>
+          <div className="profile-hero-actions">
+            <button type="button" className="music-pill-btn" onClick={() => setEditOpen(true)}>Edit Profile</button>
+            <button type="button" className="music-outline-btn" onClick={() => setSettingsOpen(true)}>Privacy & Settings</button>
+            <button type="button" className="music-outline-btn" onClick={() => setPasswordOpen(true)}>Change Password</button>
+            <button
+              type="button"
+              className="music-outline-btn"
+              onClick={() => {
+                logout();
+                window.location.href = '/login';
+              }}
+            >
               Logout
-            </a>
-          </div>
-
-          {msg && (
-            <div style={{ padding: 10, marginBottom: 15, borderRadius: 4, background: msg.includes('success') || msg.includes('deleted') || msg.includes('published') ? '#4caf50' : '#dc3545', color: '#fff' }}>{msg}</div>
-          )}
-
-          <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 4 }}>
-            <button
-              onClick={() => setActiveTab('overview')}
-              style={{ flex: 1, padding: '10px 16px', border: 'none', borderRadius: 6, background: activeTab === 'overview' ? 'rgba(0,180,216,0.15)' : 'transparent', color: activeTab === 'overview' ? '#00b4d8' : '#b3b3b3', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('recordings')}
-              style={{ flex: 1, padding: '10px 16px', border: 'none', borderRadius: 6, background: activeTab === 'recordings' ? 'rgba(0,180,216,0.15)' : 'transparent', color: activeTab === 'recordings' ? '#00b4d8' : '#b3b3b3', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              My Recordings ({recordings.length})
             </button>
           </div>
+        </div>
+      </section>
 
-          {activeTab === 'overview' && (
-            <section className="section">
-              <h2>Personal Information</h2>
-              <div className="user-details">
-                <div className="detail-item">
-                  <label>Full Name</label>
-                  <span>{user.name}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Email</label>
-                  <span>{user.email}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Date of Birth</label>
-                  <span>{user.dob ? String(user.dob).slice(0, 10) : '-'}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Gender</label>
-                  <span>{user.gender}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Country</label>
-                  <span>{user.country || '-'}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Bio</label>
-                  <span>{user.bio || 'No bio yet'}</span>
-                </div>
-                <div className="detail-item">
-                  <label>Song Library</label>
-                  <span style={{ textTransform: 'capitalize' }}>{user.libraryVisibility || 'private'}</span>
-                </div>
-              </div>
-            </section>
-          )}
+      {message ? (
+        <p
+          className={`profile-message ${buildSuccessTone(message)}`}
+          role="status"
+          aria-live="polite"
+        >
+          {message}
+        </p>
+      ) : null}
 
-          {activeTab === 'recordings' && (
-            <section className="section">
-              <h2>My Karaoke Recordings</h2>
-              {recordingsLoading ? (
-                <p style={{ color: '#b3b3b3' }}>Loading recordings...</p>
-              ) : recordings.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#b3b3b3' }}>
-                  <i className="fa-solid fa-microphone-lines" style={{ fontSize: 36, display: 'block', marginBottom: 12, color: 'rgba(255,255,255,0.15)' }}></i>
-                  <p>No recordings yet</p>
-                  <a href="/studio" style={{ color: '#00b4d8', textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>Go to Melodify Studio</a>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {recordings.map((rec) => (
-                    <div key={rec._id} style={{ background: '#1a1a1a', borderRadius: 10, padding: 16 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                        {(rec.karaoke?.poster_url || rec.backingSong?.poster_url) && (
-                          <img src={rec.karaoke?.poster_url || rec.backingSong?.poster_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }} />
-                        )}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 15, fontWeight: 600 }}>{rec.title}</div>
-                          <div style={{ fontSize: 12, color: '#b3b3b3' }}>
-                            {(rec.karaoke?.title || rec.backingSong?.title || 'Unknown track')} - {(rec.karaoke?.artist || rec.backingSong?.artist || 'Unknown artist')}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                            {rec.effects?.preset && `Effect: ${rec.effects.preset} · `}
-                            {rec.duration > 0 ? `${Math.floor(rec.duration / 60)}:${String(rec.duration % 60).padStart(2, '0')}` : ''}
-                            {rec.publishedAsPost ? ' · Published' : ''}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: 11, color: '#888', textTransform: 'capitalize' }}>{rec.visibility}</span>
-                      </div>
-                      <audio controls src={rec.audioUrl} style={{ width: '100%', height: 36, borderRadius: 8 }}></audio>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                        {!rec.publishedAsPost && (
-                          <button
-                            onClick={() => publishRecording(rec._id)}
-                            style={{ padding: '6px 14px', borderRadius: 16, border: 'none', background: '#00b4d8', color: '#000', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                          >
-                            Publish to Feed
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteRecording(rec._id)}
-                          style={{ padding: '6px 14px', borderRadius: 16, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: '#ff6b6b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          Delete
-                        </button>
-                      </div>
+      <section className="profile-tabs app-surface" aria-label="Profile sections">
+        <button
+          type="button"
+          className={`profile-tab ${activeTab === 'overview' ? 'is-active' : ''}`}
+          aria-pressed={activeTab === 'overview'}
+          onClick={() => setActiveTab('overview')}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          className={`profile-tab ${activeTab === 'recordings' ? 'is-active' : ''}`}
+          aria-pressed={activeTab === 'recordings'}
+          onClick={() => setActiveTab('recordings')}
+        >
+          My Recordings ({recordings.length})
+        </button>
+      </section>
+
+      {activeTab === 'overview' ? (
+        <section className="music-section app-surface">
+          <SectionHeader title="Personal Information" subtitle="Managed through your Melodify account" />
+          <div className="profile-grid">
+            <article className="profile-card"><label>Full Name</label><strong>{user.name}</strong></article>
+            <article className="profile-card"><label>Email</label><strong>{user.email}</strong></article>
+            <article className="profile-card"><label>Date of Birth</label><strong>{user.dob ? String(user.dob).slice(0, 10) : '-'}</strong></article>
+            <article className="profile-card"><label>Gender</label><strong>{user.gender || '-'}</strong></article>
+            <article className="profile-card"><label>Country</label><strong>{user.country || '-'}</strong></article>
+            <article className="profile-card"><label>Bio</label><strong>{user.bio || 'No bio yet'}</strong></article>
+            <article className="profile-card"><label>Song Library</label><strong>{user.libraryVisibility || 'private'}</strong></article>
+            <article className="profile-card"><label>Premium</label><strong><Link to="/premium" className="profile-link">Manage premium plan</Link></strong></article>
+          </div>
+        </section>
+      ) : null}
+
+      {activeTab === 'recordings' ? (
+        <section className="music-section app-surface">
+          <SectionHeader title="My Karaoke Recordings" subtitle="Publish to feed or remove old takes" />
+          {recordingsLoading ? <p className="profile-status" role="status">Loading recordings...</p> : null}
+
+          {!recordingsLoading && recordings.length === 0 ? (
+            <EmptyState
+              icon="fa-microphone-lines"
+              title="No recordings yet"
+              detail="Record your first song in Melodify Studio."
+            />
+          ) : null}
+
+          {!recordingsLoading && recordings.length > 0 ? (
+            <div className="profile-recordings">
+              {recordings.map((recording) => (
+                <article key={recording._id} className="profile-recording-card">
+                  <header>
+                    {(recording.karaoke?.poster_url || recording.backingSong?.poster_url) ? (
+                      <img
+                        src={recording.karaoke?.poster_url || recording.backingSong?.poster_url}
+                        alt=""
+                        className="profile-recording-art"
+                      />
+                    ) : null}
+                    <div>
+                      <h3>{recording.title}</h3>
+                      <p>
+                        {recording.karaoke?.title || recording.backingSong?.title || 'Unknown track'} -{' '}
+                        {recording.karaoke?.artist || recording.backingSong?.artist || 'Unknown artist'}
+                      </p>
+                      <small>
+                        {recording.effects?.preset ? `Effect: ${recording.effects.preset}` : 'No effect preset'}
+                        {recording.duration > 0 ? ` • ${Math.floor(recording.duration / 60)}:${String(recording.duration % 60).padStart(2, '0')}` : ''}
+                        {recording.publishedAsPost ? ' • Published' : ''}
+                      </small>
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-        </main>
-      </div>
+                    <span className="profile-recording-badge">{recording.visibility}</span>
+                  </header>
 
-      {/* Edit Profile Modal */}
-      <div id="editProfileModal" className={`modal${editOpen ? ' active' : ''}`}>
-        <div className="modal-content">
-          <span className="close" onClick={() => setEditOpen(false)}>&times;</span>
-          <h2>Edit Profile</h2>
-          <form className="form-grid" onSubmit={saveProfile}>
-            <div className="form-group">
-              <label htmlFor="fullName">Full Name</label>
-              <input type="text" id="fullName" value={name} onChange={(e) => setName(e.target.value)} required />
-            </div>
-            <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <input type="email" id="email" value={user.email} disabled />
-            </div>
-            <div className="form-group">
-              <label htmlFor="dob">Date of Birth</label>
-              <input type="date" id="dob" value={dob} onChange={(e) => setDob(e.target.value)} required />
-            </div>
-            <div className="form-group">
-              <label htmlFor="gender">Gender</label>
-              <select id="gender" value={gender} onChange={(e) => setGender(e.target.value)}>
-                <option value="man">Man</option>
-                <option value="woman">Woman</option>
-                <option value="prefer_not_to_say">Prefer not to say</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="country">Country</label>
-              <select id="country" value={country} onChange={(e) => setCountry(e.target.value)}>
-                <option value="">Choose a country</option>
-                <option value="Bangladesh">Bangladesh</option>
-                <option value="India">India</option>
-                <option value="Pakistan">Pakistan</option>
-                <option value="USA">United States</option>
-                <option value="UK">United Kingdom</option>
-                <option value="Canada">Canada</option>
-                <option value="Australia">Australia</option>
-                <option value="Germany">Germany</option>
-                <option value="Japan">Japan</option>
-                <option value="Brazil">Brazil</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-              <label htmlFor="bio">Bio</label>
-              <textarea id="bio" rows="3" maxLength="500" placeholder="Tell us about yourself..." value={bio} onChange={(e) => setBio(e.target.value)} style={{ width: '100%', padding: '10px', background: '#2a2a2a', border: '1px solid #b3b3b3', borderRadius: '20px', color: '#fff', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit' }}></textarea>
-            </div>
-            <div className="form-buttons">
-              <button type="button" className="form-btn cancel-btn" onClick={() => setEditOpen(false)}>Cancel</button>
-              <button type="submit" className="form-btn save-btn">Save Changes</button>
-            </div>
-          </form>
-        </div>
-      </div>
+                  <audio controls src={recording.audioUrl} className="profile-recording-audio"></audio>
 
-      {/* Change Password Modal */}
-      <div id="changePasswordModal" className={`modal${passwordOpen ? ' active' : ''}`}>
-        <div className="modal-content">
-          <span className="close" onClick={() => setPasswordOpen(false)}>&times;</span>
-          <h2>Change Password</h2>
-          <form className="form-grid" onSubmit={changePassword}>
-            <div className="form-group">
-              <label htmlFor="currentPassword">Current Password</label>
-              <input type="password" id="currentPassword" placeholder="Enter current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+                  <div className="profile-recording-actions">
+                    {!recording.publishedAsPost ? (
+                      <button type="button" className="music-pill-btn" onClick={() => publishRecording(recording._id)}>
+                        Publish to Feed
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="music-outline-btn profile-danger"
+                      onClick={() => {
+                        setRecordingToDelete(recording._id);
+                        setDeleteRecordingOpen(true);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
-            <div className="form-group">
-              <label htmlFor="newPassword">New Password</label>
-              <input type="password" id="newPassword" placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
-            </div>
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm New Password</label>
-              <input type="password" id="confirmPassword" placeholder="Confirm new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-            </div>
-            <div className="form-buttons">
-              <button type="button" className="form-btn cancel-btn" onClick={() => setPasswordOpen(false)}>Cancel</button>
-              <button type="submit" className="form-btn save-btn">Change Password</button>
-            </div>
-          </form>
-        </div>
-      </div>
+          ) : null}
+        </section>
+      ) : null}
 
-      {/* Privacy & Settings Modal */}
-      <div id="settingsModal" className={`modal${settingsOpen ? ' active' : ''}`}>
-        <div className="modal-content">
-          <span className="close" onClick={() => setSettingsOpen(false)}>&times;</span>
-          <h2>Privacy & Settings</h2>
-          <form className="form-grid" onSubmit={saveSettings}>
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-              <label htmlFor="settingsBio">Bio</label>
-              <textarea id="settingsBio" rows="3" maxLength="500" placeholder="Tell others about yourself..." value={bio} onChange={(e) => setBio(e.target.value)} style={{ width: '100%', padding: '10px', background: '#2a2a2a', border: '1px solid #b3b3b3', borderRadius: '20px', color: '#fff', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit' }}></textarea>
-            </div>
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-              <label htmlFor="libraryVis">Song Library Visibility</label>
-              <select id="libraryVis" value={libraryVisibility} onChange={(e) => setLibraryVisibility(e.target.value)} style={{ width: '100%', padding: '10px', background: '#2a2a2a', border: '1px solid #b3b3b3', borderRadius: '20px', color: '#fff', fontSize: '14px' }}>
-                <option value="private">Private - Only you can see your library</option>
-                <option value="public">Public - Anyone can see your library</option>
-              </select>
-            </div>
-            <div className="form-buttons">
-              <button type="button" className="form-btn cancel-btn" onClick={() => setSettingsOpen(false)}>Cancel</button>
-              <button type="submit" className="form-btn save-btn">Save Settings</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>
+      <AppDialog
+        open={editOpen}
+        title="Edit Profile"
+        onClose={() => setEditOpen(false)}
+        labelledBy="profile-edit-dialog-title"
+      >
+        <form className="profile-form" onSubmit={saveProfile}>
+          <label htmlFor="profile-name">Full Name</label>
+          <input id="profile-name" type="text" value={name} onChange={(event) => setName(event.target.value)} required />
+
+          <label htmlFor="profile-email">Email</label>
+          <input id="profile-email" type="email" value={user.email} disabled />
+
+          <label htmlFor="profile-dob">Date of Birth</label>
+          <input id="profile-dob" type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />
+
+          <label htmlFor="profile-gender">Gender</label>
+          <select id="profile-gender" value={gender} onChange={(event) => setGender(event.target.value)}>
+            {GENDER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+
+          <label htmlFor="profile-country">Country</label>
+          <select id="profile-country" value={country} onChange={(event) => setCountry(event.target.value)}>
+            <option value="">Choose a country</option>
+            {COUNTRY_OPTIONS.map((entry) => (
+              <option key={entry} value={entry}>{entry}</option>
+            ))}
+          </select>
+
+          <label htmlFor="profile-bio">Bio</label>
+          <textarea
+            id="profile-bio"
+            rows="4"
+            maxLength="500"
+            value={bio}
+            onChange={(event) => setBio(event.target.value)}
+            placeholder="Tell listeners about yourself"
+          />
+
+          <div className="profile-form-actions">
+            <button type="button" className="music-outline-btn" onClick={() => setEditOpen(false)}>Cancel</button>
+            <button type="submit" className="music-pill-btn">Save Changes</button>
+          </div>
+        </form>
+      </AppDialog>
+
+      <AppDialog
+        open={passwordOpen}
+        title="Change Password"
+        onClose={() => setPasswordOpen(false)}
+        labelledBy="profile-password-dialog-title"
+      >
+        <form className="profile-form" onSubmit={changePassword}>
+          <label htmlFor="profile-current-password">Current Password</label>
+          <input
+            id="profile-current-password"
+            type="password"
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            required
+          />
+
+          <label htmlFor="profile-new-password">New Password</label>
+          <input
+            id="profile-new-password"
+            type="password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            required
+          />
+
+          <label htmlFor="profile-confirm-password">Confirm New Password</label>
+          <input
+            id="profile-confirm-password"
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            required
+          />
+
+          <div className="profile-form-actions">
+            <button type="button" className="music-outline-btn" onClick={() => setPasswordOpen(false)}>Cancel</button>
+            <button type="submit" className="music-pill-btn">Update Password</button>
+          </div>
+        </form>
+      </AppDialog>
+
+      <AppDialog
+        open={settingsOpen}
+        title="Privacy & Settings"
+        onClose={() => setSettingsOpen(false)}
+        labelledBy="profile-settings-dialog-title"
+      >
+        <form className="profile-form" onSubmit={saveSettings}>
+          <label htmlFor="profile-settings-bio">Bio</label>
+          <textarea
+            id="profile-settings-bio"
+            rows="4"
+            maxLength="500"
+            value={bio}
+            onChange={(event) => setBio(event.target.value)}
+          />
+
+          <label htmlFor="profile-library-visibility">Song Library Visibility</label>
+          <select
+            id="profile-library-visibility"
+            value={libraryVisibility}
+            onChange={(event) => setLibraryVisibility(event.target.value)}
+          >
+            <option value="private">Private - Only you can see your library</option>
+            <option value="public">Public - Anyone can see your library</option>
+          </select>
+
+          <div className="profile-form-actions">
+            <button type="button" className="music-outline-btn" onClick={() => setSettingsOpen(false)}>Cancel</button>
+            <button type="submit" className="music-pill-btn">Save Settings</button>
+          </div>
+        </form>
+      </AppDialog>
+
+      <AppDialog
+        open={deleteRecordingOpen}
+        title="Delete recording"
+        onClose={() => {
+          setDeleteRecordingOpen(false);
+          setRecordingToDelete(null);
+        }}
+        labelledBy="profile-delete-recording-title"
+        actions={(
+          <>
+            <button
+              type="button"
+              className="music-outline-btn"
+              onClick={() => {
+                setDeleteRecordingOpen(false);
+                setRecordingToDelete(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button type="button" className="music-pill-btn profile-danger-btn" onClick={confirmDeleteRecording}>Delete</button>
+          </>
+        )}
+      >
+        <p className="profile-dialog-copy">This removes the recording permanently from your account.</p>
+      </AppDialog>
+    </div>
   );
 }

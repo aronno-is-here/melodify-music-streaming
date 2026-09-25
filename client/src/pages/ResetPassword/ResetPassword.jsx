@@ -1,46 +1,22 @@
-import { useLayoutEffect, useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client.js';
-import cssRaw from '../Login/Login.css?raw';
 
 export default function ResetPassword() {
-  useLayoutEffect(() => {
-    const style = document.createElement('style');
-    style.setAttribute('data-page-css', 'ResetPassword');
-    style.textContent = cssRaw;
-    document.head.appendChild(style);
-    return () => style.remove();
-  }, []);
-
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (!token) {
-    return (
-      <div className="login-container">
-        <div className="logo">
-          MELOD<span>IFY</span>
-        </div>
-        <div className="login-title">Invalid Reset Link</div>
-        <p style={{ color: '#b3b3b3', textAlign: 'center', marginBottom: '20px' }}>
-          This password reset link is invalid or has expired.
-        </p>
-        <div className="signup-link">
-          <Link to="/forgot-password">Request a new reset link</Link>
-        </div>
-      </div>
-    );
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
     setSuccess('');
 
@@ -67,44 +43,103 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="login-container">
-      <div className="logo">
-        MELOD<span>IFY</span>
-      </div>
-      <div className="login-title">Create new password</div>
-      {error && <div className="message" style={{ background: '#dc3545', padding: 10, borderRadius: 4, marginBottom: 15, color: '#fff' }}>{error}</div>}
-      {success && <div className="message" style={{ background: '#4caf50', padding: 10, borderRadius: 4, marginBottom: 15, color: '#fff' }}>{success}</div>}
-      <form className="login-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="password">New Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            placeholder="Enter new password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="confirmPassword">Confirm Password</label>
-          <input
-            type="password"
-            id="confirmPassword"
-            name="confirmPassword"
-            placeholder="Confirm new password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
-        <button type="submit" className="continue-btn" disabled={loading}>
-          {loading ? 'Resetting...' : 'Reset Password'}
-        </button>
-      </form>
-      <div className="signup-link" style={{ marginTop: '20px' }}>
-        <Link to="/login">Back to Login</Link>
+    <div className="auth-page reset-password-page">
+      <div className="auth-shell">
+        <section className="auth-intro">
+          <div>
+            <Link to="/" className="auth-brand" aria-label="Go to home">
+              <span className="auth-brand-mark">
+                <i className="fa-solid fa-wave-square" aria-hidden="true"></i>
+              </span>
+              <span className="auth-brand-name">Melod<span>ify</span></span>
+            </Link>
+
+            <p className="auth-intro-kicker">Secure Reset</p>
+            <h1>Set a new <span>password</span>.</h1>
+            <p>Create a strong password to protect your listening history and account settings.</p>
+          </div>
+
+          <div className="auth-intro-links">
+            <Link to="/login" className="music-pill-btn">Back to Login</Link>
+            <Link to="/" className="music-outline-btn">Home</Link>
+          </div>
+        </section>
+
+        <section className="auth-card">
+          {!token ? (
+            <>
+              <h2>Invalid Reset Link</h2>
+              <p>This password reset link is invalid or has expired.</p>
+              <div className="auth-form">
+                <Link to="/forgot-password" className="music-pill-btn">Request New Reset Link</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2>Create New Password</h2>
+              <p>Use a secure password with letters and numbers/symbols.</p>
+
+              {error ? <p className="auth-alert error" role="alert">{error}</p> : null}
+              {success ? <p className="auth-alert success" role="status" aria-live="polite">{success}</p> : null}
+
+              <form className="auth-form" onSubmit={handleSubmit}>
+                <div className="auth-form-group">
+                  <label htmlFor="reset-password">New Password</label>
+                  <div className="auth-password-wrap">
+                    <input
+                      id="reset-password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      placeholder="Enter new password"
+                      required
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      aria-label={showPassword ? 'Hide new password' : 'Show new password'}
+                      onClick={() => setShowPassword((value) => !value)}
+                    >
+                      <i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="auth-form-group">
+                  <label htmlFor="reset-confirm-password">Confirm Password</label>
+                  <div className="auth-password-wrap">
+                    <input
+                      id="reset-confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      placeholder="Confirm new password"
+                      required
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
+                      onClick={() => setShowConfirmPassword((value) => !value)}
+                    >
+                      <i className={`fa-regular ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <button type="submit" className="music-pill-btn" disabled={loading}>
+                  {loading ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </form>
+            </>
+          )}
+
+          <p className="auth-foot-links">
+            <Link to="/login">Back to Login</Link>
+          </p>
+        </section>
       </div>
     </div>
   );

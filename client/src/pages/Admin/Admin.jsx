@@ -1,10 +1,21 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import cssRaw from './Admin.css?raw';
 import KaraokeForm from './KaraokeForm.jsx';
+import CatalogSyncPanel from './CatalogSyncPanel.jsx';
+import AdminAIRecommendation from './AdminAIRecommendation.jsx';
 
-const SECTIONS = ['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions'];
+const SECTIONS = ['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
+
+const EXISTING_SECTIONS = new Set(['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions']);
+
+const sectionLabel = (s) => {
+  if (s === 'ai-recommendation') return 'AI Recommendation';
+  if (s === 'karaoke') return 'Melodify Studio';
+  return s.charAt(0).toUpperCase() + s.slice(1).replace('moderation', ' Content Moderation');
+};
 
 const LYRICS_SOURCE_OPTIONS = ['db_verified', 'lrclib', 'legacy_unverified', 'none'];
 const CHORDS_SOURCE_OPTIONS = ['db_verified', 'chordify', 'other', 'none'];
@@ -34,7 +45,31 @@ export default function Admin() {
     return () => style.remove();
   }, []);
   const { user, logout } = useAuth();
-  const [section, setSection] = useState('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [section, setSection] = useState(() => {
+    if (location.pathname === '/admin/ai-recommendation') return 'ai-recommendation';
+    if (
+      location.state &&
+      typeof location.state.section === 'string' &&
+      EXISTING_SECTIONS.has(location.state.section)
+    ) {
+      return location.state.section;
+    }
+    return 'dashboard';
+  });
+
+  const handleSectionClick = (s) => {
+    if (s === 'ai-recommendation') {
+      navigate('/admin/ai-recommendation');
+      return;
+    }
+    if (location.pathname === '/admin/ai-recommendation') {
+      navigate('/admin', { state: { section: s } });
+      return;
+    }
+    setSection(s);
+  };
   const [stats, setStats] = useState({ users: 0, songs: 0, plays: 0, revenue: 0, activeSubs: 0, pendingReports: 0, recentPlays: [], monthlyRevenue: 0, lastMonthRevenue: 0, monthlySubs: 0, totalSubs: 0, revenueByPlan: {} });
   const [users, setUsers] = useState([]);
   const [songs, setSongs] = useState([]);
@@ -293,8 +328,8 @@ export default function Admin() {
           <ul>
             {SECTIONS.map((s) => (
               <li key={s}>
-                <a className={section === s ? 'active' : ''} onClick={() => setSection(s)}>
-                  {s === 'karaoke' ? 'Melodify Studio' : s.charAt(0).toUpperCase() + s.slice(1).replace('moderation', ' Content Moderation')}
+                <a className={section === s ? 'active' : ''} onClick={() => handleSectionClick(s)}>
+                  {sectionLabel(s)}
                 </a>
               </li>
             ))}
@@ -486,6 +521,7 @@ export default function Admin() {
                   </form>
                 </div>
               )}
+              <CatalogSyncPanel />
               <table style={{ marginTop: 20 }}>
                 <thead>
                   <tr><th>ID</th><th>Title</th><th>Artist</th><th>Genre</th><th>Duration</th><th>Actions</th></tr>
@@ -616,6 +652,8 @@ export default function Admin() {
               )}
             </div>
           )}
+
+          {section === 'ai-recommendation' && <AdminAIRecommendation />}
         </main>
       </div>
     </>

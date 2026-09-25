@@ -17,6 +17,7 @@ export function buildCatalogIdentity(provider, externalId) {
   const normalizedProvider = normalizeSourceProvider(provider);
   const normalizedId = normalizeExternalId(externalId);
   if (normalizedProvider === null || normalizedId === null) return null;
+  // Encode a pair so delimiters within either component cannot collide.
   return JSON.stringify([normalizedProvider, normalizedId]);
 }
 
@@ -31,5 +32,6 @@ export function getCatalogIdentityFromSongLike(input) {
 
 export function getLegacyYoutubeLookupId(input) {
   if (!isSongLike(input)) return null;
+  // A lookup candidate only; never infer or mutate canonical provider metadata.
   return normalizeExternalId(input.youtube_id);
 }

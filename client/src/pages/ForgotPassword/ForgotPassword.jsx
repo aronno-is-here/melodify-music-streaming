@@ -1,24 +1,15 @@
-import { useLayoutEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client.js';
-import cssRaw from '../Login/Login.css?raw';
 
 export default function ForgotPassword() {
-  useLayoutEffect(() => {
-    const style = document.createElement('style');
-    style.setAttribute('data-page-css', 'ForgotPassword');
-    style.textContent = cssRaw;
-    document.head.appendChild(style);
-    return () => style.remove();
-  }, []);
-
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
     setSuccess('');
     setLoading(true);
@@ -34,35 +25,58 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="login-container">
-      <div className="logo">
-        MELOD<span>IFY</span>
-      </div>
-      <div className="login-title">Reset your password</div>
-      <p style={{ color: '#b3b3b3', textAlign: 'center', marginBottom: '20px', fontSize: '14px' }}>
-        Enter your email address and we&apos;ll send you a link to reset your password.
-      </p>
-      {error && <div className="message" style={{ background: '#dc3545', padding: 10, borderRadius: 4, marginBottom: 15, color: '#fff' }}>{error}</div>}
-      {success && <div className="message" style={{ background: '#4caf50', padding: 10, borderRadius: 4, marginBottom: 15, color: '#fff' }}>{success}</div>}
-      <form className="login-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="Enter your email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <button type="submit" className="continue-btn" disabled={loading}>
-          {loading ? 'Sending...' : 'Send Reset Link'}
-        </button>
-      </form>
-      <div className="signup-link" style={{ marginTop: '20px' }}>
-        <Link to="/login">Back to Login</Link>
+    <div className="auth-page forgot-password-page">
+      <div className="auth-shell">
+        <section className="auth-intro">
+          <div>
+            <Link to="/" className="auth-brand" aria-label="Go to home">
+              <span className="auth-brand-mark">
+                <i className="fa-solid fa-wave-square" aria-hidden="true"></i>
+              </span>
+              <span className="auth-brand-name">Melod<span>ify</span></span>
+            </Link>
+
+            <p className="auth-intro-kicker">Password Recovery</p>
+            <h1>Recover your <span>account access</span>.</h1>
+            <p>Enter your email and we will send password reset instructions if the account exists.</p>
+          </div>
+
+          <div className="auth-intro-links">
+            <Link to="/login" className="music-pill-btn">Back to Login</Link>
+            <Link to="/" className="music-outline-btn">Home</Link>
+          </div>
+        </section>
+
+        <section className="auth-card">
+          <h2>Forgot Password</h2>
+          <p>Enter the email associated with your account.</p>
+
+          {error ? <p className="auth-alert error" role="alert">{error}</p> : null}
+          {success ? <p className="auth-alert success" role="status" aria-live="polite">{success}</p> : null}
+
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="auth-form-group">
+              <label htmlFor="forgot-email">Email</label>
+              <input
+                id="forgot-email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="name@domain.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+
+            <button type="submit" className="music-pill-btn" disabled={loading}>
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+          </form>
+
+          <p className="auth-foot-links">
+            Remembered your password? <Link to="/login">Return to login</Link>
+          </p>
+        </section>
       </div>
     </div>
   );
