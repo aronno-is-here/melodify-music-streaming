@@ -120,6 +120,12 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
+### 5. Optional catalog content audit
+```bash
+cd server
+npm run audit:catalog-content
+```
+
 ### 5. Run the karaoke app (optional)
 ```bash
 cd karaoke-app/server
