@@ -259,35 +259,65 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   margin-left: -15px;
   margin-right: 15px;
   padding: 15px;
-  overflow-y: hidden;
+  overflow-y: auto;
   height: 100%;
   display: flex;
   flex-direction: column;
-  scrollbar-width: none;
-}
-
-.scroll-grid:hover {
-  overflow-y: auto;
   scrollbar-width: thin;
+  scrollbar-color: rgba(47, 182, 225, 0.75) rgba(255, 255, 255, 0.06);
+  -webkit-overflow-scrolling: touch;
 }
 
-.scroll-grid:nth-child(1)::-webkit-scrollbar,
-.scroll-grid:nth-child(2)::-webkit-scrollbar,
-.scroll-grid:nth-child(3)::-webkit-scrollbar {
+.scroll-grid,
+.recent-grid,
+.playlist-list,
+.playlist-add-results,
+.playlist-create-modal,
+.new-pl-results {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 182, 225, 0.75) rgba(255, 255, 255, 0.06);
+}
+
+.scroll-grid::-webkit-scrollbar,
+.playlist-list::-webkit-scrollbar,
+.playlist-add-results::-webkit-scrollbar,
+.playlist-create-modal::-webkit-scrollbar,
+.new-pl-results::-webkit-scrollbar {
   width: 8px;
 }
 
-.scroll-grid:nth-child(1)::-webkit-scrollbar-thumb,
-.scroll-grid:nth-child(2)::-webkit-scrollbar-thumb,
-.scroll-grid:nth-child(3)::-webkit-scrollbar-thumb {
-  background-color: var(--sky-blue);
-  border-radius: 4px;
+.recent-grid::-webkit-scrollbar {
+  height: 8px;
 }
 
-.scroll-grid:nth-child(1):hover,
-.scroll-grid:nth-child(2):hover,
-.scroll-grid:nth-child(3):hover {
-  scrollbar-color: var(--sky-blue) #121212;
+.scroll-grid::-webkit-scrollbar-track,
+.recent-grid::-webkit-scrollbar-track,
+.playlist-list::-webkit-scrollbar-track,
+.playlist-add-results::-webkit-scrollbar-track,
+.playlist-create-modal::-webkit-scrollbar-track,
+.new-pl-results::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.scroll-grid::-webkit-scrollbar-thumb,
+.recent-grid::-webkit-scrollbar-thumb,
+.playlist-list::-webkit-scrollbar-thumb,
+.playlist-add-results::-webkit-scrollbar-thumb,
+.playlist-create-modal::-webkit-scrollbar-thumb,
+.new-pl-results::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0, 180, 216, 0.78) 0%, rgba(59, 130, 246, 0.78) 100%);
+  border-radius: 999px;
+  border: 1px solid rgba(9, 20, 31, 0.75);
+}
+
+.scroll-grid::-webkit-scrollbar-thumb:hover,
+.recent-grid::-webkit-scrollbar-thumb:hover,
+.playlist-list::-webkit-scrollbar-thumb:hover,
+.playlist-add-results::-webkit-scrollbar-thumb:hover,
+.playlist-create-modal::-webkit-scrollbar-thumb:hover,
+.new-pl-results::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(49, 201, 236, 0.9) 0%, rgba(96, 165, 250, 0.9) 100%);
 }
 
 .scroll-grid h2 {
@@ -473,17 +503,7 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   gap: 20px;
   overflow-x: auto;
   padding-bottom: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--sky-blue) #121212;
-}
-
-.recent-grid::-webkit-scrollbar {
-  height: 8px;
-}
-
-.recent-grid::-webkit-scrollbar-thumb {
-  background-color: var(--sky-blue);
-  border-radius: 4px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .recent-item {
@@ -1061,17 +1081,7 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   gap: 2px;
   max-height: 200px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--sky-blue) transparent;
-}
-
-.playlist-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.playlist-list::-webkit-scrollbar-thumb {
-  background: var(--sky-blue);
-  border-radius: 2px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .playlist-link:hover {
@@ -1441,8 +1451,7 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   margin-top: 8px;
   max-height: 200px;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--sky-blue) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 .pl-search-status {
   padding: 12px;
@@ -1512,8 +1521,7 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
 .playlist-create-modal {
   max-height: 80vh;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--sky-blue) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 .new-pl-search {
   display: flex;
@@ -1542,8 +1550,7 @@ main.collapsed .scroll-grid:nth-child(1) .playlist-list {
   max-height: 150px;
   overflow-y: auto;
   margin-bottom: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--sky-blue) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 .new-pl-status {
   padding: 8px;
