@@ -19,6 +19,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Dynamic Playlist page** (`/playlist/:id`) — per-user playlists with real songs, add/remove/rename/delete, search the library to add songs, built-in floating player (YouTube streaming)
 - **Dynamic Song Details page** (`/song/:id`) — real song metadata + related tracks (same artist/genre), full footer player with shuffle/repeat/seek/volume
 - **Dynamic Premium page** (`/premium`) — live subscription status, subscribe/cancel plans (Individual/Student/Duo) via `/api/subscriptions`
+- **Melodify Studio** (`/studio`) — regional karaoke discovery (Bangla, Kolkata Bengali, Hindi, English) with provider-backed search, deterministic dedupe, and classified tracks: `KARAOKE_READY` (direct backing mix) or `SING_ALONG` (provider backing with synchronized mic recording)
 
 ### Admin Side
 - Dedicated admin login (demo credentials, see below)
@@ -138,7 +139,7 @@ cd server
 npm run lyrics:prefetch -- --limit 25 --dry-run
 ```
 
-### 5. Run the karaoke app (optional)
+### 8. Run the karaoke app (optional)
 ```bash
 cd karaoke-app/server
 npm install
@@ -174,7 +175,10 @@ ADMIN_PASSWORD=your-strong-password
 ## ⚠️ Important Notes
 
 - **Songs stream from YouTube** — the 14 seeded songs play through the YouTube IFrame API (each has a `youtube_id` + official YouTube thumbnail poster), so no local MP3 files are needed for them. Local files are only used for songs uploaded by users (`assets/songs/uploads/`, not tracked in git).
+- **Studio recording modes** — `MIXED` recordings include microphone + direct local backing in one file, while `COMPOSITE` recordings keep microphone audio in the file and synchronize provider backing separately (no iframe/audio ripping or provider capture).
+- **Studio metadata compatibility** — legacy recordings without synchronization metadata continue to work; new recordings may include `recordingMode`, backing provider identifiers, and start-offset metadata for synchronized playback.
 - **YouTube thumbnails** are fetched from `https://img.youtube.com/vi/<youtube_id>/hqdefault.jpg` at seed time and stored as `poster_url`; the UI falls back to a placeholder if a thumbnail ever fails to load.
+- **Provider-backed discovery requirement** — external catalog discovery/import depends on server provider configuration (`YOUTUBE_API_KEY`); when not configured, search falls back to local catalog-only behavior.
 - The old PHP + MySQL implementation (including `all_data.sql`) and the former static pages (`playlist/`, `song-details/`, `premium/`) are archived in `legacy/` for reference.
 - **All pages are now dynamic React pages** — no dummy/static content remains in the app; Playlist, Song Details, and Premium are fully backed by the API.
 - This is a university/project build; some admin actions (ban, edit, delete) are demo stubs.
