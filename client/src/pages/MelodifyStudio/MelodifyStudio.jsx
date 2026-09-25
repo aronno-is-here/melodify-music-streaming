@@ -93,6 +93,9 @@ export default function MelodifyStudio() {
   const [postVisibility, setPostVisibility] = useState('public');
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState('');
+  const [uploadState, setUploadState] = useState('idle');
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadStatusText, setUploadStatusText] = useState('');
 
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyrics, setLyrics] = useState('');
@@ -298,6 +301,9 @@ export default function MelodifyStudio() {
     setRecordTime(0);
     recordTimeRef.current = 0;
     setPublishMsg('');
+    setUploadState('idle');
+    setUploadProgress(null);
+    setUploadStatusText('');
     setRecordingError('');
   };
 
@@ -551,14 +557,54 @@ export default function MelodifyStudio() {
     setRecordUrl(null);
     setRecordTime(0);
     recordTimeRef.current = 0;
+    setUploadState('idle');
+    setUploadProgress(null);
+    setUploadStatusText('');
     setStep(STEPS.RECORD);
     setRecordingError('');
   };
+
+  const uploadRecordingWithProgress = (formData, token) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/recordings');
+    xhr.responseType = 'json';
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        const percentage = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        setUploadProgress(percentage);
+      } else {
+        setUploadProgress(null);
+      }
+    };
+
+    xhr.upload.onload = () => {
+      setUploadState('processing');
+      setUploadProgress(100);
+      setUploadStatusText('Processing and saving your recording...');
+    };
+
+    xhr.onerror = () => reject(new Error('Upload failed'));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.response || {});
+      } else {
+        const message = xhr.response?.error || 'Upload failed';
+        reject(new Error(message));
+      }
+    };
+
+    xhr.send(formData);
+  });
 
   const publishPerformance = async () => {
     if (!recordBlob || !selectedSong || publishing) return;
     setPublishing(true);
     setPublishMsg('');
+    setUploadState('uploading');
+    setUploadProgress(0);
+    setUploadStatusText('Uploading recording...');
 
     try {
       const formData = new FormData();
@@ -584,14 +630,12 @@ export default function MelodifyStudio() {
       formData.append('recordingDurationMs', String(recordingMeta?.recordingDurationMs || (recordTimeRef.current * 1000)));
 
       const token = localStorage.getItem('melodify_token');
-      const res = await fetch('/api/recordings', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const result = await res.json();
+      const result = await uploadRecordingWithProgress(formData, token);
 
       if (result.success) {
+        setUploadState('success');
+        setUploadProgress(100);
+        setUploadStatusText('Upload complete. Recording saved.');
         setPublishMsg('Recording saved successfully!');
         setStep(STEPS.SELECT);
         setSelectedSong(null);
@@ -601,9 +645,13 @@ export default function MelodifyStudio() {
         setPostTitle('');
         setPostCaption('');
       } else {
+        setUploadState('error');
+        setUploadStatusText('Could not save this recording.');
         setPublishMsg('Failed to save recording: ' + (result.error || 'Unknown error'));
       }
     } catch (err) {
+      setUploadState('error');
+      setUploadStatusText('Upload failed. Please try again.');
       setPublishMsg('Save failed: ' + err.message);
     }
     setPublishing(false);
@@ -1005,6 +1053,25 @@ export default function MelodifyStudio() {
                 </select>
               </div>
             </div>
+
+            {uploadState !== 'idle' && (
+              <div className={`studio-upload-status ${uploadState}`} aria-live="polite">
+                <div className="studio-upload-header">
+                  <span className="studio-upload-state-label">{uploadState === 'error' ? 'Upload failed' : uploadState === 'success' ? 'Upload complete' : uploadState === 'processing' ? 'Processing' : 'Uploading'}</span>
+                  <span className="studio-upload-percent">{typeof uploadProgress === 'number' ? `${uploadProgress}%` : '...'}</span>
+                </div>
+                <div
+                  className="studio-upload-progress"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={typeof uploadProgress === 'number' ? uploadProgress : undefined}
+                >
+                  <div className="studio-upload-progress-fill" style={{ width: `${typeof uploadProgress === 'number' ? uploadProgress : 35}%` }}></div>
+                </div>
+                <p className="studio-upload-text">{uploadStatusText}</p>
+              </div>
+            )}
 
             {publishMsg && (
               <div className={`studio-publish-msg ${publishMsg.includes('successfully') ? 'success' : 'error'}`}>

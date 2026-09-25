@@ -686,6 +686,80 @@
 
 .studio-form-group textarea { resize: vertical; }
 
+.studio-upload-status {
+  margin-top: 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(123, 202, 255, 0.28);
+  background: linear-gradient(160deg, rgba(11, 19, 29, 0.95), rgba(17, 26, 40, 0.92));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  padding: 14px;
+}
+
+.studio-upload-status.processing {
+  border-color: rgba(0, 180, 216, 0.45);
+}
+
+.studio-upload-status.success {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.studio-upload-status.error {
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+.studio-upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.studio-upload-state-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #d4ecff;
+  text-transform: uppercase;
+}
+
+.studio-upload-percent {
+  color: #8ad8ff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-upload-progress {
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.studio-upload-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #00b4d8 0%, #3b82f6 52%, #8b5cf6 100%);
+  transition: width 0.22s ease;
+}
+
+.studio-upload-status.error .studio-upload-progress-fill {
+  background: linear-gradient(90deg, #fb7185 0%, #f43f5e 100%);
+}
+
+.studio-upload-status.success .studio-upload-progress-fill {
+  background: linear-gradient(90deg, #34d399 0%, #22c55e 100%);
+}
+
+.studio-upload-text {
+  margin-top: 9px;
+  margin-bottom: 0;
+  color: #b7c8d8;
+  font-size: 12px;
+}
+
 .studio-publish-msg {
   padding: 12px;
   border-radius: 8px;
