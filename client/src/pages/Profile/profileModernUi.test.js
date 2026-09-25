@@ -39,3 +39,11 @@ test('Profile css is scoped and responsive for mobile forms and cards', () => {
   assert.equal(/(^|\n)\s*header\s*\{/.test(css), false);
   assert.equal(/(^|\n)\s*main\s*\{/.test(css), false);
 });
+
+test('Profile dialogs clamp width and form controls to viewport-safe sizes on mobile', () => {
+  assert.match(css, /\.profile-page \.music-dialog \{/);
+  assert.match(css, /width:\s*min\(100%,\s*calc\(100vw - 24px\)\)/);
+  assert.match(css, /max-width:\s*min\(560px,\s*calc\(100vw - 24px\)\)/);
+  assert.match(css, /\.profile-form input,[\s\S]*\.profile-form select,[\s\S]*min-width:\s*0/);
+  assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.profile-page \.music-dialog-backdrop\s*\{[\s\S]*padding:\s*12px/);
+});

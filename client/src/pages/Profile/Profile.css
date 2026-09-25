@@ -216,6 +216,7 @@
 .profile-form {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .profile-form label {
@@ -227,6 +228,9 @@
 .profile-form input,
 .profile-form select,
 .profile-form textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 44px;
   border-radius: var(--mel-pill);
   border: 1px solid var(--mel-border-strong);
@@ -247,6 +251,18 @@
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
+}
+
+.profile-page .music-dialog {
+  box-sizing: border-box;
+  min-width: 0;
+  width: min(100%, calc(100vw - 24px));
+  max-width: min(560px, calc(100vw - 24px));
+}
+
+.profile-page .music-dialog-body {
+  overflow-x: hidden;
 }
 
 .profile-dialog-copy {
@@ -259,6 +275,10 @@
 }
 
 @media (max-width: 768px) {
+  .profile-page .music-dialog-backdrop {
+    padding: 12px;
+  }
+
   .profile-hero {
     grid-template-columns: 1fr;
   }
