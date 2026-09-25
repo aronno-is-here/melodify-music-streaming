@@ -3,6 +3,16 @@ import { normalizeRegionTag } from '../services/regionalCatalog.js';
 export const CATALOG_SEARCH_DEFAULT_LIMIT = 20;
 export const CATALOG_SEARCH_MAX_LIMIT = 40;
 
+export const CATALOG_SEARCH_QUERY_KEYS = Object.freeze([
+  'q',
+  'region',
+  'limit',
+  'external',
+  'broaden',
+]);
+
+export const VERCEL_ROUTING_METADATA_KEYS = Object.freeze(['path']);
+
 const invalid = (error) => ({ ok: false, error });
 
 function parseBoolean(value) {
@@ -21,7 +31,9 @@ export function parseCatalogSearchQuery(query) {
 
   const keys = Object.keys(query);
   for (const key of keys) {
-    if (!['q', 'region', 'limit', 'external', 'broaden'].includes(key)) {
+    const isApplicationKey = CATALOG_SEARCH_QUERY_KEYS.includes(key);
+    const isVercelRoutingMetadata = VERCEL_ROUTING_METADATA_KEYS.includes(key);
+    if (!isApplicationKey && !isVercelRoutingMetadata) {
       return invalid('invalid catalog search query');
     }
   }

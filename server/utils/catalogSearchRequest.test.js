@@ -46,3 +46,44 @@ test('parseCatalogSearchQuery rejects non-object query', () => {
   assert.equal(parseCatalogSearchQuery(['q=abc']).ok, false);
   assert.equal(parseCatalogSearchQuery('q=abc').ok, false);
 });
+
+test('parseCatalogSearchQuery ignores Vercel rewrite path metadata', () => {
+  const parsed = parseCatalogSearchQuery({
+    path: 'catalog/search',
+    q: 'ed sheeran',
+    limit: '40',
+  });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.value.query, 'ed sheeran');
+  assert.equal(parsed.value.limit, 40);
+  assert.equal(parsed.value.includeExternal, true);
+  assert.equal(parsed.value.broadenExternal, false);
+  assert.equal(parsed.value.regionTag, undefined);
+});
+
+test('parseCatalogSearchQuery ignores repeated Vercel path metadata', () => {
+  const parsed = parseCatalogSearchQuery({
+    path: ['catalog', 'search'],
+    q: 'ed sheeran',
+    limit: '40',
+    region: 'bn-bd',
+  });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.value.query, 'ed sheeran');
+  assert.equal(parsed.value.limit, 40);
+  assert.equal(parsed.value.regionTag, 'bn-bd');
+});
+
+test('parseCatalogSearchQuery still rejects unknown application keys', () => {
+  const parsed = parseCatalogSearchQuery({ q: 'ed sheeran', unexpected: 'x' });
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, 'invalid catalog search query');
+});
+
+test('parseCatalogSearchQuery does not let path metadata change catalog behavior', () => {
+  const withPath = parseCatalogSearchQuery({ path: 'catalog/search', q: 'abc', limit: '5' });
+  const withoutPath = parseCatalogSearchQuery({ q: 'abc', limit: '5' });
+  assert.equal(withPath.ok, true);
+  assert.equal(withoutPath.ok, true);
+  assert.deepEqual(withPath.value, withoutPath.value);
+});
