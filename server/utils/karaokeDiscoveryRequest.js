@@ -5,6 +5,10 @@ export const KARAOKE_DISCOVERY_MAX_LIMIT = 20;
 export const KARAOKE_DISCOVERY_DEFAULT_PAGE = 1;
 export const KARAOKE_DISCOVERY_MAX_PAGE = 20;
 
+export const KARAOKE_DISCOVERY_QUERY_KEYS = Object.freeze(['q', 'region', 'limit', 'page']);
+
+export const VERCEL_ROUTING_METADATA_KEYS = Object.freeze(['path']);
+
 const invalid = (error) => ({ ok: false, error });
 
 export function parseKaraokeDiscoveryQuery(query) {
@@ -13,7 +17,9 @@ export function parseKaraokeDiscoveryQuery(query) {
   }
 
   for (const key of Object.keys(query)) {
-    if (!['q', 'region', 'limit', 'page'].includes(key)) {
+    const isApplicationKey = KARAOKE_DISCOVERY_QUERY_KEYS.includes(key);
+    const isVercelRoutingMetadata = VERCEL_ROUTING_METADATA_KEYS.includes(key);
+    if (!isApplicationKey && !isVercelRoutingMetadata) {
       return invalid('invalid karaoke discovery query');
     }
   }

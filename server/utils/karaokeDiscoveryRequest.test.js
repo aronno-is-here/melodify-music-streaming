@@ -28,3 +28,25 @@ test('karaoke discovery query parser rejects unknown keys and invalid ranges', (
   assert.equal(parseKaraokeDiscoveryQuery({ page: '30' }).ok, false);
   assert.equal(parseKaraokeDiscoveryQuery({ region: 'xx' }).ok, false);
 });
+
+test('karaoke discovery query parser ignores Vercel rewrite path metadata', () => {
+  const parsed = parseKaraokeDiscoveryQuery({
+    path: 'karaoke/discovery',
+    q: 'arnob',
+    limit: '12',
+    page: '1',
+  });
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.value, {
+    query: 'arnob',
+    regionTag: undefined,
+    limit: 12,
+    page: 1,
+  });
+});
+
+test('karaoke discovery query parser still rejects unknown application keys', () => {
+  const parsed = parseKaraokeDiscoveryQuery({ path: 'karaoke/discovery', nope: 'x' });
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error, 'invalid karaoke discovery query');
+});
