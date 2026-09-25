@@ -4,6 +4,10 @@ import {
   CATALOG_ROUTE_MESSAGES,
   createCatalogRouter,
 } from './catalogRoutes.js';
+import {
+  CATALOG_IMPORT_MESSAGES,
+  CatalogImportError,
+} from '../services/catalogImportService.js';
 
 function createRes() {
   const res = {
@@ -21,8 +25,9 @@ function createRes() {
   return res;
 }
 
-function createHarness({ searchResult, searchError } = {}) {
+function createHarness({ searchResult, searchError, importResult, importError } = {}) {
   const searchCalls = [];
+  const importCalls = [];
   const router = createCatalogRouter({
     protectMiddleware: (_req, _res, next) => next(),
     catalogDiscoveryService: {
@@ -32,12 +37,19 @@ function createHarness({ searchResult, searchError } = {}) {
         return searchResult || { mergedResults: [] };
       },
     },
+    catalogImportService: {
+      async importProviderTrack(args) {
+        importCalls.push(args);
+        if (importError) throw importError;
+        return importResult || { status: 'inserted', song: { _id: '1' } };
+      },
+    },
   });
 
-  const invoke = async ({ path, method, query = {} }) => {
+  const invoke = async ({ path, method, query = {}, body = {} }) => {
     const layer = router.stack.find((entry) => entry.route && entry.route.path === path);
     const stack = layer.route.stack;
-    const req = { query, params: {}, method: method.toUpperCase() };
+    const req = { query, body, params: {}, method: method.toUpperCase() };
     const res = createRes();
     let index = 0;
     const next = async () => {
@@ -47,10 +59,10 @@ function createHarness({ searchResult, searchError } = {}) {
       await handler(req, res, next);
     };
     await next();
-    return { res, searchCalls };
+    return { res, searchCalls, importCalls };
   };
 
-  return { invoke, searchCalls };
+  return { invoke, searchCalls, importCalls };
 }
 
 test('catalog /regions returns stable region list', async () => {
@@ -85,4 +97,37 @@ test('catalog /search maps service failure to fixed 500 message', async () => {
   const { res } = await invoke({ path: '/search', method: 'get', query: { q: 'arnob' } });
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.error, CATALOG_ROUTE_MESSAGES.searchFailed);
+});
+
+test('catalog /import validates payload before service call', async () => {
+  const { invoke, importCalls } = createHarness();
+  const { res } = await invoke({ path: '/import', method: 'post', body: { provider: 'youtube' } });
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error, CATALOG_IMPORT_MESSAGES.invalidRequest);
+  assert.equal(importCalls.length, 0);
+});
+
+test('catalog /import returns 200 with imported payload', async () => {
+  const { invoke, importCalls } = createHarness();
+  const { res } = await invoke({
+    path: '/import',
+    method: 'post',
+    body: { provider: 'youtube', providerTrackId: 'Fn6Ul6sYqro' },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(importCalls.length, 1);
+});
+
+test('catalog /import maps provider unavailable to 503', async () => {
+  const { invoke } = createHarness({
+    importError: new CatalogImportError('x', 'PROVIDER_UNAVAILABLE'),
+  });
+  const { res } = await invoke({
+    path: '/import',
+    method: 'post',
+    body: { provider: 'youtube', providerTrackId: 'Fn6Ul6sYqro' },
+  });
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.error, CATALOG_IMPORT_MESSAGES.providerUnavailable);
 });
