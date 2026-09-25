@@ -14,6 +14,16 @@ const EFFECTS_PRESETS = {
 };
 
 const STEPS = { SELECT: 'select', RECORD: 'record', PREVIEW: 'preview', PUBLISH: 'publish' };
+const DISCOVERY_PAGE_SIZE = 12;
+const DISCOVERY_REGION_OPTIONS = [
+  { id: '', label: 'All' },
+  { id: 'bn-bd', label: 'Bangla' },
+  { id: 'bn-in', label: 'Kolkata Bengali' },
+  { id: 'hi-in', label: 'Hindi' },
+  { id: 'en', label: 'English' },
+];
+
+const getPosterUrl = (song) => song?.posterUrl || song?.poster_url || 'https://picsum.photos/120/120?random';
 
 export default function MelodifyStudio() {
   useLayoutEffect(() => {
@@ -29,6 +39,11 @@ export default function MelodifyStudio() {
 
   const [karaokeTracks, setKaraokeTracks] = useState([]);
   const [songQuery, setSongQuery] = useState('');
+  const [discoveryRegion, setDiscoveryRegion] = useState('');
+  const [discoveryPage, setDiscoveryPage] = useState(1);
+  const [discoveryPages, setDiscoveryPages] = useState(1);
+  const [discoveryExternalState, setDiscoveryExternalState] = useState('skipped');
+  const [discoveryError, setDiscoveryError] = useState('');
   const [searching, setSearching] = useState(false);
   const [selectedSong, setSelectedSong] = useState(null);
   const [step, setStep] = useState(STEPS.SELECT);
@@ -79,20 +94,36 @@ export default function MelodifyStudio() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchKaraoke(songQuery.trim());
+      fetchKaraoke(songQuery.trim(), discoveryRegion, discoveryPage);
     }, 300);
     return () => clearTimeout(timer);
-  }, [songQuery]);
+  }, [songQuery, discoveryRegion, discoveryPage]);
 
-  const fetchKaraoke = async (q = '') => {
+  const fetchKaraoke = async (q = '', region = '', page = 1) => {
     setSearching(true);
+    setDiscoveryError('');
     try {
-      const params = q ? `/api/karaoke?q=${encodeURIComponent(q)}&limit=50` : '/api/karaoke?limit=50';
+      const searchQuery = q ? `&q=${encodeURIComponent(q)}` : '';
+      const regionQuery = region ? `&region=${encodeURIComponent(region)}` : '';
+      const params = `/api/karaoke/discovery?limit=${DISCOVERY_PAGE_SIZE}&page=${page}${regionQuery}${searchQuery}`;
       const data = await api.get(params);
-      if (data.success) {
-        setKaraokeTracks(data.karaoke);
+      if (data.success && data.data) {
+        setKaraokeTracks(Array.isArray(data.data.items) ? data.data.items : []);
+        setDiscoveryPages(Math.max(1, Number(data.data.pages) || 1));
+        setDiscoveryExternalState(data.data.externalState || 'skipped');
+        if (data.data.externalState === 'error' && data.data.externalError) {
+          setDiscoveryError('External provider is temporarily unavailable.');
+        }
+      } else {
+        setKaraokeTracks([]);
+        setDiscoveryPages(1);
+        setDiscoveryError('Failed to load karaoke discovery.');
       }
-    } catch {}
+    } catch {
+      setKaraokeTracks([]);
+      setDiscoveryPages(1);
+      setDiscoveryError('Failed to load karaoke discovery.');
+    }
     setSearching(false);
   };
 
@@ -363,9 +394,34 @@ export default function MelodifyStudio() {
                   type="text"
                   placeholder="Search karaoke tracks by title or artist..."
                   value={songQuery}
-                  onChange={(e) => setSongQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSongQuery(e.target.value);
+                    setDiscoveryPage(1);
+                  }}
                 />
               </div>
+
+              <div className="studio-region-filters" role="tablist" aria-label="Discovery region filters">
+                {DISCOVERY_REGION_OPTIONS.map((regionOption) => (
+                  <button
+                    key={regionOption.id || 'all'}
+                    type="button"
+                    className={`studio-region-chip${discoveryRegion === regionOption.id ? ' active' : ''}`}
+                    aria-pressed={discoveryRegion === regionOption.id}
+                    onClick={() => {
+                      setDiscoveryRegion(regionOption.id);
+                      setDiscoveryPage(1);
+                    }}
+                  >
+                    {regionOption.label}
+                  </button>
+                ))}
+              </div>
+
+              {discoveryError && <div className="studio-discovery-status error">{discoveryError}</div>}
+              {!discoveryError && discoveryExternalState === 'disabled' && (
+                <div className="studio-discovery-status">External provider is unavailable right now.</div>
+              )}
 
               {searching ? (
                 <div className="studio-empty-small">
@@ -385,19 +441,22 @@ export default function MelodifyStudio() {
                 <div className="studio-song-grid">
                   {karaokeTracks.map((song) => (
                     <div
-                      key={song._id}
+                      key={song.id || song._id}
                       className="studio-song-card"
                       onClick={() => selectSong(song)}
                     >
                       <div className="studio-song-poster">
                         <img
-                          src={song.poster_url || 'https://picsum.photos/120/120?random'}
+                          src={getPosterUrl(song)}
                           alt={song.title}
                           onError={(e) => { e.target.src = 'https://picsum.photos/120/120?random'; }}
                         />
                         <div className="studio-song-overlay">
                           <i className="fa-solid fa-microphone-lines"></i>
                         </div>
+                        <span className={`studio-track-badge ${song.classification === 'KARAOKE_READY' ? 'ready' : 'singalong'}`}>
+                          {song.classification === 'KARAOKE_READY' ? 'KARAOKE_READY' : 'SING_ALONG'}
+                        </span>
                       </div>
                       <div className="studio-song-info">
                         <span className="studio-song-title">{song.title}</span>
@@ -405,6 +464,28 @@ export default function MelodifyStudio() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {discoveryPages > 1 && (
+                <div className="studio-pagination">
+                  <button
+                    type="button"
+                    className="studio-page-btn"
+                    onClick={() => setDiscoveryPage((prev) => Math.max(1, prev - 1))}
+                    disabled={discoveryPage <= 1 || searching}
+                  >
+                    Previous
+                  </button>
+                  <span className="studio-page-indicator">Page {discoveryPage} of {discoveryPages}</span>
+                  <button
+                    type="button"
+                    className="studio-page-btn"
+                    onClick={() => setDiscoveryPage((prev) => Math.min(discoveryPages, prev + 1))}
+                    disabled={discoveryPage >= discoveryPages || searching}
+                  >
+                    Next
+                  </button>
                 </div>
               )}
             </div>
@@ -416,7 +497,7 @@ export default function MelodifyStudio() {
             <div className="studio-now-playing">
               <img
                 className="studio-np-poster"
-                src={selectedSong.poster_url || 'https://picsum.photos/80/80?random'}
+                src={getPosterUrl(selectedSong)}
                 alt=""
                 onError={(e) => { e.target.src = 'https://picsum.photos/80/80?random'; }}
               />
@@ -517,7 +598,7 @@ export default function MelodifyStudio() {
 
             <div className="studio-preview-song">
               <img
-                src={selectedSong?.poster_url || 'https://picsum.photos/60/60?random'}
+                src={getPosterUrl(selectedSong)}
                 alt=""
                 onError={(e) => { e.target.src = 'https://picsum.photos/60/60?random'; }}
               />
@@ -557,7 +638,7 @@ export default function MelodifyStudio() {
 
             <div className="studio-publish-song">
               <img
-                src={selectedSong?.poster_url || 'https://picsum.photos/60/60?random'}
+                src={getPosterUrl(selectedSong)}
                 alt=""
                 onError={(e) => { e.target.src = 'https://picsum.photos/60/60?random'; }}
               />
