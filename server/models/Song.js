@@ -26,6 +26,11 @@ const songSchema = new mongoose.Schema(
     chordify_url: { type: String, trim: true, maxlength: 1024 },
     chordify_embed_url: { type: String, trim: true, maxlength: 1024 },
     chords_reference_url: { type: String, trim: true, maxlength: 1024 },
+    language: { type: String, trim: true, maxlength: 16 },
+    regional_tag: { type: String, trim: true, maxlength: 16 },
+    source_provider: { type: String, trim: true, maxlength: 64 },
+    external_id: { type: String, trim: true, maxlength: 256 },
+    recommendation_eligible: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
