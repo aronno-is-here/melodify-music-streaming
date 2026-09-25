@@ -9,7 +9,8 @@
     "dev": "nodemon server.js",
     "seed": "node seed.js",
     "audit:catalog-content": "node scripts/auditCatalogContent.js",
-    "catalog:import-region": "node scripts/importRegionalCatalog.js"
+    "catalog:import-region": "node scripts/importRegionalCatalog.js",
+    "lyrics:prefetch": "node scripts/prefetchLyrics.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

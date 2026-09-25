@@ -132,6 +132,12 @@ cd server
 npm run catalog:import-region -- --region bn-bd --import-limit 10 --dry-run
 ```
 
+### 7. Optional lyrics prefetch (bounded)
+```bash
+cd server
+npm run lyrics:prefetch -- --limit 25 --dry-run
+```
+
 ### 5. Run the karaoke app (optional)
 ```bash
 cd karaoke-app/server
