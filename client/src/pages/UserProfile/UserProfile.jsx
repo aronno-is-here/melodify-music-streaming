@@ -1,9 +1,33 @@
-import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import usePlayer from '../../hooks/usePlayer.js';
 import { api } from '../../api/client.js';
+import SongCard from '../../components/music/SongCard.jsx';
+import SongRow from '../../components/music/SongRow.jsx';
+import SectionHeader from '../../components/music/SectionHeader.jsx';
+import EmptyState from '../../components/music/EmptyState.jsx';
+import AppDialog from '../../components/ui/AppDialog.jsx';
 import cssRaw from './UserProfile.css?raw';
+
+const TABS = Object.freeze([
+  { id: 'overview', label: 'Overview' },
+  { id: 'library', label: 'Library' },
+  { id: 'posts', label: 'Posts' },
+  { id: 'recordings', label: 'Recordings' },
+]);
+
+function formatTimeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 export default function UserProfile() {
   useLayoutEffect(() => {
@@ -16,109 +40,138 @@ export default function UserProfile() {
 
   const { id } = useParams();
   const { user: currentUser } = useAuth();
-  const navigate = useNavigate();
   const player = usePlayer();
+  const outlet = useOutletContext();
+  const toggleFavorite = outlet?.toggleFavorite;
+  const favoritedIds = outlet?.favoritedIds || new Set();
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
 
-  const [showFollowers, setShowFollowers] = useState(false);
-  const [showFollowing, setShowFollowing] = useState(false);
-  const [followersList, setFollowersList] = useState([]);
-  const [followingList, setFollowingList] = useState([]);
-  const [listLoading, setListLoading] = useState(false);
-
   const [activeTab, setActiveTab] = useState('overview');
   const [recordings, setRecordings] = useState([]);
   const [recordingsLoading, setRecordingsLoading] = useState(false);
+
+  const [listDialogType, setListDialogType] = useState('');
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState('');
+  const [listUsers, setListUsers] = useState([]);
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     setError('');
     const data = await api.get(`/api/users/${id}`);
-    if (data.success) {
-      setProfile(data.user);
-      setIsFollowing(data.isFollowing);
-      setFollowersCount(data.followersCount);
-      setFollowingCount(data.followingCount);
-    } else {
+    if (!data.success) {
       setError(data.error || 'User not found');
+      setLoading(false);
+      return;
     }
+
+    setProfile(data.user);
+    setIsFollowing(Boolean(data.isFollowing));
+    setFollowersCount(data.followersCount || 0);
+    setFollowingCount(data.followingCount || 0);
     setLoading(false);
   }, [id]);
 
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   useEffect(() => {
     if (!profile) return;
-    const fetchRecordings = async () => {
+
+    let cancelled = false;
+    (async () => {
       setRecordingsLoading(true);
       const data = await api.get(`/api/recordings/user/${id}`);
-      if (data.success) setRecordings(data.recordings);
+      if (cancelled) return;
+      if (data.success) {
+        setRecordings(data.recordings || []);
+      }
       setRecordingsLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
     };
-    fetchRecordings();
   }, [id, profile]);
+
+  const playSongQueue = (songs, index) => {
+    player.playSong(songs, index);
+  };
 
   const handleFollow = async () => {
     if (followLoading) return;
     setFollowLoading(true);
-    if (isFollowing) {
-      const data = await api.del(`/api/follows/${id}`);
-      if (data.success) {
-        setIsFollowing(false);
-        setFollowersCount(data.followersCount);
-      }
-    } else {
-      const data = await api.post(`/api/follows/${id}`);
-      if (data.success) {
-        setIsFollowing(true);
-        setFollowersCount(data.followersCount);
-      }
-    }
+    setStatusMessage('');
+
+    const data = isFollowing
+      ? await api.del(`/api/follows/${id}`)
+      : await api.post(`/api/follows/${id}`);
+
     setFollowLoading(false);
+
+    if (!data.success) {
+      setStatusMessage(data.error || 'Unable to update follow status.');
+      return;
+    }
+
+    setIsFollowing(!isFollowing);
+    setFollowersCount(data.followersCount || 0);
+    setStatusMessage(isFollowing ? 'Unfollowed user.' : 'Now following user.');
   };
 
-  const loadFollowers = async () => {
-    setShowFollowers(true);
+  const openUserList = async (type) => {
+    setListDialogType(type);
     setListLoading(true);
-    const data = await api.get(`/api/follows/${id}/followers`);
-    if (data.success) setFollowersList(data.users);
+    setListError('');
+    setListUsers([]);
+
+    const path = type === 'followers' ? `/api/follows/${id}/followers` : `/api/follows/${id}/following`;
+    const data = await api.get(path);
+
+    if (!data.success) {
+      setListError(data.error || 'Unable to load user list.');
+      setListLoading(false);
+      return;
+    }
+
+    setListUsers(data.users || []);
     setListLoading(false);
   };
 
-  const loadFollowing = async () => {
-    setShowFollowing(true);
-    setListLoading(true);
-    const data = await api.get(`/api/follows/${id}/following`);
-    if (data.success) setFollowingList(data.users);
-    setListLoading(false);
-  };
+  const profileSongs = profile?.songs || [];
+  const profilePosts = profile?.posts || [];
 
-  const playSong = (songs, index) => {
-    player.playSong(songs, index);
-  };
+  const listDialogTitle = useMemo(() => {
+    if (listDialogType === 'followers') return 'Followers';
+    if (listDialogType === 'following') return 'Following';
+    return '';
+  }, [listDialogType]);
 
   if (loading) {
     return (
-      <div className="up-page">
-        <div className="up-loading">Loading profile...</div>
+      <div className="user-profile-page">
+        <p className="up-status" role="status">Loading profile...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="up-page">
-        <div className="up-error">
-          <p>{error}</p>
-          <Link to="/dashboard" className="up-back-link">Back to Dashboard</Link>
-        </div>
+      <div className="user-profile-page">
+        <section className="music-section app-surface">
+          <p className="up-status up-status-error" role="alert">{error}</p>
+          <Link to="/dashboard" className="music-outline-btn up-inline-link">Back to Dashboard</Link>
+        </section>
       </div>
     );
   }
@@ -126,297 +179,220 @@ export default function UserProfile() {
   const initial = profile?.name ? profile.name.charAt(0).toUpperCase() : '?';
 
   return (
-    <div className="up-page">
-      <header className="up-header">
-        <Link to="/dashboard" className="up-back">
-          <i className="fa-solid fa-chevron-left"></i>
-          <span>Dashboard</span>
-        </Link>
-      </header>
-
-      <main className="up-main">
-        <div className="up-profile-card">
-          <div className="up-avatar">
-            {profile.avatar ? <img src={profile.avatar} alt={profile.name} /> : initial}
-          </div>
-          <div className="up-info">
-            <h1 className="up-name">{profile.name}</h1>
-            {profile.bio && <p className="up-bio">{profile.bio}</p>}
-            <div className="up-stats">
-              <button className="up-stat-btn" onClick={loadFollowers}>
-                <strong>{followersCount}</strong> Followers
-              </button>
-              <button className="up-stat-btn" onClick={loadFollowing}>
-                <strong>{followingCount}</strong> Following
-              </button>
-            </div>
-            {!profile.isOwnProfile && currentUser && (
-              <button
-                className={`up-follow-btn ${isFollowing ? 'following' : ''}`}
-                onClick={handleFollow}
-                disabled={followLoading}
-              >
-                {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
-              </button>
-            )}
-          </div>
+    <div className="user-profile-page">
+      <section className="music-section app-surface up-hero">
+        <div className="up-avatar" aria-hidden="true">
+          {profile.avatar ? <img src={profile.avatar} alt="" /> : initial}
         </div>
 
-        <div className="up-tabs">
-          <button
-            className={`up-tab ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            Overview
-          </button>
-          <button
-            className={`up-tab ${activeTab === 'library' ? 'active' : ''}`}
-            onClick={() => setActiveTab('library')}
-          >
-            Library
-          </button>
-          <button
-            className={`up-tab ${activeTab === 'posts' ? 'active' : ''}`}
-            onClick={() => setActiveTab('posts')}
-          >
-            Posts
-          </button>
-          <button
-            className={`up-tab ${activeTab === 'recordings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('recordings')}
-          >
-            Recordings
-          </button>
-        </div>
+        <div className="up-meta">
+          <h1>{profile.name}</h1>
+          {profile.bio ? <p>{profile.bio}</p> : null}
 
-        {activeTab === 'overview' && (
-          <div className="up-section">
-            {profile.songs && profile.songs.length > 0 ? (
-              <>
-                <h2 className="up-section-title">Public Library</h2>
-                <div className="up-song-grid">
-                  {profile.songs.slice(0, 8).map((song, i) => (
-                    <div
-                      key={song._id}
-                      className="up-song-card"
-                      onClick={() => playSong(profile.songs, i)}
-                    >
-                      <div className="up-song-poster">
-                        <img
-                          src={song.poster_url || 'https://picsum.photos/150/150?random'}
-                          alt={song.title}
-                          onError={(e) => { e.target.src = 'https://picsum.photos/150/150?random'; }}
-                        />
-                        <div className="up-song-play">
-                          <i className="fa-solid fa-play"></i>
-                        </div>
-                      </div>
-                      <div className="up-song-info">
-                        <span className="up-song-title">{song.title}</span>
-                        <span className="up-song-artist">{song.artist}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : profile.libraryVisibility === 'private' && !profile.isOwnProfile ? (
-              <div className="up-empty">
-                <i className="fa-solid fa-lock"></i>
-                <p>This user's song library is private</p>
-              </div>
-            ) : (
-              <div className="up-empty">
-                <i className="fa-solid fa-music"></i>
-                <p>No songs in library yet</p>
-              </div>
-            )}
+          <div className="up-stat-row" role="group" aria-label="Profile relationship stats">
+            <button type="button" className="up-stat-btn" onClick={() => openUserList('followers')}>
+              <strong>{followersCount}</strong> Followers
+            </button>
+            <button type="button" className="up-stat-btn" onClick={() => openUserList('following')}>
+              <strong>{followingCount}</strong> Following
+            </button>
           </div>
-        )}
 
-        {activeTab === 'library' && (
-          <div className="up-section">
-            {profile.songs && profile.songs.length > 0 ? (
-              <div className="up-song-list">
-                {profile.songs.map((song, i) => (
-                  <div
+          {!profile.isOwnProfile && currentUser ? (
+            <button
+              type="button"
+              className={`music-pill-btn up-follow-btn ${isFollowing ? 'is-following' : ''}`}
+              onClick={handleFollow}
+              disabled={followLoading}
+            >
+              {followLoading ? 'Updating...' : isFollowing ? 'Following' : 'Follow'}
+            </button>
+          ) : null}
+
+          {statusMessage ? <p className="up-status" role="status" aria-live="polite">{statusMessage}</p> : null}
+        </div>
+      </section>
+
+      <section className="music-section app-surface up-tab-shell" aria-label="User profile sections">
+        {TABS.map((tab) => (
+          <button
+            type="button"
+            key={tab.id}
+            className={`up-tab-btn ${activeTab === tab.id ? 'is-active' : ''}`}
+            aria-pressed={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </section>
+
+      {activeTab === 'overview' ? (
+        <section className="music-section app-surface">
+          <SectionHeader title="Highlights" subtitle="Public songs from this profile" />
+
+          {profileSongs.length > 0 ? (
+            <div className="up-song-grid">
+              {profileSongs.slice(0, 8).map((song, index) => {
+                const songId = String(song._id);
+                const isActive = player.currentSong ? String(player.currentSong._id) === songId : false;
+                return (
+                  <SongCard
                     key={song._id}
-                    className="up-song-row"
-                    onClick={() => playSong(profile.songs, i)}
-                  >
-                    <span className="up-song-num">{i + 1}</span>
-                    <img
-                      className="up-song-row-poster"
-                      src={song.poster_url || 'https://picsum.photos/40/40?random'}
-                      alt=""
-                      onError={(e) => { e.target.src = 'https://picsum.photos/40/40?random'; }}
-                    />
-                    <div className="up-song-row-info">
-                      <span className="up-song-row-title">{song.title}</span>
-                      <span className="up-song-row-artist">{song.artist}</span>
-                    </div>
-                    <span className="up-song-row-genre">{song.genre}</span>
-                    <span className="up-song-row-duration">{song.duration}</span>
-                  </div>
-                ))}
-              </div>
-            ) : profile.libraryVisibility === 'private' && !profile.isOwnProfile ? (
-              <div className="up-empty">
-                <i className="fa-solid fa-lock"></i>
-                <p>This user's song library is private</p>
-              </div>
-            ) : (
-              <div className="up-empty">
-                <i className="fa-solid fa-music"></i>
-                <p>No songs in library yet</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'posts' && (
-          <div className="up-section">
-            {profile.posts && profile.posts.length > 0 ? (
-              <div className="up-posts-grid">
-                {profile.posts.map((post) => (
-                  <div key={post._id} className="up-post-card">
-                    <div className="up-post-header">
-                      {post.song?.poster_url || post.karaoke?.poster_url ? (
-                        <img className="up-post-song-img" src={post.song?.poster_url || post.karaoke?.poster_url} alt="" />
-                      ) : null}
-                      <div>
-                        <span className="up-post-title">{post.title}</span>
-                        <span className="up-post-song-name">{post.song?.title || post.karaoke?.title} - {post.song?.artist || post.karaoke?.artist}</span>
-                      </div>
-                    </div>
-                    {post.caption && <p className="up-post-caption">{post.caption}</p>}
-                    <audio controls src={post.audioUrl} className="up-post-audio"></audio>
-                    <div className="up-post-meta">
-                      <span>{post.likesCount || 0} likes</span>
-                      <span>{post.commentsCount || 0} comments</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="up-empty">
-                <i className="fa-solid fa-microphone-lines"></i>
-                <p>No posts yet</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'recordings' && (
-          <div className="up-section">
-            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Karaoke Recordings</h3>
-            {recordingsLoading ? (
-              <div className="up-empty"><p>Loading recordings...</p></div>
-            ) : recordings.length === 0 ? (
-              <div className="up-empty">
-                <i className="fa-solid fa-microphone-lines"></i>
-                <p>No karaoke recordings yet</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {recordings.map((rec) => (
-                  <div key={rec._id} style={{ background: '#1a1a1a', borderRadius: 10, padding: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                      {rec.karaoke?.poster_url && (
-                        <img src={rec.karaoke.poster_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }} />
-                      )}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 15, fontWeight: 600 }}>{rec.title}</div>
-                        <div style={{ fontSize: 12, color: '#b3b3b3' }}>
-                          {rec.karaoke?.title} - {rec.karaoke?.artist}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                          {rec.effects?.preset && `Effect: ${rec.effects.preset}`}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: 11, color: '#888', textTransform: 'capitalize' }}>{rec.visibility}</span>
-                    </div>
-                    <audio controls src={rec.audioUrl} style={{ width: '100%', height: 36, borderRadius: 8 }}></audio>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      {showFollowers && (
-        <div className="up-modal-overlay" onClick={() => setShowFollowers(false)}>
-          <div className="up-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="up-modal-header">
-              <h3>Followers</h3>
-              <button className="up-modal-close" onClick={() => setShowFollowers(false)}>
-                <i className="fa-solid fa-xmark"></i>
-              </button>
+                    song={song}
+                    isPlaying={player.isPlaying}
+                    isActive={isActive}
+                    isFavorited={favoritedIds.has(songId)}
+                    onPlay={() => playSongQueue(profileSongs, index)}
+                    onToggleFavorite={() => {
+                      if (toggleFavorite) toggleFavorite(song._id);
+                    }}
+                  />
+                );
+              })}
             </div>
-            <div className="up-modal-list">
-              {listLoading ? (
-                <div className="up-modal-status">Loading...</div>
-              ) : followersList.length === 0 ? (
-                <div className="up-modal-status">No followers yet</div>
-              ) : (
-                followersList.map((u) => (
-                  <Link
-                    key={u._id}
-                    to={`/user/${u._id}`}
-                    className="up-modal-item"
-                    onClick={() => setShowFollowers(false)}
-                  >
-                    <div className="up-modal-avatar">
-                      {u.avatar ? <img src={u.avatar} alt={u.name} /> : u.name.charAt(0).toUpperCase()}
+          ) : profile.libraryVisibility === 'private' && !profile.isOwnProfile ? (
+            <EmptyState icon="fa-lock" title="Private library" detail="This user's song library is private." />
+          ) : (
+            <EmptyState icon="fa-music" title="No public songs yet" detail="Songs shared by this user will appear here." />
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === 'library' ? (
+        <section className="music-section app-surface">
+          <SectionHeader title="Song library" subtitle="Tap a song to play it in the global player" />
+
+          {profileSongs.length > 0 ? (
+            <div className="up-song-list">
+              {profileSongs.map((song, index) => {
+                const songId = String(song._id);
+                const isActive = player.currentSong ? String(player.currentSong._id) === songId : false;
+                return (
+                  <SongRow
+                    key={song._id}
+                    song={song}
+                    subtitle={song.artist}
+                    isPlaying={player.isPlaying}
+                    isActive={isActive}
+                    isFavorited={favoritedIds.has(songId)}
+                    trailing={<span className="up-row-meta">{song.genre || 'Unknown genre'}</span>}
+                    onPlay={() => playSongQueue(profileSongs, index)}
+                    onToggleFavorite={() => {
+                      if (toggleFavorite) toggleFavorite(song._id);
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ) : profile.libraryVisibility === 'private' && !profile.isOwnProfile ? (
+            <EmptyState icon="fa-lock" title="Private library" detail="This user's song library is private." />
+          ) : (
+            <EmptyState icon="fa-music" title="No songs yet" detail="This user has not added songs yet." />
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === 'posts' ? (
+        <section className="music-section app-surface">
+          <SectionHeader title="Published posts" subtitle="Community posts shared by this user" />
+
+          {profilePosts.length > 0 ? (
+            <div className="up-post-list">
+              {profilePosts.map((post) => (
+                <article key={post._id} className="up-post-card">
+                  <header>
+                    {(post.song?.poster_url || post.karaoke?.poster_url) ? (
+                      <img src={post.song?.poster_url || post.karaoke?.poster_url} alt="" />
+                    ) : null}
+                    <div>
+                      <h3>{post.title}</h3>
+                      <p>{post.song?.title || post.karaoke?.title} - {post.song?.artist || post.karaoke?.artist}</p>
                     </div>
-                    <div className="up-modal-info">
-                      <span className="up-modal-name">{u.name}</span>
-                      <span className="up-modal-email">{u.email}</span>
+                  </header>
+
+                  {post.caption ? <p className="up-post-caption">{post.caption}</p> : null}
+                  <audio controls src={post.audioUrl} className="up-post-audio"></audio>
+
+                  <footer>
+                    <span>{post.likesCount || 0} likes</span>
+                    <span>{post.commentsCount || 0} comments</span>
+                    <span>{formatTimeAgo(post.createdAt)}</span>
+                  </footer>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon="fa-microphone-lines" title="No posts yet" detail="Published karaoke posts will appear here." />
+          )}
+        </section>
+      ) : null}
+
+      {activeTab === 'recordings' ? (
+        <section className="music-section app-surface">
+          <SectionHeader title="Karaoke recordings" subtitle="Recent takes and effects" />
+
+          {recordingsLoading ? <p className="up-status" role="status">Loading recordings...</p> : null}
+
+          {!recordingsLoading && recordings.length === 0 ? (
+            <EmptyState icon="fa-microphone-lines" title="No recordings yet" detail="No saved karaoke recordings are available." />
+          ) : null}
+
+          {!recordingsLoading && recordings.length > 0 ? (
+            <div className="up-recording-list">
+              {recordings.map((recording) => (
+                <article key={recording._id} className="up-recording-card">
+                  <header>
+                    {recording.karaoke?.poster_url ? <img src={recording.karaoke.poster_url} alt="" /> : null}
+                    <div>
+                      <h3>{recording.title}</h3>
+                      <p>{recording.karaoke?.title} - {recording.karaoke?.artist}</p>
+                      {recording.effects?.preset ? <small>Effect: {recording.effects.preset}</small> : null}
                     </div>
+                    <span>{recording.visibility}</span>
+                  </header>
+                  <audio controls src={recording.audioUrl}></audio>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <AppDialog
+        open={Boolean(listDialogType)}
+        title={listDialogTitle}
+        onClose={() => {
+          setListDialogType('');
+          setListUsers([]);
+          setListError('');
+        }}
+        labelledBy="user-profile-list-dialog-title"
+      >
+        <div className="up-list-dialog">
+          {listLoading ? <p className="up-status" role="status">Loading...</p> : null}
+          {listError ? <p className="up-status up-status-error" role="alert">{listError}</p> : null}
+
+          {!listLoading && !listError && listUsers.length === 0 ? (
+            <p className="up-status" role="status">No users found.</p>
+          ) : null}
+
+          {listUsers.length > 0 ? (
+            <ul className="up-list-users">
+              {listUsers.map((listUser) => (
+                <li key={listUser._id}>
+                  <Link to={`/user/${listUser._id}`} onClick={() => setListDialogType('')}>
+                    <span className="up-list-avatar" aria-hidden="true">
+                      {listUser.avatar ? <img src={listUser.avatar} alt="" /> : listUser.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span>{listUser.name}</span>
                   </Link>
-                ))
-              )}
-            </div>
-          </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
-      )}
-
-      {showFollowing && (
-        <div className="up-modal-overlay" onClick={() => setShowFollowing(false)}>
-          <div className="up-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="up-modal-header">
-              <h3>Following</h3>
-              <button className="up-modal-close" onClick={() => setShowFollowing(false)}>
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-            <div className="up-modal-list">
-              {listLoading ? (
-                <div className="up-modal-status">Loading...</div>
-              ) : followingList.length === 0 ? (
-                <div className="up-modal-status">Not following anyone yet</div>
-              ) : (
-                followingList.map((u) => (
-                  <Link
-                    key={u._id}
-                    to={`/user/${u._id}`}
-                    className="up-modal-item"
-                    onClick={() => setShowFollowing(false)}
-                  >
-                    <div className="up-modal-avatar">
-                      {u.avatar ? <img src={u.avatar} alt={u.name} /> : u.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="up-modal-info">
-                      <span className="up-modal-name">{u.name}</span>
-                      <span className="up-modal-email">{u.email}</span>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      </AppDialog>
     </div>
   );
 }

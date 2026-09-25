@@ -9,11 +9,14 @@ const appSrc = readFileSync(join(__dirname, '..', '..', 'App.jsx'), 'utf8');
 const shellSrc = readFileSync(join(__dirname, 'AuthenticatedAppShell.jsx'), 'utf8');
 const shellCss = readFileSync(join(__dirname, '..', '..', 'styles', 'app-shell.css'), 'utf8');
 
-test('App routes include authenticated shell routes for dashboard, search, and library', () => {
+test('App routes include authenticated shell routes for modernized authenticated pages', () => {
   assert.match(appSrc, /AuthenticatedAppShell/);
   assert.match(appSrc, /<Route path="\/dashboard" element=\{<Dashboard \/>\} \/>/);
   assert.match(appSrc, /<Route path="\/search" element=\{<SearchView \/>\} \/>/);
   assert.match(appSrc, /<Route path="\/library" element=\{<LibraryView \/>\} \/>/);
+  assert.match(appSrc, /<Route path="\/feed" element=\{<Feed \/>\} \/>/);
+  assert.match(appSrc, /<Route path="\/studio" element=\{<MelodifyStudio \/>\} \/>/);
+  assert.match(appSrc, /<Route path="\/user\/:id" element=\{<UserProfile \/>\} \/>/);
 });
 
 test('desktop navigation contains required destinations and labels', () => {

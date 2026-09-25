@@ -12,8 +12,9 @@ A full-featured music streaming web application with user authentication, a song
 - **JWT purpose separation (04/43)** — access tokens carry `token_use: "access"`; password-reset tokens carry `token_use: "password-reset"`. Each flow rejects cross-purpose, missing, unknown, or malformed purposes. Existing sessions require re-login, and older reset links must be requested again.
 - **Reset-token handling (05/43)** — reset JWTs are not logged or returned to clients; reset-route failures and reset-sensitive global errors use fixed safe responses without logging raw errors or request bodies. Purpose separation remains enforced. Secure reset-token delivery is not yet implemented; the generic forgot-password acknowledgement does not indicate actual email delivery.
 - **Stale access-token invalidation (06/43)** — access tokens issued before a user's `passwordChangedAt` are rejected with the generic 401; tokens issued at or after that time remain valid (same-second tokens count as fresh). Password change and reset flows update `passwordChangedAt`; signup and fresh logins are unaffected.
-- **Modern authenticated app shell** — `/dashboard`, `/search`, and `/library` now share a responsive shell with a fixed top bar, desktop sidebar navigation, mobile bottom navigation, and a persistent global player bar/mini-player
+- **Modern authenticated app shell** — `/dashboard`, `/search`, `/library`, `/profile`, `/playlist/:id`, `/song/:id`, `/feed`, `/studio`, and `/user/:id` share a responsive shell with a fixed top bar, desktop sidebar navigation, mobile bottom navigation, and a persistent global player bar/mini-player
 - **Song library and discovery views** — dedicated Search and Library routes plus a redesigned Dashboard discovery flow (Continue Listening, Trending Now, Recommended For You, Recently Added, Quick Picks, genre/artist mixes, and fast library access)
+- **Modernized social + creator pages (B02B)** — `/feed`, `/studio`, and `/user/:id` now use the shared design system and shell contracts with responsive layouts, dialog-driven secondary actions, and global-player-safe playback behavior
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history; written once on confirmed playback start, not on click)
 - **Confirmed-playback telemetry (15–16/43)** — authenticated clients emit playback lifecycle evidence to `POST /api/listening-events` after real media confirmation, including manual `skipped` and same-session confirmed `replay-started`; 15s throttled progress with seek-safe listened-delta ≤120s; serialized queue; 503 runtime disable with no retry/toast/blocking
 - **Explicit preference evidence foundation (17/43)** — bounded internal loader derives current positive evidence from song Favorites and user-owned playlist memberships, deduplicates within each source, and filters deleted Song references; no numeric recommendation weights
@@ -51,7 +52,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Profile page** — modernized account workspace with dialog-based account edit, password change, settings, and recording actions
 - **Dynamic Playlist page** (`/playlist/:id`) — modernized per-user playlist workspace (add/remove/rename/delete/search), integrated with the shared global player queue
 - **Dynamic Song Details page** (`/song/:id`) — modernized song metadata + related tracks + lyrics/chords surface, integrated with the shared global player
-- **Dynamic Premium page** (`/premium`) — live subscription status, subscribe/cancel plans (Individual/Student/Duo) via `/api/subscriptions`
+- **Modernized Premium page** (`/premium`) — redesigned plan comparison/FAQ experience with live subscription status and subscribe/cancel plans (Individual/Student/Duo) via `/api/subscriptions`
 
 ### Admin Side
 - Dedicated admin login (demo credentials, see below)
@@ -120,6 +121,9 @@ Melodify - Music Streaming Website/
 │   │   ├── Login/                 # Login page
 │   │   ├── Signup/                # 3-step signup
 │   │   ├── Dashboard/             # Dashboard, SearchView, LibraryView, FullScreenPlayer, Trending + recommendation UI helpers
+│   │   ├── Feed/                  # Modernized community feed page (shell-routed)
+│   │   ├── MelodifyStudio/        # Modernized multi-step studio creator page (shell-routed)
+│   │   ├── UserProfile/           # Modernized public user profile page (shell-routed)
 │   │   ├── Profile/               # User profile
 │   │   ├── Playlist/              # Playlist detail page (dynamic)
 │   │   ├── SongDetails/           # Song details page (dynamic)

@@ -54,36 +54,15 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/playlist/:id" element={<Playlist />} />
         <Route path="/song/:id" element={<SongDetails />} />
+        <Route path="/feed" element={<Feed />} />
+        <Route path="/studio" element={<MelodifyStudio />} />
+        <Route path="/user/:id" element={<UserProfile />} />
       </Route>
       <Route
         path="/liked"
         element={<Navigate to="/library?tab=liked" replace />}
       />
       <Route path="/premium" element={<Premium />} />
-      <Route
-        path="/user/:id"
-        element={
-          <Protected>
-            <UserProfile />
-          </Protected>
-        }
-      />
-      <Route
-        path="/feed"
-        element={
-          <Protected>
-            <Feed />
-          </Protected>
-        }
-      />
-      <Route
-        path="/studio"
-        element={
-          <Protected>
-            <MelodifyStudio />
-          </Protected>
-        }
-      />
       <Route
         path="/admin"
         element={

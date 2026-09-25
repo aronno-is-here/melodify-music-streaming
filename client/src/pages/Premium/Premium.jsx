@@ -1,20 +1,64 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
+import SectionHeader from '../../components/music/SectionHeader.jsx';
+import AppDialog from '../../components/ui/AppDialog.jsx';
 import cssRaw from './Premium.css?raw';
 
-const PLANS = [
-  { id: 'Individual', icon: 'fa-user', title: 'Premium Individual', price: 'BDT 219', trialLabel: 'Try 3 months for BDT 0', btnClass: 'btn-individual', details: ['1 Premium account', 'Cancel anytime', 'Subscribe or one-time payment', 'Access to all features'] },
-  { id: 'Student', icon: 'fa-graduation-cap', title: 'Premium Student', price: 'BDT 109', trialLabel: 'Try 1 month for BDT 0', btnClass: 'btn-student', details: ['1 verified Premium account', 'Discount for eligible students', 'Cancel anytime', 'All Premium features included'] },
-  { id: 'Duo', icon: 'fa-users', title: 'Duo', price: 'BDT 299', trialLabel: 'Get Premium Duo', btnClass: 'btn-duo', details: ['2 Premium accounts', 'Cancel anytime', 'Subscribe or one-time payment', 'For couples living together'] },
-];
+const PLANS = Object.freeze([
+  {
+    id: 'Individual',
+    title: 'Premium Individual',
+    trial: 'Try 3 months for BDT 0',
+    afterTrial: 'Then BDT 219/month',
+    monthlyPrice: 'BDT 219/month',
+    accentClass: 'is-individual',
+    details: ['1 Premium account', 'Ad-free music', 'Offline playback', 'Unlimited skips'],
+  },
+  {
+    id: 'Student',
+    title: 'Premium Student',
+    trial: 'Try 1 month for BDT 0',
+    afterTrial: 'Then BDT 109/month',
+    monthlyPrice: 'BDT 109/month',
+    accentClass: 'is-student',
+    details: ['1 verified student account', 'All Premium features', 'Lower monthly cost', 'Cancel anytime'],
+  },
+  {
+    id: 'Duo',
+    title: 'Premium Duo',
+    trial: 'Start Premium Duo',
+    afterTrial: 'BDT 299/month',
+    monthlyPrice: 'BDT 299/month',
+    accentClass: 'is-duo',
+    details: ['2 Premium accounts', 'One shared billing plan', 'Ad-free and offline', 'Cancel anytime'],
+  },
+]);
 
-const FAQS = [
-  { q: 'How does the free trial work?', a: "New subscribers get a free trial of Melodify Premium. You'll need to provide payment details to start your trial. After the trial, your subscription will automatically continue at the standard monthly price unless you cancel." },
-  { q: 'How do I cancel my subscription?', a: "You can cancel your subscription at any time through your account settings. If you cancel during your free trial, you won't be charged. After the trial, you'll continue to have access to Premium until the end of your billing period." },
-  { q: 'What payment methods are accepted?', a: 'We accept all major credit cards, debit cards, and PayPal. In some regions, you can also pay through mobile payment systems and bank transfers.' },
-];
+const PREMIUM_FEATURES = Object.freeze([
+  'Ad-free music listening',
+  'Download to listen offline',
+  'Play songs in any order',
+  'High audio quality',
+  'Unlimited skips',
+  'Queue control',
+]);
+
+const FAQS = Object.freeze([
+  {
+    q: 'How does the free trial work?',
+    a: 'If you are eligible, your trial starts immediately and converts to a monthly subscription unless you cancel before the renewal date.',
+  },
+  {
+    q: 'How do I cancel my subscription?',
+    a: 'Open this Premium page while signed in, choose your active plan, and use the cancel action. Access remains until the current paid period ends.',
+  },
+  {
+    q: 'Can I switch plans later?',
+    a: 'Yes. Choose a new plan from this page while signed in and we will update your active subscription contract on your account.',
+  },
+]);
 
 export default function Premium() {
   useLayoutEffect(() => {
@@ -27,309 +71,296 @@ export default function Premium() {
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [sticky, setSticky] = useState(false);
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [openFaq, setOpenFaq] = useState(null);
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState(0);
   const [subscription, setSubscription] = useState(null);
-  const [subscribing, setSubscribing] = useState(null);
+  const [subscribingPlan, setSubscribingPlan] = useState('');
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [message, setMessage] = useState('');
-  const cardsRef = useRef([]);
 
   useEffect(() => {
-    const onScroll = () => setSticky(window.scrollY > 50);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    if (!user) {
+      setSubscription(null);
+      return;
+    }
 
-  useEffect(() => {
-    if (!user) return;
-    api.get('/api/subscriptions/me').then((data) => {
-      if (data.success) setSubscription(data.subscription);
-    });
+    let cancelled = false;
+    (async () => {
+      const data = await api.get('/api/subscriptions/me');
+      if (cancelled) return;
+      if (data.success) {
+        setSubscription(data.subscription || null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.style.animation = 'fadeInUp 0.8s ease-out forwards';
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
-    cardsRef.current.forEach((el) => {
-      if (el) {
-        el.style.opacity = '0';
-        observer.observe(el);
-      }
-    });
-    return () => observer.disconnect();
+  const trialEndLabel = useMemo(() => {
+    const trialEnd = new Date();
+    trialEnd.setMonth(trialEnd.getMonth() + 3);
+    return trialEnd.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
   }, []);
 
-  const trialEnd = new Date();
-  trialEnd.setMonth(trialEnd.getMonth() + 3);
-  const trialEndLabel = trialEnd.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+  const navigateToHash = (id) => {
+    setMobileMenuOpen(false);
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   const subscribe = async (plan) => {
     if (!user) {
       navigate('/login');
       return;
     }
-    setSubscribing(plan);
+
+    setSubscribingPlan(plan);
     setMessage('');
     const data = await api.post('/api/subscriptions', { plan });
-    setSubscribing(null);
-    if (data.success) {
-      setSubscription(data.subscription);
-      setMessage(`Subscribed to Premium ${data.subscription.plan}! Active until ${new Date(data.subscription.end_date).toLocaleDateString()}.`);
-    } else {
+    setSubscribingPlan('');
+
+    if (!data.success) {
       setMessage(data.error || 'Subscription failed');
+      return;
     }
+
+    setSubscription(data.subscription || null);
+    setMessage(`Subscribed to Premium ${data.subscription.plan}.`);
   };
 
-  const cancel = async () => {
+  const cancelSubscription = async () => {
     const data = await api.put('/api/subscriptions/cancel', {});
-    if (data.success) {
-      setSubscription(null);
-      setMessage('Subscription cancelled.');
+    if (!data.success) {
+      setMessage(data.error || 'Unable to cancel your subscription right now.');
+      return;
     }
-  };
 
-  const scrollTo = (id) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setMobileMenu(false);
-  };
-
-  const setCardRef = (el) => {
-    if (el && !cardsRef.current.includes(el)) cardsRef.current.push(el);
+    setSubscription(null);
+    setCancelDialogOpen(false);
+    setMessage('Subscription cancelled.');
   };
 
   return (
-    <div>
-      <header className={sticky ? 'sticky' : ''}>
-        <Link to="/" className="logo">
-          Melodify<span>+</span>
+    <div className="premium-page">
+      <header className="premium-topbar">
+        <Link to="/" className="premium-brand" aria-label="Go to Melodify homepage">
+          Melod<span>ify</span>
         </Link>
-        <nav>
-          <ul className={mobileMenu ? 'active' : ''}>
-            <li><a href="#plans" onClick={(e) => { e.preventDefault(); scrollTo('plans'); }}>Premium</a></li>
-            <li><a href="#faq" onClick={(e) => { e.preventDefault(); scrollTo('faq'); }}>Support</a></li>
-            <li className="divider"></li>
-            {user ? (
-              <>
-                <li><Link to="/dashboard">Dashboard</Link></li>
-                <li><Link to="/profile">{user.name || user.email}</Link></li>
-                <li>
-                  <a className="nav-btn" onClick={(e) => { e.preventDefault(); logout(); navigate('/'); }}>Log out</a>
-                </li>
-              </>
-            ) : (
-              <>
-                <li><Link to="/signup">Sign up</Link></li>
-                <li><Link to="/login" className="nav-btn">Log in</Link></li>
-              </>
-            )}
-          </ul>
-        </nav>
-        <button className="mobile-menu-btn" onClick={() => setMobileMenu(!mobileMenu)}>
-          <i className={`fas ${mobileMenu ? 'fa-times' : 'fa-bars'}`}></i>
+
+        <button
+          type="button"
+          className="premium-menu-btn music-icon-control"
+          aria-label="Toggle premium navigation"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="premium-nav"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+        >
+          <i className={`fa-solid ${mobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`} aria-hidden="true"></i>
         </button>
+
+        <nav id="premium-nav" className={`premium-nav ${mobileMenuOpen ? 'is-open' : ''}`} aria-label="Premium page sections">
+          <button type="button" onClick={() => navigateToHash('premium-plans')}>Plans</button>
+          <button type="button" onClick={() => navigateToHash('premium-compare')}>Compare</button>
+          <button type="button" onClick={() => navigateToHash('premium-faq')}>FAQ</button>
+          {user ? (
+            <>
+              <Link to="/dashboard">Dashboard</Link>
+              <button
+                type="button"
+                className="premium-ghost-action"
+                onClick={() => {
+                  logout();
+                  navigate('/');
+                }}
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/signup">Sign up</Link>
+              <Link to="/login" className="premium-nav-pill">Log in</Link>
+            </>
+          )}
+        </nav>
       </header>
 
-      <section className="hero">
-        <div className="floating-elements">
-          <div className="floating-element element-1"></div>
-          <div className="floating-element element-2"></div>
-          <div className="floating-element element-3"></div>
-        </div>
-        <div className="hero-content">
-          <div className="offer-tag">Limited Time Offer</div>
-          <h1 className="offer-title">BDT 0.00 for 3 months of Premium</h1>
-          <p className="offer-subtitle">Enjoy ad-free music listening, offline playback, and more. Cancel anytime.</p>
-          <div className="buttons">
-            <a className="btn btn-primary" onClick={(e) => { e.preventDefault(); subscribe('Individual'); }}>
-              <i className="fas fa-crown"></i> Try 3 months for BDT 0
-            </a>
-            <a className="btn btn-secondary" href="#plans" onClick={(e) => { e.preventDefault(); scrollTo('plans'); }}>View all plans</a>
+      <main className="premium-main">
+        <section className="premium-hero app-surface">
+          <p className="premium-tag">Premium Offer</p>
+          <h1>BDT 0 for 3 months of Premium Individual</h1>
+          <p>Upgrade to ad-free playback, offline listening, and full control over your queue on every device.</p>
+
+          <div className="premium-hero-actions">
+            <button
+              type="button"
+              className="music-pill-btn"
+              onClick={() => subscribe('Individual')}
+              disabled={subscribingPlan === 'Individual'}
+            >
+              {subscribingPlan === 'Individual' ? 'Starting...' : 'Try 3 months for BDT 0'}
+            </button>
+            <button
+              type="button"
+              className="music-outline-btn"
+              onClick={() => navigateToHash('premium-plans')}
+            >
+              View all plans
+            </button>
           </div>
-          <p className="terms">
-            Premium Individual only. BDT 0 for 3 months, then BDT 219 per month after. Offer available if you haven't tried Premium before. Terms apply. Offer ends {trialEndLabel}.
+
+          <p className="premium-disclaimer">
+            New subscribers only. Trial ends {trialEndLabel}. Subscription renews monthly unless cancelled.
           </p>
-          {subscription && (
-            <p className="terms" style={{ color: '#00b4d8' }}>
-              <i className="fas fa-crown"></i> Your Premium {subscription.plan} is active until {new Date(subscription.end_date).toLocaleDateString()}.
+
+          {subscription ? (
+            <p className="premium-status" role="status" aria-live="polite">
+              Premium {subscription.plan} is active until {new Date(subscription.end_date).toLocaleDateString()}.
             </p>
-          )}
-          {message && <p className="terms">{message}</p>}
-        </div>
-      </section>
+          ) : null}
 
-      <section className="experience">
-        <span className="section-tag">Why Go Premium</span>
-        <h2 className="experience-title">Experience the difference</h2>
-        <p className="experience-subtitle">Go Premium and enjoy full control of your listening. Cancel anytime.</p>
-        <table className="comparison-table">
-          <thead>
-            <tr>
-              <th>What you'll get</th>
-              <th>Free plan</th>
-              <th>Premium plans</th>
-            </tr>
-          </thead>
-          <tbody>
-            {['Ad-free music listening', 'Download to listen offline', 'Play songs in any order', 'High audio quality', 'Listen with friends in real time', 'Organise listening queue'].map((feature) => (
-              <tr key={feature}>
-                <td>{feature}</td>
-                <td className="dash">-</td>
-                <td className="check">✔</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+          {message ? (
+            <p className="premium-status" role="status" aria-live="polite">{message}</p>
+          ) : null}
+        </section>
 
-      <section className="plans" id="plans">
-        <div className="plans-header">
-          <div className="payment-options">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/American_Express_logo.svg" alt="American Express" />
-          </div>
-          <h2 className="plans-title">Pick your Premium</h2>
-          <div className="features-grid">
-            {[
-              { icon: 'fa-music', text: 'Ad-free music' },
-              { icon: 'fa-download', text: 'Download songs' },
-              { icon: 'fa-headphones', text: 'High quality audio' },
-              { icon: 'fa-infinity', text: 'Unlimited skips' },
-            ].map((f) => (
-              <div className="feature-item" key={f.text} ref={setCardRef}>
-                <div className="feature-icon"><i className={`fas ${f.icon}`}></i></div>
-                <p className="feature-text">{f.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="plans-cards">
-          {PLANS.map((plan, i) => {
-            const active = subscription && subscription.plan === plan.id;
-            const isPopular = plan.id === 'Individual';
-            return (
-              <div className={`plan-card${isPopular ? ' popular' : ''}`} key={plan.id} ref={setCardRef}>
-                <div className="plan-icon"><i className={`fas ${plan.icon}`}></i></div>
-                <h3 className="plan-title">{plan.title}</h3>
-                <p className="plan-price">
-                  <span className="price-amount">{active ? 'Active' : plan.id === 'Duo' ? plan.price : 'BDT 0'}</span>
-                  {active ? <br /> : plan.id === 'Duo' ? '/month' : ` for ${plan.id === 'Individual' ? 3 : 1} months<br>${plan.price}/month after`}
-                </p>
-                <ul className="plan-details">
-                  {plan.details.map((d) => (
-                    <li key={d}>{d}</li>
-                  ))}
-                </ul>
-                {active ? (
-                  <button className={`plan-btn ${plan.btnClass}`} onClick={cancel}>
-                    <i className="fas fa-times"></i> Cancel subscription
-                  </button>
-                ) : (
-                  <button className={`plan-btn ${plan.btnClass}`} onClick={() => subscribe(plan.id)} disabled={subscribing === plan.id}>
-                    {subscribing === plan.id ? 'Subscribing...' : plan.trialLabel}
-                  </button>
-                )}
-                {i === 0 && (
-                  <p className="plan-terms">
-                    BDT 0 for 3 months, then BDT 219 per month after. Offer available only if you haven't tried Premium before. Terms apply. Offer ends {trialEndLabel}.
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+        <section id="premium-compare" className="music-section app-surface premium-section">
+          <SectionHeader
+            title="Why listeners upgrade"
+            subtitle="Compare what you get on Free versus Premium"
+          />
 
-      <section className="testimonials">
-        <h2 className="testimonials-title">What Our Users Say</h2>
-        <div className="testimonials-cards">
-          {[
-            { text: '"Melodify Premium transformed my music experience! No ads and offline listening are a game-changer for my daily commute. The sound quality is incredible!"', initials: 'AK', name: 'Ayesha Khan', location: 'Dhaka, Bangladesh' },
-            { text: '"As a student, the discount makes Premium affordable, and the quality is unbeatable. I can now study with my favorite music without interruptions."', initials: 'RS', name: 'Rahul Sharma', location: 'Chittagong, Bangladesh' },
-            { text: '"Duo plan is perfect for me and my partner—great value for two accounts! We both enjoy unlimited access to millions of songs without breaking the bank."', initials: 'PP', name: 'Priya Patel', location: 'Sylhet, Bangladesh' },
-          ].map((t) => (
-            <div className="testimonial-card" key={t.name} ref={setCardRef}>
-              <p className="testimonial-text">{t.text}</p>
-              <div className="testimonial-author">
-                <div className="author-avatar">{t.initials}</div>
-                <div className="author-info">
-                  <div className="author-name">{t.name}</div>
-                  <div className="author-location">{t.location}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+          <div className="premium-table-wrap" role="region" aria-label="Feature comparison" tabIndex={0}>
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th scope="col">Feature</th>
+                  <th scope="col">Free</th>
+                  <th scope="col">Premium</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PREMIUM_FEATURES.map((feature) => (
+                  <tr key={feature}>
+                    <td>{feature}</td>
+                    <td aria-label={`${feature} on Free`}>Not available</td>
+                    <td aria-label={`${feature} on Premium`}>Included</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <section className="faq" id="faq">
-        <h2 className="faq-title">Frequently Asked Questions</h2>
-        <div className="faq-container">
-          {FAQS.map((item, i) => (
-            <div className={`faq-item${openFaq === i ? ' active' : ''}`} key={item.q}>
-              <div className="faq-question" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
-                {item.q}
-                <i className="fas fa-chevron-down"></i>
-              </div>
-              <div className="faq-answer">{item.a}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+        <section id="premium-plans" className="music-section app-surface premium-section">
+          <SectionHeader
+            title="Choose your plan"
+            subtitle="All plans include ad-free listening and cancellation anytime"
+          />
 
-      <footer>
-        <div className="footer-content">
-          <div className="footer-column">
-            <h3>Company</h3>
-            <ul>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>About</a></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Jobs</a></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Press</a></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>News</a></li>
-            </ul>
+          <div className="premium-plan-grid">
+            {PLANS.map((plan) => {
+              const isActive = subscription?.plan === plan.id;
+              return (
+                <article key={plan.id} className={`premium-plan-card ${plan.accentClass} ${isActive ? 'is-active' : ''}`}>
+                  <p className="premium-plan-name">{plan.title}</p>
+                  <p className="premium-plan-price">{isActive ? 'Active' : plan.trial}</p>
+                  <p className="premium-plan-sub">{isActive ? plan.monthlyPrice : plan.afterTrial}</p>
+
+                  <ul>
+                    {plan.details.map((detail) => (
+                      <li key={detail}>{detail}</li>
+                    ))}
+                  </ul>
+
+                  {isActive ? (
+                    <button
+                      type="button"
+                      className="music-outline-btn premium-plan-cta"
+                      onClick={() => setCancelDialogOpen(true)}
+                    >
+                      Cancel subscription
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="music-pill-btn premium-plan-cta"
+                      disabled={subscribingPlan === plan.id}
+                      onClick={() => subscribe(plan.id)}
+                    >
+                      {subscribingPlan === plan.id ? 'Starting...' : plan.id === 'Duo' ? 'Get Duo' : 'Start trial'}
+                    </button>
+                  )}
+                </article>
+              );
+            })}
           </div>
-          <div className="footer-column">
-            <h3>Communities</h3>
-            <ul>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>For Artists</a></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Developers</a></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Advertising</a></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Investors</a></li>
-            </ul>
+        </section>
+
+        <section id="premium-faq" className="music-section app-surface premium-section">
+          <SectionHeader
+            title="Frequently asked questions"
+            subtitle="Everything you need before upgrading"
+          />
+
+          <div className="premium-faq-list">
+            {FAQS.map((entry, index) => {
+              const expanded = openFaqIndex === index;
+              return (
+                <article key={entry.q} className={`premium-faq-item ${expanded ? 'is-open' : ''}`}>
+                  <h3>
+                    <button
+                      type="button"
+                      className="premium-faq-trigger"
+                      aria-expanded={expanded}
+                      aria-controls={`premium-faq-panel-${index}`}
+                      onClick={() => setOpenFaqIndex(expanded ? -1 : index)}
+                    >
+                      <span>{entry.q}</span>
+                      <i className={`fa-solid ${expanded ? 'fa-chevron-up' : 'fa-chevron-down'}`} aria-hidden="true"></i>
+                    </button>
+                  </h3>
+                  <div id={`premium-faq-panel-${index}`} className="premium-faq-panel" hidden={!expanded}>
+                    <p>{entry.a}</p>
+                  </div>
+                </article>
+              );
+            })}
           </div>
-          <div className="footer-column">
-            <h3>Useful Links</h3>
-            <ul>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Support</a></li>
-              <li><Link to="/dashboard">Web Player</Link></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Free Mobile App</a></li>
-              <li><a href="#faq" onClick={(e) => e.preventDefault()}>Terms & Conditions</a></li>
-            </ul>
-          </div>
-          <div className="footer-column">
-            <h3>Follow Us</h3>
-            <div className="social-links">
-              <a href="#faq" onClick={(e) => e.preventDefault()}><i className="fab fa-facebook-f"></i></a>
-              <a href="#faq" onClick={(e) => e.preventDefault()}><i className="fab fa-twitter"></i></a>
-              <a href="#faq" onClick={(e) => e.preventDefault()}><i className="fab fa-instagram"></i></a>
-              <a href="#faq" onClick={(e) => e.preventDefault()}><i className="fab fa-youtube"></i></a>
-            </div>
-          </div>
+        </section>
+      </main>
+
+      <footer className="premium-footer app-surface" aria-label="Premium footer links">
+        <div className="premium-footer-links">
+          <Link to="/dashboard">Web Player</Link>
+          <Link to="/feed">Community Feed</Link>
+          <Link to="/studio">Melodify Studio</Link>
+          <button type="button" onClick={() => navigateToHash('premium-faq')}>Support</button>
         </div>
-        <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} Melodify. All rights reserved.</p>
-        </div>
+        <p>© {new Date().getFullYear()} Melodify. Premium plans and pricing are region-specific.</p>
       </footer>
+
+      <AppDialog
+        open={cancelDialogOpen}
+        title="Cancel Premium subscription"
+        onClose={() => setCancelDialogOpen(false)}
+        labelledBy="premium-cancel-dialog-title"
+        actions={(
+          <>
+            <button type="button" className="music-outline-btn" onClick={() => setCancelDialogOpen(false)}>Keep plan</button>
+            <button type="button" className="music-pill-btn" onClick={cancelSubscription}>Cancel now</button>
+          </>
+        )}
+      >
+        <p className="premium-cancel-copy">
+          You can resubscribe any time. Premium access remains available until the current billing period ends.
+        </p>
+      </AppDialog>
     </div>
   );
 }
