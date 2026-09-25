@@ -126,6 +126,12 @@ cd server
 npm run audit:catalog-content
 ```
 
+### 6. Optional regional catalog import (bounded)
+```bash
+cd server
+npm run catalog:import-region -- --region bn-bd --import-limit 10 --dry-run
+```
+
 ### 5. Run the karaoke app (optional)
 ```bash
 cd karaoke-app/server

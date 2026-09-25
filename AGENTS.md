@@ -2,6 +2,8 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Add bounded regional catalog import CLI on `mimi`: created `server/scripts/importRegionalCatalog.js` with strict arg validation (`--region`, bounded limits, optional dry-run), provider-backed external discovery + bounded import loop summary, and deterministic JSON output; added coverage in `server/scripts/importRegionalCatalog.test.js`; exposed `npm run catalog:import-region`; updated README usage.
+
 - [x] `2026-09-15` Add bounded catalog content audit CLI on `mimi`: created `server/scripts/auditCatalogContent.js` with summary stats for lyrics/chords coverage, provider/region/source breakdowns, missing-content samples, and `--sample-limit` validation; added script tests in `server/scripts/auditCatalogContent.test.js`; exposed `npm run audit:catalog-content` in `server/package.json`; updated README with audit command.
 
 - [x] `2026-09-15` Extend Admin music edit flow on `mimi` with lyrics/chords verification controls: added dedicated save path that updates song metadata plus `/api/songs/:id/content` verification fields (lyrics/chords text, source/provider IDs, match status, URLs, checked timestamps, verified flags), added admin editor styling for multiline/verification grids, added regression checks in `client/src/pages/Admin/adminSongContentEditor.test.js`, and updated README admin feature docs.
