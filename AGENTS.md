@@ -2,6 +2,8 @@
 
 ## To-Do
 
+- [x] `2026-09-15` Implement Dashboard provider-backed search UX on `mimi`: switched search to authenticated `/api/catalog/search` with debounced regional chips + merged local/external mapping, added lazy `/api/catalog/import` before external play/favorite so actions resolve to canonical local Song IDs, added source/import state badges and feedback UI in Dashboard CSS, added regression checks in `client/src/pages/Dashboard/dashboardSearchProvider.test.js`, and updated README route/feature docs.
+
 - [x] `2026-08-06` Add To-Do tracking system to AGENTS.md (track all user requests here)
 - [x] `2026-08-06` Decide MERN vs keep PHP/HTML → **DECIDED: migrate to MERN** (Node 24 on G:, XAMPP on G:, karaoke already Node; CSS carries over verbatim so design is preserved)
 - [x] `2026-08-06` Build Express + Mongoose backend (`server/`) replacing all PHP logic (auth, songs, uploads, playlists, admin)

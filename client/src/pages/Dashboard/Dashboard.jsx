@@ -8,6 +8,37 @@ import FullScreenPlayer from './FullScreenPlayer.jsx';
 import LyricsChordsPanel from './LyricsChordsPanel.jsx';
 
 const DEFAULT_POSTER = 'https://picsum.photos/150/150?random';
+const SEARCH_LIMIT = 25;
+const REGION_OPTIONS = [
+  { id: '', label: 'All' },
+  { id: 'bn-bd', label: 'Bangla' },
+  { id: 'bn-in', label: 'Kolkata' },
+  { id: 'hi-in', label: 'Hindi' },
+  { id: 'en', label: 'English' },
+];
+
+const mapCatalogEntryToSong = (entry) => {
+  if (entry?.sourceType === 'local' && entry.song?._id) {
+    return {
+      ...entry.song,
+      sourceType: 'local',
+    };
+  }
+  const provider = String(entry?.provider || 'youtube');
+  const providerTrackId = String(entry?.providerTrackId || entry?.youtube_id || '');
+  return {
+    _id: `external:${provider}:${providerTrackId || entry?.id || entry?.title || 'unknown'}`,
+    title: entry?.title || 'Untitled',
+    artist: entry?.artist || 'Unknown artist',
+    poster_url: entry?.thumbnail || DEFAULT_POSTER,
+    duration: entry?.duration || '',
+    youtube_id: entry?.youtube_id || '',
+    sourceType: 'external',
+    provider,
+    providerTrackId,
+    regionTag: entry?.regionTag || null,
+  };
+};
 
 export default function Dashboard() {
   useLayoutEffect(() => {
@@ -25,6 +56,11 @@ export default function Dashboard() {
   const [filteredSongs, setFilteredSongs] = useState([]);
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState('');
+  const [regionTag, setRegionTag] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [externalState, setExternalState] = useState('skipped');
+  const [importingSongIds, setImportingSongIds] = useState(new Set());
   const [collapsed, setCollapsed] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -99,14 +135,45 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const term = search.toLowerCase();
+    const term = search.trim();
     if (!term) {
       setFilteredSongs(songs);
-    } else {
-      const list = songs.filter((s) => s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term));
-      setFilteredSongs(list);
+      setSearchError('');
+      setExternalState('skipped');
+      setSearchLoading(false);
+      return;
     }
-  }, [search, songs]);
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      setSearchError('');
+      const regionQuery = regionTag ? `&region=${encodeURIComponent(regionTag)}` : '';
+      const payload = await api
+        .get(`/api/catalog/search?q=${encodeURIComponent(term)}&limit=${SEARCH_LIMIT}${regionQuery}`)
+        .catch(() => ({ success: false }));
+      if (cancelled) return;
+
+      if (payload?.success && Array.isArray(payload?.data?.mergedResults)) {
+        setFilteredSongs(payload.data.mergedResults.map(mapCatalogEntryToSong));
+        setExternalState(payload.data.externalState || 'skipped');
+        if (payload.data.externalState === 'error') {
+          setSearchError(payload.data.externalError || 'External catalog unavailable.');
+        }
+      } else {
+        setFilteredSongs([]);
+        setSearchError('Search failed. Please try again.');
+        setExternalState('error');
+      }
+
+      setSearchLoading(false);
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search, songs, regionTag]);
 
   useEffect(() => {
     if (!userSearchQuery.trim()) {
@@ -146,15 +213,70 @@ export default function Dashboard() {
     });
   };
 
-  const handleSongClick = (songIndex, songList) => {
+  const markImporting = (id, importing) => {
+    setImportingSongIds((prev) => {
+      const next = new Set(prev);
+      if (importing) next.add(String(id));
+      else next.delete(String(id));
+      return next;
+    });
+  };
+
+  const upsertLocalSongState = (song) => {
+    if (!song?._id) return;
+    setSongs((prev) => {
+      if (prev.some((entry) => String(entry._id) === String(song._id))) return prev;
+      return [song, ...prev];
+    });
+    setFilteredSongs((prev) => prev.map((entry) => {
+      if (entry.providerTrackId && song.youtube_id && entry.providerTrackId === song.youtube_id) {
+        return { ...song, sourceType: 'local' };
+      }
+      if (entry._id === song._id) return { ...song, sourceType: 'local' };
+      return entry;
+    }));
+  };
+
+  const importExternalSong = async (song) => {
+    if (!song || song.sourceType !== 'external' || !song.providerTrackId) return null;
+    const entryId = String(song._id);
+    if (importingSongIds.has(entryId)) return null;
+    markImporting(entryId, true);
+    try {
+      const payload = {
+        provider: song.provider || 'youtube',
+        providerTrackId: song.providerTrackId,
+      };
+      if (regionTag) payload.regionTag = regionTag;
+      const data = await api.post('/api/catalog/import', payload);
+      if (!data?.success || !data?.data?.song?._id) return null;
+      upsertLocalSongState(data.data.song);
+      return data.data.song;
+    } finally {
+      markImporting(entryId, false);
+    }
+  };
+
+  const handleSongClick = async (songIndex, songList) => {
     const list = songList || filteredSongs;
     const song = list[songIndex];
     if (!song) return;
+    if (song.sourceType === 'external') {
+      const imported = await importExternalSong(song);
+      if (!imported) return;
+      player.playSong([imported], 0);
+      recordPlay(imported);
+      return;
+    }
+
+    const localQueue = list.filter((entry) => entry.sourceType !== 'external');
+    const queueIndex = localQueue.findIndex((entry) => String(entry._id) === String(song._id));
+    if (queueIndex < 0) return;
     const isCurrentSong = player.currentSong?._id === song._id;
     if (isCurrentSong) {
       player.togglePlay();
     } else {
-      player.playSong(list, songIndex);
+      player.playSong(localQueue, queueIndex);
       recordPlay(song);
     }
   };
@@ -198,21 +320,33 @@ export default function Dashboard() {
   };
 
   const toggleFavorite = async (songId) => {
-    const isFav = favoritedIds.has(songId);
+    const normalizedSongId = String(songId);
+    const isFav = favoritedIds.has(normalizedSongId);
     if (isFav) {
-      await api.del(`/api/favorites/${songId}`);
+      await api.del(`/api/favorites/${normalizedSongId}`);
       setFavoritedIds((prev) => {
         const next = new Set(prev);
-        next.delete(songId);
+        next.delete(normalizedSongId);
         return next;
       });
-      setFavorites((prev) => prev.filter((s) => String(s._id) !== String(songId)));
+      setFavorites((prev) => prev.filter((s) => String(s._id) !== normalizedSongId));
     } else {
-      await api.post(`/api/favorites/${songId}`);
-      setFavoritedIds((prev) => new Set([...prev, songId]));
-      const song = songs.find((s) => String(s._id) === String(songId));
+      await api.post(`/api/favorites/${normalizedSongId}`);
+      setFavoritedIds((prev) => new Set([...prev, normalizedSongId]));
+      const song = songs.find((s) => String(s._id) === normalizedSongId);
       if (song) setFavorites((prev) => [song, ...prev]);
     }
+  };
+
+  const toggleFavoriteForSong = async (song) => {
+    if (!song) return;
+    if (song.sourceType === 'external') {
+      const imported = await importExternalSong(song);
+      if (!imported?._id) return;
+      await toggleFavorite(imported._id);
+      return;
+    }
+    await toggleFavorite(song._id);
   };
 
   const openPlaylist = async (playlistId) => {
@@ -637,12 +771,34 @@ export default function Dashboard() {
                   <i className="fa-solid fa-magnifying-glass"></i>
                   <input type="text" placeholder="Search by songs or artists" value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
+                <div className="search-region-chips" role="tablist" aria-label="Search regions">
+                  {REGION_OPTIONS.map((option) => (
+                    <button
+                      key={option.id || 'all'}
+                      type="button"
+                      className={`search-region-chip${regionTag === option.id ? ' active' : ''}`}
+                      aria-pressed={regionTag === option.id}
+                      onClick={() => setRegionTag(option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="songs-container">
                 <h2>Recommended Songs</h2>
+                {searchLoading && <p className="search-feedback">Searching catalog...</p>}
+                {!searchLoading && searchError && <p className="search-feedback">{searchError}</p>}
+                {!searchLoading && !searchError && externalState === 'disabled' && (
+                  <p className="search-feedback">External catalog is unavailable right now.</p>
+                )}
+                {!searchLoading && filteredSongs.length === 0 && (
+                  <p className="search-feedback">No songs found for this search.</p>
+                )}
                 <div className="songs-grid">
                   {filteredSongs.map((song, index) => {
                     const isActive = playingSongId === song._id;
+                    const isExternal = song.sourceType === 'external';
                     return (
                       <div className="song-item" key={song._id || index} onClick={() => handleSongClick(index)}>
                         <div className="song-poster-wrapper">
@@ -650,12 +806,15 @@ export default function Dashboard() {
                           <div className="play-button">
                             <i className={`fa-solid ${isActive && player.isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
                           </div>
+                          <span className={`song-source-badge${isExternal ? ' external' : ''}`}>
+                            {importingSongIds.has(String(song._id)) ? 'Importing...' : (isExternal ? 'External' : 'Library')}
+                          </span>
                         </div>
                         <div className="song-info">
                           <div className="song-name">{song.title}</div>
                           <div className="artist-name">{song.artist}</div>
                         </div>
-                        <button className={`grid-fav-btn${favoritedIds.has(String(song._id)) ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); toggleFavorite(song._id); }}>
+                        <button className={`grid-fav-btn${!isExternal && favoritedIds.has(String(song._id)) ? ' active' : ''}`} onClick={(e) => { e.stopPropagation(); toggleFavoriteForSong(song); }}>
                           <i className={`fa-${favoritedIds.has(String(song._id)) ? 'solid' : 'regular'} fa-heart`}></i>
                         </button>
                       </div>

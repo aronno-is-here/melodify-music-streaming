@@ -9,7 +9,7 @@ A full-featured music streaming web application with user authentication, a song
 ### User Side
 - **Multi-step sign-up flow** — email → password → profile details (name, DOB, gender, country)
 - **Login / Logout** with JWT authentication and bcrypt password hashing
-- **Song library** — search by song title or artist, browse a poster grid
+- **Song library** — provider-backed search (`/api/catalog/search`) with regional filter chips, merged local/external results, lazy import on play/favorite, and poster-grid browsing
 - **Recently Played** — horizontal slider of your latest 20 played songs (per-user history)
 - **Full audio player** — play/pause, next/previous, shuffle, repeat, volume control, mute, seekable progress bar with time labels; streams every song via the **YouTube IFrame API** (no local MP3 storage), with an `<audio>` fallback for user-uploaded songs
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
@@ -60,7 +60,7 @@ Melodify - Music Streaming Website/
 │   ├── config/db.js               # MongoDB connection
 │   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory
 │   ├── middleware/                # JWT auth, admin guard, multer upload
-│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/admin
+│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/catalog, /api/admin
 ├── client/                        # React + Vite frontend
 │   ├── src/pages/                 # One folder per page (React)
 │   │   ├── Home/                  # Landing page
