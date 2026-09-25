@@ -233,7 +233,11 @@ export default function SongDetails() {
         width="720px"
       >
         <div className="song-details-lyrics-wrap">
-          <LyricsChordsPanel onClose={() => setLyricsOpen(false)} />
+          <LyricsChordsPanel
+            song={song}
+            currentTime={isCurrentSong ? player.currentTime : -1}
+            onClose={() => setLyricsOpen(false)}
+          />
         </div>
       </AppDialog>
     </div>

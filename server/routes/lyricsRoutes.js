@@ -3,6 +3,7 @@ import Song from '../models/Song.js';
 
 const router = express.Router();
 const UA = 'Melodify/1.0 (https://github.com/aronno-is-here/melodify-music-streaming)';
+const LYRICS_ROUTE_ERROR = 'failed to load lyrics';
 
 function isLatinScript(text) {
   if (!text) return false;
@@ -193,14 +194,15 @@ router.get('/:songId', async (req, res) => {
   try {
     const song = await Song.findById(req.params.songId);
     if (!song) return res.status(404).json({ success: false, error: 'Song not found' });
+    const songChords = typeof song.chords === 'string' ? song.chords : '';
 
     if (song.lyrics) {
       if (isLatinScript(song.lyrics)) {
         const synced = parseLRC(song.lyrics);
-        return res.json({ success: true, source: 'database', synced: synced.length > 0, lines: synced.length > 0 ? synced : song.lyrics.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })), plain: song.lyrics });
+        return res.json({ success: true, source: 'database', synced: synced.length > 0, lines: synced.length > 0 ? synced : song.lyrics.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })), plain: song.lyrics, chords: songChords });
       }
       const { synced, plain } = romanizeLRC(song.lyrics);
-      return res.json({ success: true, source: 'database-romanized', synced: synced.length > 0, lines: synced.length > 0 ? synced : plain.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })), plain });
+      return res.json({ success: true, source: 'database-romanized', synced: synced.length > 0, lines: synced.length > 0 ? synced : plain.split('\n').filter(l => l.trim()).map(text => ({ time: null, text })), plain, chords: songChords });
     }
 
     const lrclibData = await fetchFromLRCLIB(song.artist, song.title, song.duration);
@@ -209,21 +211,21 @@ router.get('/:songId', async (req, res) => {
       if (isLatinScript(rawPlain)) {
         const synced = parseLRC(lrclibData.syncedLyrics || '');
         const plainLines = rawPlain.split('\n').filter(l => l.trim());
-        return res.json({ success: true, source: 'lrclib', synced: synced.length > 0, lines: synced.length > 0 ? synced : plainLines.map(text => ({ time: null, text })), plain: rawPlain });
+        return res.json({ success: true, source: 'lrclib', synced: synced.length > 0, lines: synced.length > 0 ? synced : plainLines.map(text => ({ time: null, text })), plain: rawPlain, chords: songChords });
       }
       if (lrclibData.syncedLyrics) {
         const { synced, plain } = romanizeLRC(lrclibData.syncedLyrics);
-        return res.json({ success: true, source: 'lrclib-romanized', synced: synced.length > 0, lines: synced, plain });
+        return res.json({ success: true, source: 'lrclib-romanized', synced: synced.length > 0, lines: synced, plain, chords: songChords });
       } else {
         const r = romanize(rawPlain);
         const plainLines = r.split('\n').filter(l => l.trim());
-        return res.json({ success: true, source: 'lrclib-romanized', synced: false, lines: plainLines.map(text => ({ time: null, text })), plain: r });
+        return res.json({ success: true, source: 'lrclib-romanized', synced: false, lines: plainLines.map(text => ({ time: null, text })), plain: r, chords: songChords });
       }
     }
 
-    return res.json({ success: true, source: 'none', synced: false, lines: [], plain: '' });
+    return res.json({ success: true, source: 'none', synced: false, lines: [], plain: '', chords: songChords });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: LYRICS_ROUTE_ERROR });
   }
 });
 

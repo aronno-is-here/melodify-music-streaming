@@ -1,12 +1,21 @@
+import { useEffect, useState } from 'react';
 import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
 import { selectPlaybackStatusPresentation } from '../../pages/Dashboard/playbackStatusUi.js';
 import FavoriteButton from '../music/FavoriteButton.jsx';
+import LyricsChordsPanel from '../../pages/Dashboard/LyricsChordsPanel.jsx';
 
 const DEFAULT_POSTER = 'https://picsum.photos/140/140?random';
 
 export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpand }) {
   const player = usePlayer();
   const song = player.currentSong;
+  const [lyricsOpen, setLyricsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!song) {
+      setLyricsOpen(false);
+    }
+  }, [song]);
 
   const handleSeek = (event) => {
     const ratio = Number(event.target.value) / 1000;
@@ -110,6 +119,17 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
             <button type="button" className="music-icon-control" aria-label="Toggle mute" onClick={player.toggleMute}>
               <i className={`fa-solid ${player.muted || player.volume === 0 ? 'fa-volume-xmark' : 'fa-volume-high'}`} aria-hidden="true"></i>
             </button>
+            <button
+              type="button"
+              className={`music-icon-control ${lyricsOpen ? 'is-active' : ''}`}
+              aria-label={lyricsOpen ? 'Hide lyrics and chords' : 'Show lyrics and chords'}
+              aria-expanded={lyricsOpen}
+              aria-controls="app-player-lyrics-drawer"
+              disabled={!song}
+              onClick={() => setLyricsOpen((open) => !open)}
+            >
+              <i className="fa-solid fa-music" aria-hidden="true"></i>
+            </button>
             <input
               type="range"
               className="app-player-volume"
@@ -124,7 +144,10 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
               type="button"
               className="music-icon-control"
               aria-label="Open full player"
-              onClick={onExpand}
+              onClick={() => {
+                setLyricsOpen(false);
+                onExpand();
+              }}
             >
               <i className="fa-solid fa-up-right-and-down-left-from-center" aria-hidden="true"></i>
             </button>
@@ -135,10 +158,14 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
       {song ? (
         <div
           className="app-player-mini"
-          onClick={onExpand}
+          onClick={() => {
+            setLyricsOpen(false);
+            onExpand();
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
+              setLyricsOpen(false);
               onExpand();
             }
           }}
@@ -180,7 +207,28 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
             >
               <i className="fa-solid fa-forward-step" aria-hidden="true"></i>
             </button>
+            <button
+              type="button"
+              className={`music-icon-control ${lyricsOpen ? 'is-active' : ''}`}
+              aria-label={lyricsOpen ? 'Hide lyrics and chords' : 'Show lyrics and chords'}
+              aria-expanded={lyricsOpen}
+              aria-controls="app-player-lyrics-drawer"
+              onClick={(event) => {
+                event.stopPropagation();
+                setLyricsOpen((open) => !open);
+              }}
+            >
+              <i className="fa-solid fa-music" aria-hidden="true"></i>
+            </button>
           </span>
+        </div>
+      ) : null}
+
+      {song && lyricsOpen ? (
+        <div id="app-player-lyrics-drawer" className="app-player-lyrics-drawer" role="region" aria-label="Lyrics and chords">
+          <div className="app-player-lyrics-sheet app-surface">
+            <LyricsChordsPanel onClose={() => setLyricsOpen(false)} />
+          </div>
         </div>
       ) : null}
     </>

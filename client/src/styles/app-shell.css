@@ -336,6 +336,24 @@
   display: none;
 }
 
+.app-player-lyrics-drawer {
+  position: fixed;
+  right: 12px;
+  bottom: calc(10px + var(--mel-player-h) + 10px);
+  width: min(430px, calc(100vw - 24px));
+  max-height: min(56dvh, 520px);
+  z-index: 52;
+}
+
+.app-player-lyrics-sheet {
+  height: 100%;
+  padding: 12px;
+}
+
+.app-player-lyrics-sheet .lc-panel {
+  min-height: min(46dvh, 420px);
+}
+
 @media (max-width: 1024px) {
   .app-main {
     grid-template-columns: 1fr;
@@ -429,6 +447,22 @@
     overflow: hidden;
   }
 
+  .app-player-lyrics-drawer {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    bottom: calc(var(--mel-mobile-nav-h) + var(--mel-mini-player-h) + env(safe-area-inset-bottom) + 16px);
+    max-height: min(52dvh, 460px);
+  }
+
+  .app-player-lyrics-sheet {
+    padding: 10px;
+  }
+
+  .app-player-lyrics-sheet .lc-panel {
+    min-height: min(40dvh, 320px);
+  }
+
   .app-mini-progress {
     position: absolute;
     top: 0;
@@ -473,7 +507,7 @@
   .app-mini-controls {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
   }
 
   .app-mini-controls .music-icon-control {

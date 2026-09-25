@@ -33,8 +33,12 @@ test('mobile mini-player exists with play and next actions', () => {
   assert.match(src, /event\.stopPropagation\(\);\s*\n\s*player\.next\(\)/);
 });
 
-test('full player exposes lyrics/chords toggle and favorite action without engine duplication', () => {
-  assert.match(fullPlayerSrc, /Show Lyrics & Chords/);
+test('player surfaces include global lyrics drawer and fullscreen integrated panel without engine duplication', () => {
+  assert.match(src, /app-player-lyrics-drawer/);
+  assert.match(src, /<LyricsChordsPanel onClose=\{\(\) => setLyricsOpen\(false\)\} \/>/);
+  assert.match(src, /Hide lyrics and chords' : 'Show lyrics and chords/);
+  assert.match(fullPlayerSrc, /className="fs-lyrics-panel"/);
+  assert.match(fullPlayerSrc, /<LyricsChordsPanel showCloseButton=\{false\} \/>/);
   assert.match(fullPlayerSrc, /onClick=\{onToggleFavorite\}/);
   assert.equal(fullPlayerSrc.includes('createListeningTelemetryController'), false);
   assert.equal(fullPlayerSrc.includes('new Audio('), false);

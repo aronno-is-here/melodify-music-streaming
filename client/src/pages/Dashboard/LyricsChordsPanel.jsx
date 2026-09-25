@@ -3,7 +3,13 @@ import usePlayer from '../../hooks/usePlayer.js';
 import { api } from '../../api/client.js';
 import cssRaw from './LyricsChordsPanel.css?raw';
 
-export default function LyricsChordsPanel({ onClose }) {
+export default function LyricsChordsPanel({
+  onClose,
+  showCloseButton = true,
+  className = '',
+  song: songOverride,
+  currentTime: currentTimeOverride,
+}) {
   useLayoutEffect(() => {
     const style = document.createElement('style');
     style.setAttribute('data-page-css', 'LyricsChordsPanel');
@@ -13,7 +19,11 @@ export default function LyricsChordsPanel({ onClose }) {
   }, []);
 
   const player = usePlayer();
-  const song = player.currentSong;
+  const song = songOverride || player.currentSong;
+  const playbackTime = Number.isFinite(currentTimeOverride)
+    ? currentTimeOverride
+    : player.currentTime;
+  const canClose = showCloseButton && typeof onClose === 'function';
   const [activeTab, setActiveTab] = useState('lyrics');
   const [lyricsLines, setLyricsLines] = useState([]);
   const [lyricsSynced, setLyricsSynced] = useState(false);
@@ -24,10 +34,11 @@ export default function LyricsChordsPanel({ onClose }) {
   const activeLineRef = useRef(null);
 
   useEffect(() => {
+    const songChords = typeof song?.chords === 'string' ? song.chords : '';
     if (!song?._id) {
       setLyricsLines([]);
       setLyricsSynced(false);
-      setChords(song?.chords || '');
+      setChords(songChords);
       return;
     }
 
@@ -35,13 +46,16 @@ export default function LyricsChordsPanel({ onClose }) {
     setLoading(true);
     setLyricsLines([]);
     setLyricsSynced(false);
-    setChords(song.chords || '');
+    setChords(songChords);
 
     api.get(`/api/lyrics/${song._id}`).then((data) => {
       if (cancelled) return;
       if (data.success) {
         setLyricsLines(data.lines || []);
         setLyricsSynced(data.synced || false);
+        if (typeof data.chords === 'string') {
+          setChords(data.chords);
+        }
       }
       setLoading(false);
     }).catch(() => {
@@ -57,7 +71,7 @@ export default function LyricsChordsPanel({ onClose }) {
       return;
     }
 
-    const time = player.currentTime;
+    const time = playbackTime;
     let idx = -1;
     for (let i = lyricsLines.length - 1; i >= 0; i--) {
       if (lyricsLines[i].time !== null && time >= lyricsLines[i].time) {
@@ -66,7 +80,7 @@ export default function LyricsChordsPanel({ onClose }) {
       }
     }
     setActiveLineIndex(idx);
-  }, [player.currentTime, lyricsSynced, lyricsLines]);
+  }, [playbackTime, lyricsSynced, lyricsLines]);
 
   useEffect(() => {
     if (activeLineIndex < 0 || !lyricsContainerRef.current || !activeLineRef.current) return;
@@ -79,17 +93,27 @@ export default function LyricsChordsPanel({ onClose }) {
   }, [activeLineIndex]);
 
   useEffect(() => {
+    if (!canClose) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [canClose, onClose]);
 
-  if (!song) return null;
+  if (!song) {
+    return (
+      <div className={`lc-panel ${className}`.trim()}>
+        <div className="lc-empty">
+          <i className="fa-solid fa-music" aria-hidden="true"></i>
+          <p>Select a song to view lyrics and chords.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="lc-panel">
+    <div className={`lc-panel ${className}`.trim()}>
       <div className="lc-header">
         <div className="lc-tabs">
           <button
@@ -109,9 +133,11 @@ export default function LyricsChordsPanel({ onClose }) {
             Chords
           </button>
         </div>
-        <button className="lc-close" onClick={onClose} aria-label="Close panel">
-          <i className="fa-solid fa-xmark"></i>
-        </button>
+        {canClose ? (
+          <button className="lc-close" type="button" onClick={onClose} aria-label="Close panel">
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        ) : null}
       </div>
 
       <div className="lc-song-info">

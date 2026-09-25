@@ -141,14 +141,37 @@ export default function Admin() {
   };
 
   const updateSong = async (id, updates) => {
-    const data = await api.put(`/api/songs/${id}`, updates);
-    if (data.success) {
-      showMessage('Song updated');
-      setSongs((prev) => prev.map((s) => (s._id === id ? data.song : s)));
-      setEditingSong(null);
-    } else {
-      showMessage(data.error || 'Failed to update song', true);
+    const songData = await api.put(`/api/songs/${id}`, {
+      title: updates.title,
+      artist: updates.artist,
+      genre: updates.genre,
+      duration: updates.duration,
+    });
+
+    if (!songData.success) {
+      showMessage(songData.error || 'Failed to update song', true);
+      return;
     }
+
+    const contentData = await api.put(`/api/songs/${id}/content`, {
+      lyrics: updates.lyrics ?? '',
+      chords: updates.chords ?? '',
+    });
+
+    if (!contentData.success) {
+      setSongs((prev) => prev.map((s) => (s._id === id ? songData.song : s)));
+      showMessage(contentData.error || 'Song details updated but lyrics/chords failed to save', true);
+      return;
+    }
+
+    const mergedSong = {
+      ...songData.song,
+      lyrics: contentData.song?.lyrics ?? updates.lyrics ?? '',
+      chords: contentData.song?.chords ?? updates.chords ?? '',
+    };
+    showMessage('Song updated');
+    setSongs((prev) => prev.map((s) => (s._id === id ? mergedSong : s)));
+    setEditingSong(null);
   };
 
   const resolveReport = async (id, status) => {
@@ -413,11 +436,26 @@ export default function Admin() {
               {editingSong && (
                 <div style={{ marginBottom: 20, padding: 15, border: '1px solid #00b4d8', borderRadius: 8 }}>
                   <h3>Edit Song</h3>
-                  <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target); updateSong(editingSong._id, Object.fromEntries(fd)); }}>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.target);
+                      updateSong(editingSong._id, {
+                        title: fd.get('title'),
+                        artist: fd.get('artist'),
+                        genre: fd.get('genre'),
+                        duration: fd.get('duration'),
+                        lyrics: fd.get('lyrics') || '',
+                        chords: fd.get('chords') || '',
+                      });
+                    }}
+                  >
                     <div className="form-group"><label>Title</label><input type="text" name="title" defaultValue={editingSong.title} required /></div>
                     <div className="form-group"><label>Artist</label><input type="text" name="artist" defaultValue={editingSong.artist} required /></div>
                     <div className="form-group"><label>Genre</label><input type="text" name="genre" defaultValue={editingSong.genre} required /></div>
                     <div className="form-group"><label>Duration</label><input type="text" name="duration" defaultValue={editingSong.duration} /></div>
+                    <div className="form-group"><label>Lyrics</label><textarea name="lyrics" defaultValue={editingSong.lyrics || ''} rows={6}></textarea></div>
+                    <div className="form-group"><label>Chords</label><textarea name="chords" defaultValue={editingSong.chords || ''} rows={4}></textarea></div>
                     <button type="submit" className="btn">Save</button>
                     <button type="button" className="btn" onClick={() => setEditingSong(null)} style={{ marginLeft: 10 }}>Cancel</button>
                   </form>

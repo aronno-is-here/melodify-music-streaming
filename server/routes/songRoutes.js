@@ -127,7 +127,7 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.patch('/:id/content', protect, adminOnly, async (req, res) => {
+const updateSongContent = async (req, res) => {
   try {
     const { lyrics, chords } = req.body;
     const update = {};
@@ -139,6 +139,9 @@ router.patch('/:id/content', protect, adminOnly, async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
-});
+};
+
+router.patch('/:id/content', protect, adminOnly, updateSongContent);
+router.put('/:id/content', protect, adminOnly, updateSongContent);
 
 export default router;

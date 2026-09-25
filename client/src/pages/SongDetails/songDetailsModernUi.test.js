@@ -22,6 +22,7 @@ test('SongDetails keeps favorite and lyrics/chords controls with accessible acti
   assert.match(src, /toggleFavorite\(song\._id\)/);
   assert.match(src, /Lyrics & Chords/);
   assert.match(src, /<LyricsChordsPanel/);
+  assert.match(src, /song=\{song\}/);
   assert.match(src, /<AppDialog/);
 });
 
