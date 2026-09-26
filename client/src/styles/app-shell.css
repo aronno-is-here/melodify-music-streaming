@@ -313,6 +313,27 @@
   display: none;
 }
 
+.app-lyrics-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: calc(var(--mel-player-h) + 22px);
+  width: min(420px, 100vw);
+  z-index: 56;
+  display: flex;
+  flex-direction: column;
+  padding: max(14px, env(safe-area-inset-top)) 14px 14px;
+  background: rgba(4, 13, 26, 0.98);
+  border-left: 1px solid var(--mel-border-strong);
+  box-shadow: -18px 0 52px rgba(1, 8, 16, 0.6);
+  overflow: hidden;
+}
+
+.app-lyrics-drawer .lc-panel {
+  height: 100%;
+  max-height: none;
+}
+
 @media (max-width: 1024px) {
   .app-main {
     grid-template-columns: 1fr;
@@ -380,6 +401,12 @@
 
   .app-player-desktop {
     display: none;
+  }
+
+  .app-lyrics-drawer {
+    width: 100vw;
+    bottom: calc(var(--mel-mini-player-h) + var(--mel-mobile-nav-h) + 24px);
+    border-left: none;
   }
 
   .app-player-mini {
