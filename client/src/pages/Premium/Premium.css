@@ -22,14 +22,10 @@
 }
 
 .premium-brand {
+  display: inline-flex;
+  align-items: center;
   color: var(--mel-text);
   text-decoration: none;
-  font-size: 23px;
-  font-family: var(--mel-font-heading);
-}
-
-.premium-brand span {
-  color: var(--mel-cyan);
 }
 
 .premium-menu-btn {
@@ -374,10 +370,6 @@
   .premium-topbar {
     top: 8px;
     padding: 10px;
-  }
-
-  .premium-brand {
-    font-size: 20px;
   }
 
   .premium-plan-grid {

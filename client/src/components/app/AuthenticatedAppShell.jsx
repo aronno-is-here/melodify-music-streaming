@@ -5,6 +5,7 @@ import { api } from '../../api/client.js';
 import usePlayer from '../../hooks/usePlayer.js';
 import GlobalPlayerBar from './GlobalPlayerBar.jsx';
 import FullScreenPlayer from '../../pages/Dashboard/FullScreenPlayer.jsx';
+import MelodifyBrand from '../ui/MelodifyBrand.jsx';
 
 const DESKTOP_NAV = Object.freeze([
   { key: 'dashboard', label: 'Home / Dashboard', path: '/dashboard', icon: 'fa-house' },
@@ -155,12 +156,7 @@ export default function AuthenticatedAppShell() {
       <div className="app-shell">
         <header className="app-header">
           <Link to="/dashboard" className="app-brand" aria-label="Go to dashboard">
-            <span className="app-brand-mark">
-              <i className="fa-solid fa-wave-square" aria-hidden="true"></i>
-            </span>
-            <span className="app-brand-name">
-              Melod<span>ify</span>
-            </span>
+            <MelodifyBrand />
           </Link>
 
           <div className="app-header-actions" ref={menuRef}>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import HeroSection from '../../components/home/HeroSection.jsx';
-import Waveform from '../../components/home/Waveform.jsx';
+import MelodifyBrand from '../../components/ui/MelodifyBrand.jsx';
 import { formatDuration } from '../../components/home/formatDuration.js';
 import cssRaw from './Home.css?raw';
 
@@ -96,8 +96,7 @@ export default function Home() {
         <header className="home-header">
           <div className="home-header-inner">
             <Link to="/" className="home-logo">
-              <Waveform />
-              <span className="home-logo-text">Melodify</span>
+              <MelodifyBrand />
             </Link>
             <div id="home-navigation" ref={menuRef} className={`home-navigation${mobileMenuOpen ? ' home-navigation--open' : ''}`}>
               <nav className="home-nav" aria-label="Main navigation" onClick={(event) => { if (mobileMenuOpen && event.target.closest('a')) closeMobileMenu(); }}>
@@ -314,8 +313,7 @@ export default function Home() {
         <footer className="home-footer">
           <div className="home-footer-inner">
             <Link to="/" className="home-logo home-logo--footer">
-              <Waveform size={26} />
-              <span className="home-logo-text">Melodify</span>
+              <MelodifyBrand variant="footer" />
             </Link>
             <nav className="home-footer-links" aria-label="Footer navigation">
               <Link to="/about">About</Link>

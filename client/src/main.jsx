@@ -10,6 +10,7 @@ import './styles/tokens.css';
 import './styles/app-shell.css';
 import './styles/music-ui.css';
 import './styles/auth-pages.css';
+import './styles/brand.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
