@@ -64,7 +64,7 @@ test('lyrics drawer opens the shared panel without any playback side effects', (
 
 test('shell styles place the lyrics drawer above the bottom player and keep the panel scrollable', () => {
   assert.match(shellCss, /\.app-lyrics-drawer \{/);
-  assert.match(shellCss, /bottom: calc\(var\(--mel-player-h\) \+ 22px\)/);
+  assert.match(shellCss, /bottom: calc\(var\(--mel-player-h\) \+ 8px\)/);
   assert.match(shellCss, /position: fixed/);
   assert.match(shellCss, /\.app-lyrics-drawer \.lc-panel \{[^}]*height: 100%/);
   assert.match(shellCss, /@media \(max-width: 768px\)[\s\S]*\.app-lyrics-drawer \{[^}]*width: 100vw/);
