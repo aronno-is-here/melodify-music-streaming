@@ -119,6 +119,15 @@
   gap: 10px;
 }
 
+.music-song-open {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
 .music-icon-control {
   min-width: 44px;
   min-height: 44px;
@@ -166,6 +175,13 @@
 
 .music-row-meta {
   min-width: 0;
+}
+
+.music-row-open {
+  display: block;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
 }
 
 .music-row-title {

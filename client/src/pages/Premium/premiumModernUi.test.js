@@ -36,3 +36,34 @@ test('Premium css is scoped, responsive, and keeps comparison content viewport-s
   assert.equal(/(^|\n)\s*nav\s*\{/.test(css), false);
   assert.equal(src.includes('href="#"'), false);
 });
+
+test('Premium sticky topbar sits flush at the viewport top without a top gap', () => {
+  assert.match(css, /\.premium-page \{[^}]*padding: 0 12px 12px/);
+  assert.match(css, /\.premium-topbar \{[^}]*top: 0/);
+  assert.equal(css.includes('top: 10px'), false);
+  assert.equal(css.includes('top: 8px'), false);
+  assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.premium-page \{[^}]*padding: 0 10px 10px/);
+  assert.match(css, /@media \(max-width: 480px\)[\s\S]*\.premium-page \{[^}]*padding: 0 8px 8px/);
+});
+
+test('Premium nav items are flex-centered with no magic alignment offsets', () => {
+  assert.match(css, /\.premium-nav a,\s*\.premium-nav button \{[^}]*display: inline-flex/);
+  assert.match(css, /\.premium-nav a,\s*\.premium-nav button \{[^}]*align-items: center/);
+  assert.match(css, /\.premium-nav a,\s*\.premium-nav button \{[^}]*justify-content: center/);
+  assert.equal(/padding-top:\s*-?\d+px/.test(css), false);
+  assert.equal(/(?:margin|padding)[a-z-]*:\s*-\d+px/.test(css), false);
+});
+
+test('Premium navigation exposes Home without touching auth state', () => {
+  assert.match(src, /<nav id="premium-nav"[^>]*>[\s\S]{0,120}<Link to="\/">Home<\/Link>/);
+  assert.match(src, /<Link to="\/">Home<\/Link>\s*<button type="button" onClick=\{\(\) => navigateToHash\('premium-plans'\)\}>Plans<\/button>/);
+  const homeLinks = [...src.matchAll(/<Link to="\/">Home<\/Link>/g)];
+  assert.equal(homeLinks.length, 1);
+  assert.equal(/<Link to="\/">Home<\/Link>[\s\S]{0,60}logout/.test(homeLinks.input), false);
+  assert.match(src, /logout\(\);\s*\n\s*navigate\('\/'\)/);
+});
+
+test('Premium brand links to the dashboard under the shared brand rule', () => {
+  assert.match(src, /<Link to="\/dashboard" className="premium-brand" aria-label="Go to Melodify dashboard">/);
+  assert.equal(/<Link to="\/" className="premium-brand"/.test(src), false);
+});

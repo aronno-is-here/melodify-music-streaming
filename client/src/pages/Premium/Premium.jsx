@@ -149,7 +149,7 @@ export default function Premium() {
   return (
     <div className="premium-page">
       <header className="premium-topbar">
-        <Link to="/" className="premium-brand" aria-label="Go to Melodify homepage">
+        <Link to="/dashboard" className="premium-brand" aria-label="Go to Melodify dashboard">
           <MelodifyBrand />
         </Link>
 
@@ -165,6 +165,7 @@ export default function Premium() {
         </button>
 
         <nav id="premium-nav" className={`premium-nav ${mobileMenuOpen ? 'is-open' : ''}`} aria-label="Premium page sections">
+          <Link to="/">Home</Link>
           <button type="button" onClick={() => navigateToHash('premium-plans')}>Plans</button>
           <button type="button" onClick={() => navigateToHash('premium-compare')}>Compare</button>
           <button type="button" onClick={() => navigateToHash('premium-faq')}>FAQ</button>

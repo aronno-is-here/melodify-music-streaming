@@ -96,14 +96,30 @@ test('homepage header and footer lockups are converted', () => {
   assert.match(homeCss, /\.home-logo:focus-visible/);
 });
 
-test('auth pages keep their Link contract while using the shared component', () => {
+test('auth pages send their brand link to the dashboard while using the shared component', () => {
   for (const [name, source] of [
     ['Login', loginSrc],
     ['Signup', signupSrc],
     ['ForgotPassword', forgotSrc],
     ['ResetPassword', resetSrc],
   ]) {
-    assert.match(source, /<Link to="\/" className="auth-brand" aria-label="Go to home">\s*<MelodifyBrand \/>/, name);
+    assert.match(source, /<Link to="\/dashboard" className="auth-brand" aria-label="Go to dashboard">\s*<MelodifyBrand \/>/, name);
+  }
+});
+
+test('brand destinations follow the homepage versus dashboard rule', () => {
+  assert.match(homeSrc, /<Link to="\/" className="home-logo">/);
+  assert.match(homeSrc, /<Link to="\/" className="home-logo home-logo--footer">/);
+  for (const [name, source] of [
+    ['Login', loginSrc],
+    ['Signup', signupSrc],
+    ['ForgotPassword', forgotSrc],
+    ['ResetPassword', resetSrc],
+    ['AuthenticatedAppShell', shellSrc],
+    ['Premium', premiumSrc],
+  ]) {
+    assert.match(source, /<Link to="\/dashboard"[^>]*>\s*<MelodifyBrand \/>/, name);
+    assert.equal(/<Link to="\/"[^>]*>\s*<MelodifyBrand \/>/.test(source), false, `${name} keeps its brand off "/"`);
   }
 });
 
@@ -115,7 +131,7 @@ test('app shell keeps its dashboard link contract while using the shared compone
 });
 
 test('premium lockup gains the shared component and keeps its aria label', () => {
-  assert.match(premiumSrc, /className="premium-brand" aria-label="Go to Melodify homepage">\s*<MelodifyBrand \/>/);
+  assert.match(premiumSrc, /className="premium-brand" aria-label="Go to Melodify dashboard">\s*<MelodifyBrand \/>/);
   assert.equal(premiumSrc.includes('Melod<span>ify</span>'), false);
 });
 

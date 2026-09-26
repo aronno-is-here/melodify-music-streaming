@@ -67,7 +67,7 @@ export default function FullScreenPlayer({ onClose, isFavorited, onToggleFavorit
   });
 
   return (
-    <div className={`fs-player${closing ? ' closing' : ''}`} role="dialog" aria-label="Full player" aria-modal="true">
+    <div className={`fs-player${closing ? ' closing' : ''}${lyricsOpen ? ' lyrics-open' : ''}`} role="dialog" aria-label="Full player" aria-modal="true">
       <div className="fs-bg">
         <img className="fs-bg-img" src={poster} alt="" aria-hidden="true" onError={(event) => { event.currentTarget.style.display = 'none'; }} />
       </div>

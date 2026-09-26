@@ -3,12 +3,12 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: var(--mel-space-4);
-  padding: 12px;
+  padding: 0 12px 12px;
 }
 
 .premium-topbar {
   position: sticky;
-  top: 10px;
+  top: 0;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -41,6 +41,9 @@
 
 .premium-nav a,
 .premium-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   border: 1px solid transparent;
   border-radius: var(--mel-pill);
@@ -349,7 +352,7 @@
 
 @media (max-width: 768px) {
   .premium-page {
-    padding: 10px;
+    padding: 0 10px 10px;
   }
 
   .premium-hero-actions .music-pill-btn,
@@ -364,11 +367,11 @@
 
 @media (max-width: 480px) {
   .premium-page {
-    padding: 8px;
+    padding: 0 8px 8px;
   }
 
   .premium-topbar {
-    top: 8px;
+    top: 0;
     padding: 10px;
   }
 

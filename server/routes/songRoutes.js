@@ -50,7 +50,13 @@ router.get('/', async (req, res) => {
     const query = {};
     if (req.query.q) {
       const q = escapeRegex(String(req.query.q).trim());
-      if (q) query.$or = [{ title: { $regex: q, $options: 'i' } }, { artist: { $regex: q, $options: 'i' } }];
+      if (q) {
+        query.$or = [
+          { title: { $regex: q, $options: 'i' } },
+          { artist: { $regex: q, $options: 'i' } },
+          { album: { $regex: q, $options: 'i' } },
+        ];
+      }
     }
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '50', 10)));

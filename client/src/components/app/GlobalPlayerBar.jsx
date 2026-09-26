@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import usePlayer, { formatTime } from '../../hooks/usePlayer.js';
 import { selectPlaybackStatusPresentation } from '../../pages/Dashboard/playbackStatusUi.js';
 import FavoriteButton from '../music/FavoriteButton.jsx';
+import LyricsChordsPanel from '../../pages/Dashboard/LyricsChordsPanel.jsx';
 
 const DEFAULT_POSTER = 'https://picsum.photos/140/140?random';
 
 export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpand }) {
   const player = usePlayer();
   const song = player.currentSong;
+  const [lyricsOpen, setLyricsOpen] = useState(false);
 
   const handleSeek = (event) => {
     const ratio = Number(event.target.value) / 1000;
@@ -123,6 +126,18 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
             <button
               type="button"
               className="music-icon-control"
+              aria-label="Lyrics & Chords"
+              title="Lyrics & Chords"
+              aria-expanded={Boolean(lyricsOpen && song)}
+              aria-controls="app-lyrics-drawer"
+              disabled={!song}
+              onClick={() => { if (song) setLyricsOpen((open) => !open); }}
+            >
+              <i className="fa-solid fa-music" aria-hidden="true"></i>
+            </button>
+            <button
+              type="button"
+              className="music-icon-control"
               aria-label="Open full player"
               onClick={onExpand}
             >
@@ -131,6 +146,12 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
           </div>
         </div>
       </div>
+
+      {lyricsOpen && song ? (
+        <div className="app-lyrics-drawer" id="app-lyrics-drawer" role="dialog" aria-label="Lyrics & Chords">
+          <LyricsChordsPanel onClose={() => setLyricsOpen(false)} />
+        </div>
+      ) : null}
 
       {song ? (
         <div
