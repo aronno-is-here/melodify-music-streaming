@@ -9,7 +9,7 @@ import MelodifyBrand from '../ui/MelodifyBrand.jsx';
 
 const DESKTOP_NAV = Object.freeze([
   { key: 'site-home', label: 'Home', path: '/', icon: 'fa-globe' },
-  { key: 'dashboard', label: 'Home / Dashboard', path: '/dashboard', icon: 'fa-house' },
+  { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'fa-house' },
   { key: 'search', label: 'Search', path: '/search', icon: 'fa-magnifying-glass' },
   { key: 'liked', label: 'Liked Songs', path: '/library?tab=liked', icon: 'fa-heart' },
   { key: 'library', label: 'Playlists / Library', path: '/library', icon: 'fa-book-open' },
@@ -20,7 +20,7 @@ const DESKTOP_NAV = Object.freeze([
 ]);
 
 const MOBILE_NAV = Object.freeze([
-  { key: 'dashboard', label: 'Home', path: '/dashboard', icon: 'fa-house' },
+  { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'fa-house' },
   { key: 'search', label: 'Search', path: '/search', icon: 'fa-magnifying-glass' },
   { key: 'library', label: 'Library', path: '/library', icon: 'fa-book-open' },
   { key: 'profile', label: 'Profile', path: '/profile', icon: 'fa-user' },
