@@ -5,6 +5,7 @@ import { api } from '../../api/client.js';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
 import EmptyState from '../../components/music/EmptyState.jsx';
 import cssRaw from './MelodifyStudio.css?raw';
+import { BACKING_MODES, normalizeStudioTrack } from './studioBacking.js';
 
 const DEFAULT_POSTER = 'https://picsum.photos/160/160?random';
 
@@ -153,19 +154,25 @@ export default function MelodifyStudio() {
     } catch {}
   };
 
+  const stopBackingPlayback = useCallback(() => {
+    if (backingAudioRef.current) {
+      backingAudioRef.current.pause();
+      backingAudioRef.current.currentTime = 0;
+      backingAudioRef.current.onended = null;
+      backingAudioRef.current.removeAttribute('src');
+      backingAudioRef.current.load();
+      backingAudioRef.current = null;
+    }
+    stopYoutubeBacking();
+  }, []);
+
   const cleanupRecording = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    if (backingAudioRef.current) {
-      backingAudioRef.current.pause();
-      backingAudioRef.current.currentTime = 0;
-      backingAudioRef.current.src = '';
-      backingAudioRef.current = null;
-    }
-    stopYoutubeBacking();
+    stopBackingPlayback();
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
@@ -191,7 +198,7 @@ export default function MelodifyStudio() {
     activeRecordingMetaRef.current = null;
     previewSyncReadyRef.current = false;
     recordTimeRef.current = 0;
-  }, []);
+  }, [stopBackingPlayback]);
 
   const fetchKaraoke = useCallback(async (query = '', region = '', page = 1) => {
     setSearching(true);
@@ -247,6 +254,12 @@ export default function MelodifyStudio() {
   }, [cleanupRecording, recordUrl]);
 
   useEffect(() => {
+    if (step === STEPS.SELECT) {
+      stopBackingPlayback();
+    }
+  }, [step, stopBackingPlayback]);
+
+  useEffect(() => {
     if (!selectedSong || !selectedSong.lyrics) {
       setLyrics('');
       return;
@@ -260,6 +273,11 @@ export default function MelodifyStudio() {
       .join('\n');
     setLyrics(plain);
   }, [selectedSong]);
+
+  useEffect(() => {
+    loadYoutubeApi().catch(() => {});
+    return undefined;
+  }, []);
 
   const loadBackingAudio = (song) => {
     if (!song || song.playbackType !== 'audio' || !song.backingAudioUrl) {
@@ -327,9 +345,45 @@ export default function MelodifyStudio() {
     return youtubePlayerRef.current;
   };
 
+  const startBackingPlayback = (song) => {
+    const track = normalizeStudioTrack(song);
+    stopBackingPlayback();
+
+    if (!track) return BACKING_MODES.NONE;
+
+    if (track.playbackType === BACKING_MODES.AUDIO) {
+      const backingAudio = new Audio(track.backingAudioUrl);
+      backingAudio.preload = 'auto';
+      backingAudio.crossOrigin = 'anonymous';
+      backingAudio.volume = backingVolume;
+      backingAudioRef.current = backingAudio;
+      const started = backingAudio.play();
+      if (started && typeof started.catch === 'function') {
+        started.catch(() => {});
+      }
+      return BACKING_MODES.AUDIO;
+    }
+
+    if (track.playbackType === BACKING_MODES.YOUTUBE) {
+      ensureYoutubePlayer(track.backingProviderTrackId)
+        .then((player) => {
+          if (youtubePlayerRef.current === player) {
+            player.playVideo();
+          }
+        })
+        .catch(() => {});
+      return BACKING_MODES.YOUTUBE;
+    }
+
+    return BACKING_MODES.NONE;
+  };
+
   const selectSong = (song) => {
-    setSelectedSong(song);
-    setPostTitle(`${user?.name || 'My'} - ${song.title}`);
+    const track = normalizeStudioTrack(song);
+    if (!track) return;
+
+    setSelectedSong(track);
+    setPostTitle(`${user?.name || 'My'} - ${track.title}`);
     setStep(STEPS.RECORD);
     setRecordBlob(null);
     setRecordUrl('');
@@ -345,6 +399,8 @@ export default function MelodifyStudio() {
       URL.revokeObjectURL(recordUrl);
       setRecordUrl('');
     }
+
+    startBackingPlayback(track);
   };
 
   const startRecording = async () => {
@@ -363,6 +419,8 @@ export default function MelodifyStudio() {
         setRecordingError('Selected track cannot be used for recording. Please choose another track.');
         return;
       }
+
+      stopBackingPlayback();
 
       if (selectedSong.playbackType === 'audio') {
         const backingAudio = await loadBackingAudio(selectedSong);
@@ -384,6 +442,9 @@ export default function MelodifyStudio() {
 
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       audioContextRef.current = audioCtx;
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume().catch(() => {});
+      }
 
       const source = audioCtx.createMediaStreamSource(stream);
       sourceNodeRef.current = source;
