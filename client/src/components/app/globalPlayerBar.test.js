@@ -76,7 +76,7 @@ test('full player lyrics surface is a right-side drawer, not a small bottom sect
   assert.match(fullPlayerCss, /\.fs-lyrics-sheet \{[^}]*right: 0/);
   assert.match(fullPlayerCss, /\.fs-lyrics-sheet \{[^}]*top: 0/);
   assert.match(fullPlayerCss, /\.fs-lyrics-sheet \.lc-panel \{[^}]*max-height: none/);
-  assert.match(fullPlayerCss, /\.fs-player\.lyrics-open \.fs-content/);
+  assert.equal(fullPlayerCss.includes('lyrics-open .fs-content'), false);
   assert.equal(fullPlayerCss.includes('max-height: 38dvh'), false);
   assert.match(fullPlayerCss, /@media \(max-width: 768px\)[\s\S]*\.fs-lyrics-sheet \{[^}]*width: 100%/);
 });

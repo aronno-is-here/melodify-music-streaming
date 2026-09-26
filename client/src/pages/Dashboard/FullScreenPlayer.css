@@ -269,11 +269,6 @@
   max-height: none;
 }
 
-.fs-player.lyrics-open .fs-content {
-  width: min(560px, calc(100% - min(420px, 40vw)));
-  margin-right: min(420px, 40vw);
-}
-
 @media (max-width: 768px) {
   .fs-content {
     gap: 12px;
@@ -297,10 +292,5 @@
     border-left: none;
     box-shadow: none;
     background: rgba(4, 13, 26, 0.985);
-  }
-
-  .fs-player.lyrics-open .fs-content {
-    width: min(560px, 100%);
-    margin-right: auto;
   }
 }
