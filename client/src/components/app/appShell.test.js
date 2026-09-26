@@ -22,7 +22,7 @@ test('App routes include authenticated shell routes for modernized authenticated
 
 test('desktop navigation contains required destinations and labels', () => {
   for (const label of [
-    'Home / Dashboard',
+    'Dashboard',
     'Search',
     'Liked Songs',
     'Playlists / Library',
@@ -37,7 +37,7 @@ test('desktop navigation contains required destinations and labels', () => {
 });
 
 test('mobile bottom navigation keeps primary destinations only', () => {
-  for (const label of ['Home', 'Search', 'Library', 'Profile']) {
+  for (const label of ['Dashboard', 'Search', 'Library', 'Profile']) {
     assert.ok(shellSrc.includes(`label: '${label}'`), label);
   }
   assert.match(shellSrc, /className="app-mobile-nav"/);
@@ -75,4 +75,29 @@ test('Home navigation never logs out or clears the auth token', () => {
 test('homepage keeps logged-in visitors linked to the dashboard', () => {
   assert.match(homeSrc, /to=\{user \? '\/dashboard' : '\/signup'\}/);
   assert.equal(/logout|localStorage|removeItem|melodify_token/.test(homeSrc), false);
+});
+
+test('sidebar navigation exposes Home to / and Dashboard to /dashboard', () => {
+  assert.match(shellSrc, /\{ key: 'site-home', label: 'Home', path: '\/', icon: 'fa-globe' \}/);
+  assert.match(shellSrc, /\{ key: 'dashboard', label: 'Dashboard', path: '\/dashboard', icon: 'fa-house' \}/);
+});
+
+test('no sidebar navigation label combines Home and Dashboard', () => {
+  const labels = [...shellSrc.matchAll(/label: '([^']+)'/g)].map((match) => match[1]);
+  for (const label of labels) {
+    assert.equal(/Home\s*\/\s*Dashboard/i.test(label), false, label);
+    assert.equal(/Home\s*\/\s*Dashboard/i.test(label.replace(/\s+/g, ' ')), false, label);
+  }
+  assert.equal(shellSrc.includes('Home / Dashboard'), false);
+  assert.equal(shellSrc.includes('Home/Dashboard'), false);
+});
+
+test('sidebar keeps a single Dashboard destination with no duplicate semantics', () => {
+  const desktopNav = shellSrc.match(/const DESKTOP_NAV = Object\.freeze\(\[([\s\S]*?)\]\)/)[1];
+  const mobileNav = shellSrc.match(/const MOBILE_NAV = Object\.freeze\(\[([\s\S]*?)\]\)/)[1];
+  assert.equal((desktopNav.match(/path: '\/dashboard'/g) || []).length, 1);
+  assert.equal((desktopNav.match(/path: '\/'/g) || []).length, 1);
+  assert.equal((desktopNav.match(/label: 'Dashboard'/g) || []).length, 1);
+  assert.equal((mobileNav.match(/path: '\/dashboard'/g) || []).length, 1);
+  assert.equal((mobileNav.match(/label: 'Home'/g) || []).length, 0);
 });

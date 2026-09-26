@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import User from '../models/User.js';
 import Follow from '../models/Follow.js';
 import Song from '../models/Song.js';
@@ -7,6 +8,25 @@ import { protect } from '../middleware/auth.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 
 const router = express.Router();
+
+export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+export const AVATAR_MIME_TYPES = Object.freeze(['image/jpeg', 'image/png', 'image/webp']);
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: AVATAR_MAX_BYTES, files: 1 },
+  fileFilter: (req, file, cb) => {
+    cb(null, AVATAR_MIME_TYPES.includes(file.mimetype));
+  },
+});
+
+export function detectAvatarMime(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image/jpeg';
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png';
+  if (buffer.toString('latin1', 0, 4) === 'RIFF' && buffer.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+}
 
 router.get('/search', protect, async (req, res) => {
   try {
@@ -111,6 +131,33 @@ router.get('/:userId', protect, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.put('/me/avatar', protect, (req, res, next) => {
+  avatarUpload.single('avatar')(req, res, (error) => {
+    if (error) {
+      const message = error.code === 'LIMIT_FILE_SIZE'
+        ? 'Avatar image must be 5MB or smaller.'
+        : 'Avatar must be a JPEG, PNG, or WebP image.';
+      return res.status(400).json({ success: false, error: message });
+    }
+    return next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file || !AVATAR_MIME_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({ success: false, error: 'Avatar must be a JPEG, PNG, or WebP image.' });
+    }
+    if (detectAvatarMime(req.file.buffer) !== req.file.mimetype) {
+      return res.status(400).json({ success: false, error: 'Avatar must be a JPEG, PNG, or WebP image.' });
+    }
+    const avatar = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    const user = await User.findByIdAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true })
+      .select('name email avatar bio libraryVisibility gender country dob role');
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to update avatar.' });
   }
 });
 

@@ -164,11 +164,11 @@ export default function LibraryView() {
           <div className="library-playlists-toolbar">
             <button
               type="button"
-              className="music-pill-btn"
+              className="music-pill-btn create-playlist-btn"
               onClick={() => setCreateOpen(true)}
             >
-              <i className="fa-solid fa-plus" aria-hidden="true"></i>
-              Create Playlist
+              <span aria-hidden="true">+</span>
+              <span>Create Playlist</span>
             </button>
             {libraryStatus ? (
               <p

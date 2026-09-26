@@ -125,7 +125,7 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
             />
             <button
               type="button"
-              className="music-icon-control"
+              className={`music-icon-control app-player-lyrics${lyricsOpen && song ? ' is-active' : ''}`}
               aria-label="Lyrics & Chords"
               title="Lyrics & Chords"
               aria-expanded={Boolean(lyricsOpen && song)}
@@ -134,6 +134,7 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
               onClick={() => { if (song) setLyricsOpen((open) => !open); }}
             >
               <i className="fa-solid fa-music" aria-hidden="true"></i>
+              <span className="app-player-lyrics-label">Lyrics</span>
             </button>
             <button
               type="button"
@@ -189,6 +190,19 @@ export default function GlobalPlayerBar({ isFavorited, onToggleFavorite, onExpan
               }}
             >
               <i className={`fa-solid ${player.isPlaying ? 'fa-pause' : 'fa-play'}`} aria-hidden="true"></i>
+            </button>
+            <button
+              type="button"
+              className={`music-icon-control${lyricsOpen ? ' is-active' : ''}`}
+              aria-label="Lyrics & Chords"
+              title="Lyrics & Chords"
+              aria-controls="app-lyrics-drawer"
+              onClick={(event) => {
+                event.stopPropagation();
+                setLyricsOpen((open) => !open);
+              }}
+            >
+              <i className="fa-solid fa-music" aria-hidden="true"></i>
             </button>
             <button
               type="button"

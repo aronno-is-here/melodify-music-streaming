@@ -64,7 +64,7 @@ test('lyrics drawer opens the shared panel without any playback side effects', (
 
 test('shell styles place the lyrics drawer above the bottom player and keep the panel scrollable', () => {
   assert.match(shellCss, /\.app-lyrics-drawer \{/);
-  assert.match(shellCss, /bottom: calc\(var\(--mel-player-h\) \+ 22px\)/);
+  assert.match(shellCss, /bottom: calc\(var\(--mel-player-h\) \+ 8px\)/);
   assert.match(shellCss, /position: fixed/);
   assert.match(shellCss, /\.app-lyrics-drawer \.lc-panel \{[^}]*height: 100%/);
   assert.match(shellCss, /@media \(max-width: 768px\)[\s\S]*\.app-lyrics-drawer \{[^}]*width: 100vw/);
@@ -76,7 +76,7 @@ test('full player lyrics surface is a right-side drawer, not a small bottom sect
   assert.match(fullPlayerCss, /\.fs-lyrics-sheet \{[^}]*right: 0/);
   assert.match(fullPlayerCss, /\.fs-lyrics-sheet \{[^}]*top: 0/);
   assert.match(fullPlayerCss, /\.fs-lyrics-sheet \.lc-panel \{[^}]*max-height: none/);
-  assert.match(fullPlayerCss, /\.fs-player\.lyrics-open \.fs-content/);
+  assert.equal(fullPlayerCss.includes('lyrics-open .fs-content'), false);
   assert.equal(fullPlayerCss.includes('max-height: 38dvh'), false);
   assert.match(fullPlayerCss, /@media \(max-width: 768px\)[\s\S]*\.fs-lyrics-sheet \{[^}]*width: 100%/);
 });
