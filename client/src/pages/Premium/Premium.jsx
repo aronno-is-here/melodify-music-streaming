@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
 import AppDialog from '../../components/ui/AppDialog.jsx';
+import MelodifyBrand from '../../components/ui/MelodifyBrand.jsx';
 import cssRaw from './Premium.css?raw';
 
 const PLANS = Object.freeze([
@@ -149,7 +150,7 @@ export default function Premium() {
     <div className="premium-page">
       <header className="premium-topbar">
         <Link to="/" className="premium-brand" aria-label="Go to Melodify homepage">
-          Melod<span>ify</span>
+          <MelodifyBrand />
         </Link>
 
         <button

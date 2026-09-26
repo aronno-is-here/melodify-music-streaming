@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
+import MelodifyBrand from '../../components/ui/MelodifyBrand.jsx';
 
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -106,10 +107,7 @@ export default function Signup() {
         <section className="auth-intro">
           <div>
             <Link to="/" className="auth-brand" aria-label="Go to home">
-              <span className="auth-brand-mark">
-                <i className="fa-solid fa-wave-square" aria-hidden="true"></i>
-              </span>
-              <span className="auth-brand-name">Melod<span>ify</span></span>
+              <MelodifyBrand />
             </Link>
             <p className="auth-intro-kicker">Create Account</p>
             <h1>Build your <span>music identity</span>.</h1>

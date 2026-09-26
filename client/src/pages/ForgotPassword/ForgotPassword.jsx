@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client.js';
+import MelodifyBrand from '../../components/ui/MelodifyBrand.jsx';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -30,10 +31,7 @@ export default function ForgotPassword() {
         <section className="auth-intro">
           <div>
             <Link to="/" className="auth-brand" aria-label="Go to home">
-              <span className="auth-brand-mark">
-                <i className="fa-solid fa-wave-square" aria-hidden="true"></i>
-              </span>
-              <span className="auth-brand-name">Melod<span>ify</span></span>
+              <MelodifyBrand />
             </Link>
 
             <p className="auth-intro-kicker">Password Recovery</p>

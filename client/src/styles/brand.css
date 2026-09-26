@@ -1,0 +1,38 @@
+.melodify-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.melodify-brand--footer {
+  gap: 4px;
+}
+
+.melodify-brand .home-logo-icon {
+  flex-shrink: 0;
+}
+
+.melodify-wordmark {
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.6px;
+  white-space: nowrap;
+}
+
+.melodify-wordmark--footer {
+  font-size: 16px;
+  line-height: 22px;
+  letter-spacing: -0.3px;
+}
+
+.melodify-wordmark-main {
+  color: #ffffff;
+}
+
+.melodify-wordmark-accent {
+  color: #00b4d8;
+}
