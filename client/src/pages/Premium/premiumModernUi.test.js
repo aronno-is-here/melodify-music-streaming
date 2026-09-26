@@ -53,3 +53,17 @@ test('Premium nav items are flex-centered with no magic alignment offsets', () =
   assert.equal(/padding-top:\s*-?\d+px/.test(css), false);
   assert.equal(/(?:margin|padding)[a-z-]*:\s*-\d+px/.test(css), false);
 });
+
+test('Premium navigation exposes Home without touching auth state', () => {
+  assert.match(src, /<nav id="premium-nav"[^>]*>[\s\S]{0,120}<Link to="\/">Home<\/Link>/);
+  assert.match(src, /<Link to="\/">Home<\/Link>\s*<button type="button" onClick=\{\(\) => navigateToHash\('premium-plans'\)\}>Plans<\/button>/);
+  const homeLinks = [...src.matchAll(/<Link to="\/">Home<\/Link>/g)];
+  assert.equal(homeLinks.length, 1);
+  assert.equal(/<Link to="\/">Home<\/Link>[\s\S]{0,60}logout/.test(homeLinks.input), false);
+  assert.match(src, /logout\(\);\s*\n\s*navigate\('\/'\)/);
+});
+
+test('Premium brand links to the dashboard under the shared brand rule', () => {
+  assert.match(src, /<Link to="\/dashboard" className="premium-brand" aria-label="Go to Melodify dashboard">/);
+  assert.equal(/<Link to="\/" className="premium-brand"/.test(src), false);
+});

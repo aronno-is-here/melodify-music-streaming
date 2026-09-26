@@ -8,6 +8,7 @@ import FullScreenPlayer from '../../pages/Dashboard/FullScreenPlayer.jsx';
 import MelodifyBrand from '../ui/MelodifyBrand.jsx';
 
 const DESKTOP_NAV = Object.freeze([
+  { key: 'site-home', label: 'Home', path: '/', icon: 'fa-globe' },
   { key: 'dashboard', label: 'Home / Dashboard', path: '/dashboard', icon: 'fa-house' },
   { key: 'search', label: 'Search', path: '/search', icon: 'fa-magnifying-glass' },
   { key: 'liked', label: 'Liked Songs', path: '/library?tab=liked', icon: 'fa-heart' },
@@ -181,6 +182,10 @@ export default function AuthenticatedAppShell() {
 
               {profileMenuOpen ? (
                 <div className="app-profile-menu" role="menu" aria-label="Account actions">
+                  <NavLink to="/" role="menuitem">
+                    <i className="fa-solid fa-globe" aria-hidden="true"></i>
+                    Home
+                  </NavLink>
                   <NavLink to="/profile" role="menuitem">
                     <i className="fa-regular fa-id-badge" aria-hidden="true"></i>
                     Profile

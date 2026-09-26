@@ -106,7 +106,7 @@ export default function Signup() {
       <div className="auth-shell">
         <section className="auth-intro">
           <div>
-            <Link to="/" className="auth-brand" aria-label="Go to home">
+            <Link to="/dashboard" className="auth-brand" aria-label="Go to dashboard">
               <MelodifyBrand />
             </Link>
             <p className="auth-intro-kicker">Create Account</p>

@@ -35,7 +35,7 @@ export default function Login() {
       <div className="auth-shell">
         <section className="auth-intro">
           <div>
-            <Link to="/" className="auth-brand" aria-label="Go to home">
+            <Link to="/dashboard" className="auth-brand" aria-label="Go to dashboard">
               <MelodifyBrand />
             </Link>
 
