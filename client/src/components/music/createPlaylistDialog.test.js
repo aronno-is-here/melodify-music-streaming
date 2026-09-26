@@ -97,3 +97,29 @@ test('library dialog styles cover toolbar, status, fields, chips, and song rows'
   assert.match(libraryCss, /\.create-playlist-song\.is-selected \{/);
   assert.match(libraryCss, /\.create-playlist-suggestions \{/);
 });
+
+test('create playlist button renders separate plus and text spans', () => {
+  assert.match(librarySrc, /<span aria-hidden="true">\+<\/span>\s*\n\s*<span>Create Playlist<\/span>/);
+  assert.equal(/fa-solid fa-plus/.test(librarySrc.slice(librarySrc.indexOf('create-playlist-btn') - 400, librarySrc.indexOf('create-playlist-btn') + 400)), false);
+});
+
+test('create playlist button uses a layout gap instead of a literal text space', () => {
+  assert.match(libraryCss, /\.create-playlist-btn \{[^}]*display: inline-flex/);
+  assert.match(libraryCss, /\.create-playlist-btn \{[^}]*align-items: center/);
+  assert.match(libraryCss, /\.create-playlist-btn \{[^}]*gap: 7px/);
+  assert.match(librarySrc, /className="music-pill-btn create-playlist-btn"/);
+});
+
+test('create playlist button keeps its existing click behavior', () => {
+  assert.match(librarySrc, /className="music-pill-btn create-playlist-btn"\s*\n\s*onClick=\{\(\) => setCreateOpen\(true\)\}/);
+  assert.match(librarySrc, /<CreatePlaylistDialog/);
+  assert.match(librarySrc, /open=\{createOpen\}/);
+});
+
+test('create playlist button stays accessible with a clear label and focus state', () => {
+  assert.match(librarySrc, /<button\s*\n\s*type="button"\s*\n\s*className="music-pill-btn create-playlist-btn"/);
+  assert.match(libraryCss, /\.create-playlist-btn:focus-visible \{[^}]*outline: 2px solid var\(--mel-cyan\)/);
+  const buttonBlock = librarySrc.match(/<button[\s\S]*?create-playlist-btn[\s\S]*?<\/button>/)[0];
+  assert.equal(/aria-hidden="true"/.test(buttonBlock), true);
+  assert.equal(/>Create Playlist</.test(buttonBlock.replace(/\n/g, '')), true);
+});
