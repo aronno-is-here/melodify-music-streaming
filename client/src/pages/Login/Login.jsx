@@ -47,8 +47,8 @@ export default function Login() {
           </div>
 
           <div className="auth-intro-links">
-            <Link to="/" className="music-outline-btn">Home</Link>
-            <Link to="/signup" className="music-pill-btn">Create Account</Link>
+            <Link to="/" className="auth-secondary-link">Home</Link>
+            <Link to="/signup" className="auth-secondary-link auth-secondary-link--primary">Create Account</Link>
           </div>
         </section>
 
