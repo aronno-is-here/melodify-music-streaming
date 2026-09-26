@@ -4,6 +4,7 @@ import usePlayer from '../../hooks/usePlayer.js';
 import SongRow from '../../components/music/SongRow.jsx';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
 import EmptyState from '../../components/music/EmptyState.jsx';
+import CreatePlaylistDialog from '../../components/music/CreatePlaylistDialog.jsx';
 import './LibraryView.css';
 
 const TAB_KEYS = Object.freeze(['liked', 'playlists', 'recent']);
@@ -20,6 +21,7 @@ export default function LibraryView() {
     history,
     favoritedIds,
     toggleFavorite,
+    refreshCoreData,
   } = useOutletContext();
   const player = usePlayer();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,6 +33,8 @@ export default function LibraryView() {
   const [activePlaylistId, setActivePlaylistId] = useState(
     playlists[0]?._id ? String(playlists[0]._id) : null,
   );
+  const [createOpen, setCreateOpen] = useState(false);
+  const [libraryStatus, setLibraryStatus] = useState(null);
 
   useEffect(() => {
     if (TAB_KEYS.includes(tabFromUrl) && tabFromUrl !== activeTab) {
@@ -70,6 +74,28 @@ export default function LibraryView() {
       return;
     }
     player.playSong(queue, index);
+  };
+
+  const handlePlaylistCreated = async (playlist, result = {}) => {
+    setCreateOpen(false);
+    const failed = Number(result.failed) || 0;
+    if (failed > 0) {
+      setLibraryStatus({
+        tone: 'error',
+        text: `Playlist created, but ${failed} song${failed === 1 ? '' : 's'} could not be added.`,
+      });
+    } else {
+      setLibraryStatus({
+        tone: 'success',
+        text: `Playlist "${playlist?.title || 'playlist'}" created.`,
+      });
+    }
+    if (typeof refreshCoreData === 'function') {
+      await refreshCoreData();
+    }
+    if (playlist?._id) {
+      setActivePlaylistId(String(playlist._id));
+    }
   };
 
   return (
@@ -135,8 +161,26 @@ export default function LibraryView() {
 
       {activeTab === 'playlists' ? (
         <section className="music-section app-surface" role="tabpanel">
+          <div className="library-playlists-toolbar">
+            <button
+              type="button"
+              className="music-pill-btn"
+              onClick={() => setCreateOpen(true)}
+            >
+              <i className="fa-solid fa-plus" aria-hidden="true"></i>
+              Create Playlist
+            </button>
+            {libraryStatus ? (
+              <p
+                className={`library-status ${libraryStatus.tone === 'error' ? 'is-error' : 'is-success'}`}
+                role="status"
+              >
+                {libraryStatus.text}
+              </p>
+            ) : null}
+          </div>
           {playlists.length === 0 ? (
-            <EmptyState icon="fa-book-open" title="No playlists yet" detail="Create playlists from the playlist page to see them here." />
+            <EmptyState icon="fa-book-open" title="No playlists yet" detail="Create a playlist to see it here." />
           ) : (
             <div className="library-playlists-layout">
               <div className="library-playlist-list" role="list">
@@ -220,6 +264,12 @@ export default function LibraryView() {
           )}
         </section>
       ) : null}
+
+      <CreatePlaylistDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handlePlaylistCreated}
+      />
     </div>
   );
 }
