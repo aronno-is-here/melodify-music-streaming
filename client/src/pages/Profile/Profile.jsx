@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
@@ -6,6 +6,9 @@ import SectionHeader from '../../components/music/SectionHeader.jsx';
 import EmptyState from '../../components/music/EmptyState.jsx';
 import AppDialog from '../../components/ui/AppDialog.jsx';
 import cssRaw from './Profile.css?raw';
+
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+const AVATAR_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const COUNTRY_OPTIONS = [
   'Bangladesh',
@@ -61,6 +64,9 @@ export default function Profile() {
   const [recordings, setRecordings] = useState([]);
   const [recordingsLoading, setRecordingsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState('');
+  const avatarInputRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -95,6 +101,38 @@ export default function Profile() {
 
   const setApiMessage = (text) => {
     setMessage(text || 'Something went wrong');
+  };
+
+  const handleAvatarFile = async (event) => {
+    const input = event.target;
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+
+    setAvatarMessage('');
+    if (!AVATAR_MIME_TYPES.includes(file.type)) {
+      setAvatarMessage('Choose a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      setAvatarMessage('Image must be 5MB or smaller.');
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const data = await api.put('/api/users/me/avatar', form);
+      if (!data.success) {
+        setAvatarMessage(data.error || 'Profile picture upload failed.');
+        return;
+      }
+      await refreshUser();
+      setAvatarMessage('Profile picture updated.');
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   const saveProfile = async (event) => {
@@ -180,7 +218,29 @@ export default function Profile() {
   return (
     <div className="profile-page">
       <section className="profile-hero app-surface">
-        <div className="profile-avatar" aria-hidden="true">{initials}</div>
+        <div className="profile-avatar-wrap">
+          <div className="profile-avatar" aria-hidden="true">
+            {user.avatar ? <img className="profile-avatar-img" src={user.avatar} alt="" /> : initials}
+          </div>
+          <button
+            type="button"
+            className="profile-avatar-edit"
+            aria-label="Change profile picture"
+            title="Change profile picture"
+            disabled={avatarUploading}
+            onClick={() => avatarInputRef.current?.click()}
+          >
+            <i className="fa-solid fa-camera" aria-hidden="true"></i>
+          </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            className="profile-avatar-input"
+            accept="image/jpeg,image/png,image/webp"
+            aria-label="Choose profile picture"
+            onChange={handleAvatarFile}
+          />
+        </div>
         <div className="profile-hero-meta">
           <h1>{user.name}</h1>
           <p>{user.email}</p>
@@ -204,6 +264,11 @@ export default function Profile() {
               Logout
             </button>
           </div>
+          {avatarUploading || avatarMessage ? (
+            <p className="profile-avatar-status" role="status" aria-live="polite">
+              {avatarUploading ? 'Uploading profile picture...' : avatarMessage}
+            </p>
+          ) : null}
         </div>
       </section>
 

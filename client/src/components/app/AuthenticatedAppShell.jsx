@@ -177,7 +177,11 @@ export default function AuthenticatedAppShell() {
                 aria-label="Open account menu"
                 onClick={() => setProfileMenuOpen((open) => !open)}
               >
-                <i className="fa-solid fa-user" aria-hidden="true"></i>
+                {user?.avatar ? (
+                  <img className="app-avatar" src={user.avatar} alt="" />
+                ) : (
+                  <i className="fa-solid fa-user" aria-hidden="true"></i>
+                )}
               </button>
 
               {profileMenuOpen ? (

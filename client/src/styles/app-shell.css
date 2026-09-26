@@ -56,6 +56,15 @@
   transition: background var(--mel-transition), border-color var(--mel-transition), color var(--mel-transition);
 }
 
+.app-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
 .app-icon-btn:hover {
   color: var(--mel-text);
   border-color: var(--mel-border);
