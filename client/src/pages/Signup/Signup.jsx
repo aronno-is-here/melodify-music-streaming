@@ -117,8 +117,8 @@ export default function Signup() {
           </div>
 
           <div className="auth-intro-links">
-            <Link to="/" className="music-outline-btn">Home</Link>
-            <Link to="/login" className="music-pill-btn">Log In Instead</Link>
+            <Link to="/" className="auth-secondary-link">Home</Link>
+            <Link to="/login" className="auth-secondary-link auth-secondary-link--primary">Log In Instead</Link>
           </div>
         </section>
 
