@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const queueSource = readFileSync(join(__dirname, 'MissingLyricsQueue.jsx'), 'utf8');
 const dialogSource = readFileSync(join(__dirname, 'AddLyricsDialog.jsx'), 'utf8');
 const adminSource = readFileSync(join(__dirname, 'Admin.jsx'), 'utf8');
-const adminCss = readFileSync(join(__dirname, 'Admin.css'), 'utf8');
+const adminCss = readFileSync(join(__dirname, 'Admin.css'), 'utf8').replace(/\r\n/g, '\n');
 const uiSource = readFileSync(join(__dirname, 'missingLyricsUi.js'), 'utf8');
 const serviceSource = readFileSync(
   join(__dirname, '..', '..', 'services', 'adminMissingLyrics.js'),
