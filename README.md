@@ -100,6 +100,7 @@ Melodify - Music Streaming Website/
 │   ├── config/db.js               # MongoDB connection
 │   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory, ListeningEvent, RecommendationEvaluationRun (32/43), RecommendationSnapshot (34/43)
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
+│   ├── utils/catalogMetadata.js   # Channel-vs-artist resolution, non-music filter, language/region enrichment
 │   ├── utils/catalogSyncRequest.js # Pure admin catalog-sync request validator (10/43)
 │   ├── utils/listeningEventRequest.js # Pure listening-event HTTP request/result mapping (14/43)
 │   ├── utils/trendingRequest.js      # Pure Trending limit query parser (20/43)
@@ -210,6 +211,7 @@ npm run dev        # http://localhost:5173
 ```bash
 cd server
 npm run audit:catalog-content
+npm run audit:catalog-metadata
 ```
 
 ### 6. Optional regional catalog import (bounded)
@@ -1034,13 +1036,57 @@ A fast admin path for filling the lyrics gaps that the discovery pipeline cannot
 - `client/src/pages/Admin/AddLyricsDialog.jsx` — read-only Song/Artist, editable Language/Source URL/Source provider/Lyrics/Notes, `.txt`/`.lrc`-only file input, live Synced-Plain indicator, and single-flight save.
 
 ```bash
-node --test "server/**/*.test.js"       # 2329
+node --test "server/**/*.test.js"       # 2383
 node --test "client/src/**/*.test.js"   # 893 (812 baseline + 81 new)
 python -m unittest discover -s ml/tests -p "test_*.py"   # 1722 OK (3 platform skips)
 npm run build    # in client/
 ```
 
 No third-party lyric page is ever fetched by this workflow — full lyrics enter the database only from the admin's own paste or an authorized file upload, or from the permitted LRCLIB API.
+
+### Catalog metadata audit and repair
+
+Lyrics discovery matches against `title` + `artist`, so an upload channel stored as the artist, a noisy title, or a missing `language` silently costs exact matches. The catalog is therefore audited read-only first, and only high-confidence fields are ever rewritten.
+
+**Shared classifier — `server/utils/catalogMetadata.js`**
+
+- `resolveCatalogTrack({ title, channelTitle, artistCandidate, artistCandidateSource })` separates an upload channel from a performing artist: label/stylized channels and `artist ≠ title` credits are only accepted at high confidence, multi-credit titles keep the first two segments as a candidate credit (medium confidence), and version-sensitive titles (`live`, `remix`, `instrumental`, `karaoke`, …) keep the legacy artist instead of being re-split.
+- `classifyNonMusic({ title, artist, durationSeconds, category })` returns `MUSIC` / `LIKELY_MUSIC` / `NON_MUSIC` / `UNCERTAIN`. Only `NON_MUSIC` excludes a row — official music, audio, lyrics, live, karaoke and instrumental uploads stay eligible.
+- `inferLanguageFromGenre` / `REGION_TAG_VALUES` raise `language` and `regional_tag` fills to **high** confidence only for an explicit genre hint (`Bengali`, `Hindi`, …) or an existing regional tag. Region is never guessed from the script alone, and `BENGALI` + `UNKNOWN_REGION` is preferred over a false country.
+- `buildCatalogSongAssessment(song)` buckets one row as `good`, `probableUploaderAsArtist`, `noisyTitle`, `missingLanguage`, `missingRegion`, `nonMusic`, or `ambiguous`, and exposes the field-level repair proposal with its confidence.
+- Script guards `detectMetadataScript` / `looksLikePlaceholderLyrics` / `extractLyricsScriptSample` reject non-strings and treat `?`-placeholder lyrics as no evidence, so corrupted legacy rows never justify a language guess.
+
+**Capture — model and import path**
+
+- `Song` gains `source_channel` + `source_channel_id` (both `select: false`, bounded) with two non-unique partial indexes on populated `source_channel_id`, so the uploading channel is recorded next to — never instead of — the performing artist.
+- `youtubeMusicNormalizer` records `channel_id` and adds the `non-music-content` ineligibility reason; `catalogProviderService.toSongSearchResult` resolves the track and drops `NON_MUSIC` candidates before they reach the catalog; `catalogUpsertService` stores the resolved title/artist plus the channel pair; `catalogImportService` persists the channel pair and fails with `catalog track has no resolvable artist` instead of writing an `Unknown Artist` placeholder.
+
+**Audit (read-only) — `npm run audit:catalog-metadata`**
+
+```bash
+cd server
+npm run audit:catalog-metadata                      # whole catalog
+npm run audit:catalog-metadata -- --song-id <id>    # bounded rows
+```
+
+Prints a JSON report with `summary`, `songIds`, `repairs`, `review`, and `knownCases`. It never writes, never connects to lyrics providers, and never emits a lyrics body.
+
+**Repair (explicit ids, dry-run by default) — `npm run repair:catalog-metadata`**
+
+```bash
+cd server
+npm run repair:catalog-metadata -- --song-id <id> [--song-id <id>...]            # dry run
+npm run repair:catalog-metadata -- --song-id <id> [--apply]                      # writes
+```
+
+Only `HIGH` confidence proposals are applied; `MEDIUM` / `LOW` stay review-only and are printed but skipped. Unknown song ids and any field outside `title`, `artist`, `language`, `regional_tag`, `recommendation_eligible` fail closed before a write. The default mode writes nothing; `--apply` is required.
+
+```bash
+node --test "server/**/*.test.js"       # 2383
+node --test "client/src/**/*.test.js"   # 893
+python -m unittest discover -s ml/tests -p "test_*.py"   # 1722 OK (3 platform skips)
+npm run build    # in client/
+```
 
 ## 🔑 Admin Credentials
 
