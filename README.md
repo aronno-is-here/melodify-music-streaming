@@ -49,6 +49,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Global + full-screen audio player surfaces** — persistent desktop player bar and mobile mini-player across shell routes, with a bottom-bar **Lyrics & Chords** drawer beside the player, plus a modernized full-screen player with safe-area handling, a right-side lyrics/chords drawer (full-width sheet on mobile), engine-confirmed playback status messaging, retry action, and complete transport controls
 - **Lyrics quality + Hindi/Bengali Romanized view** — LRCLIB lookups normalize noisy metadata before matching (YouTube noise like `(Official Video)`/`4K`/`(Lyrics)`, `- Topic`/`VEVO` artist suffixes, `feat.` credits, and `Artist - Title` prefixes) and only serve conservative high-confidence matches — exact title+artist+duration or a tightened high-confidence band; ambiguous matches return a `needs-verification` state with **no lyrics attached**, and a bounded duration-less retry/search follows the same rules (no scraping, no Musixmatch API, no database writes); `GET /api/lyrics/:id` keeps every existing field and adds `script`, `romanizedLines`, and `displayLines` computed response-side from the existing `transliteration` dependency — Hindi (Devanagari) lyrics default to readable Romanized lines with an **Original/Romanized** toggle, Bengali lyrics keep the original script by default with a **বাংলা / Romanized** toggle, and English lyrics stay untouched (original `lines`, timestamps, sync highlighting, auto-scroll, and the Lyrics/Chords tabs unchanged)
 - **Multi-source lyrics discovery + verified import** — every track is classified into a discovery category (`HINDI`, `BENGALI_BANGLADESH`, `BENGALI_INDIA`, `BENGALI`, `ENGLISH`, `OTHER`) from explicit language → script → region/genre metadata; discovery requests only **provider search pages** (lyric pages themselves are never fetched) over a shuffled per-category provider list capped at **5 sites** with **LyricFind** always the final fallback, stopping at the first EXACT/HIGH result of the strict `scoreLyricsMatch` gate (AMBIGUOUS never becomes a suggestion); only lightweight source metadata is cached (`provider`/`providerLabel`/`url`/`title`/`artist`/`confidence` — never page HTML or lyric bodies; 24h TTL, 30min negative TTL, max 8 candidates per song); `GET /api/lyrics/:id` stays a cache-only read that attaches `sourceCandidate` on `unavailable`/`ambiguous` responses, while authenticated **`GET /api/lyrics/:id/sources`** runs discovery on demand (only `?refresh=1` is accepted and it is admin-only; provider failures resolve to an empty 200 — never a 500); the player panel shows **Lyrics not available in Melodify.** with a **Possible source found** → `View Source` external link (admins additionally get **Add Verified Lyrics**, which opens the Admin music editor for that song); the Admin **Suggested Sources** section discovers/refreshes source rows with **Open Source**/**Use URL** actions, and the lyrics editor gains **Source URL** + **Notes** fields persisted through `PATCH/PUT /api/songs/:id/content` (`lyrics_source_url` http(s)-only ≤1024 chars, `lyrics_notes` ≤1000 chars) so admins can import lyrics manually with source provenance
+- **Admin Missing Lyrics workflow** — a dedicated **Missing Lyrics** Admin section (`/admin` → *Missing Lyrics*) for closing the remaining coverage gaps left by the discovery pipeline: an authenticated **`GET /api/admin/lyrics`** queue (strict `q` / `language` / `missing` / `page` / `limit` query keys only; regional language filters `hindi`, `bn-bd`, `bn-in`, `english`; `missing` defaults to on; rows expose title/artist/duration/language/lyrics-status/source/LRCLIB-status and a cached source candidate but **never** the stored lyrics body), an **Add Lyrics** dialog that accepts pasted plain text or LRC plus a `.txt`/`.lrc` file (≤256 KiB) with a live **Synced (LRC)** vs **Plain text** indicator, a **Replace verified lyrics** confirmation for songs that already have verified lyrics, and an authenticated **`POST /api/admin/lyrics/import`** for **CSV/JSON** batches (≤768 KiB, ≤500 entries) with imported/duplicate/rejected/invalid counts; saved text is validated server-side (≤100,000 chars, strict LRC timestamps, fixed error literals) and persisted with `lyrics_verified=true`, `lyrics_source='db_verified'`, `lyrics_match_status='EXACT'`, the verified-by admin id, and source provenance, so `GET /api/lyrics/:id` returns it immediately as `verified-db` and the player panel/LyricsChordsPanel pick it up with the existing script presentation (romanized Hindi display) without any extra request; both endpoints sit behind the existing `protect` then `adminOnly` middleware, duplicate protection is a 409 unless the caller explicitly replaces, and the whole workflow performs **no third-party lyric-page fetching** — only the api client talks to Melodify's own routes
 - **Engine-confirmed playback status + mobile Dashboard scroll (H01)** — playback state is exposed through an explicit `idle | loading | playing | paused | blocked | error` machine: `isPlaying` flips only from a confirmed YouTube `PLAYING` event or HTML audio `play` event (never from click intent), loading (`Loading…`), blocked (`Tap to play`), and error (`Unable to play this song.`) states render in the Now Playing panel with a real **Retry** button that re-initializes playback inside a user gesture; deterministic timeouts (10s script init → error, 8s play confirmation → blocked) with no automatic retry loops; below 768px the Dashboard is vertically scrollable again so Library, Recently Played, Trending Now, Recommended For You, and the Now Playing controls are all reachable with no horizontal overflow. Telemetry emission semantics are unchanged.
 - **Official posters** — every song's poster comes from its official **YouTube thumbnail** (`img.youtube.com`); local uploads keep their uploaded poster
 - **Now Playing panel** — song title, artist, genre, duration, release date
@@ -63,6 +64,7 @@ A full-featured music streaming web application with user authentication, a song
 - Dashboard with analytics cards (users, songs, plays, revenue)
 - User management (search, edit, ban)
 - Music catalog management (add songs + edit lyrics/chords verification metadata, discover suggested source pages, and import verified lyrics with Source URL/Notes provenance)
+- **Missing Lyrics** queue (`/admin` → *Missing Lyrics*) - searchable/filterable list of songs without usable verified local lyrics, an Add Lyrics dialog for paste or `.txt`/`.lrc` upload, and CSV/JSON bulk import
 - Content moderation (resolve reports)
 - Subscription & payment management
 - System settings
@@ -104,6 +106,10 @@ Melodify - Music Streaming Website/
 │   ├── utils/tokenPurpose.js      # Pure access/reset token purpose validation
 │   ├── utils/resetSecurity.js     # Reset endpoint matching and safe error responses
 │   ├── utils/accessTokenFreshness.js # Access-token freshness vs passwordChangedAt
+│   ├── utils/lyricsTextImport.js  # Pure pasted text / .txt / .lrc validation (incl. strict LRC)
+│   ├── utils/missingLyricsQuery.js # Pure Missing Lyrics queue query parser and filters
+│   ├── utils/bulkLyricsImport.js  # Pure CSV/JSON bulk lyric import parser and limits
+│   ├── services/adminLyricsService.js # Missing Lyrics queue, verified save, bulk import
 │   ├── services/youtubeCatalogClient.js # Bounded server-side YouTube Data API client (07/43)
 │   ├── services/youtubeMusicNormalizer.js # Pure YouTube candidate normalizer (08/43)
 │   ├── services/catalogUpsertService.js # Idempotent YouTube catalog upsert service (09/43)
@@ -118,7 +124,7 @@ Melodify - Music Streaming Website/
 │   ├── services/personalizedRecommendationService.js # Snapshot→Song availability loader (35/43)
 │   ├── services/adminRecommendationMetricsService.js # Latest evaluation-run projection for Admin metrics (38/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
-│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/catalog, /api/admin, /api/listening-events, /api/trending, /api/recommendations, /api/admin/recommendations/metrics
+│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/catalog, /api/admin, /api/admin/lyrics, /api/listening-events, /api/trending, /api/recommendations, /api/admin/recommendations/metrics
 ├── client/                        # React + Vite frontend
 │   ├── src/pages/                 # One folder per page (React)
 │   │   ├── Home/                  # Landing page
@@ -132,13 +138,13 @@ Melodify - Music Streaming Website/
 │   │   ├── Playlist/              # Playlist detail page (dynamic)
 │   │   ├── SongDetails/           # Song details page (dynamic)
 │   │   ├── Premium/               # Premium subscription page (dynamic)
-│   │   └── Admin/                 # Admin panel + login (incl. catalog-sync form, 11/43)
+│   │   └── Admin/                 # Admin panel + login (catalog-sync form 11/43, Missing Lyrics queue, Add Lyrics dialog)
 │   ├── src/components/app/        # Authenticated shell + global player bar
 │   ├── src/components/music/      # Reusable song cards/rows and control primitives
 │   ├── src/components/ui/         # Shared UI primitives (dialogs/modals)
 │   ├── src/context/               # Auth context (JWT), PlayerContext + listeningTelemetry (15–16/43)
 │   ├── src/api/                   # API client
-│   ├── src/services/              # Personalized recommendation client states/fetch (36/43)
+│   ├── src/services/              # Personalized recommendation client states/fetch (36/43) + admin missing-lyrics client
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player) + usePersonalizedRecommendations (36/43)
 │   ├── src/styles/                # Shared design tokens, shell layout, music UI primitives, and auth page styling
 │   └── public/                    # Static assets only (no static pages left)
@@ -989,6 +995,52 @@ npm run build    # in client/
 ```
 
 Responsive behavior was additionally verified headlessly at **768 / 430 / 390 / 375 / 360 px**: the document scrolls vertically, no horizontal overflow, and Library, Recently Played, Trending Now, Recommended For You, and Now Playing all scroll into view at every width.
+
+### Admin Missing Lyrics workflow
+
+A fast admin path for filling the lyrics gaps that the discovery pipeline cannot close on its own. All writes require the existing `protect` then `adminOnly` middleware chain on the new `/api/admin/lyrics` mount (mounted in `server/server.js` **before** the generic `/api/admin` router).
+
+**Queue — `GET /api/admin/lyrics`**
+
+- Query keys are exactly `q`, `language`, `missing`, `page`, `limit`; any other key is `400`.
+- `language` accepts only `hindi`, `bn-bd`, `bn-in`, `english` (plus the empty "all" value) and maps to the regional/script filter in `server/utils/missingLyricsQuery.js`; `missing` defaults to `on` and filters to songs that are not `lyrics_verified` or have empty/absent lyrics.
+- `limit` defaults to `20` and is hard-bounded to `1..50` with no silent clamping.
+- Rows are a whitelist projection — `songId`, `title`, `artist`, `album`, `duration`, `language`, `lyricsLanguage`, `regionalTag`, `lyricsStatus` (`missing|legacy|verified`), `source`, `lrclibStatus` (`stored|not-stored`), `sourceUrl`, and a cache-only `sourceCandidate` — the stored lyrics body is never returned.
+- Ordering is `title` then `_id`; pagination is classic `page`/`limit` with a `total` + `pages` envelope.
+
+**Add Lyrics — `POST /api/admin/lyrics/:songId`**
+
+- Body keys are exactly `lyrics`, `language`, `sourceUrl`, `sourceProvider`, `notes`, `format`, `replaceVerified`.
+- `server/utils/lyricsTextImport.js` validates before any database call: empty → too long (100,000 chars) → too large (256 KiB UTF-8) → extension → format. `format` is `plain` or `lrc`; LRC goes through a strict per-row check so untagged or malformed timestamps are rejected instead of silently saved as plain text.
+- **Duplicate protection** — if the song already has `lyrics_verified === true` with non-empty lyrics and `replaceVerified !== true`, the request fails with `409`. The legacy `PATCH/PUT /api/songs/:id/content` editor intentionally keeps its pre-existing behaviour; duplicate protection lives only on these new admin routes.
+- On success the song is saved with `lyrics_verified: true`, `lyrics_source: 'db_verified'`, `lyrics_match_status: 'EXACT'`, `lyrics_verified_by` (the trusted admin **user id**, never an email, because `GET /api/songs` exposes song documents to all users), plus `lyrics_source_url` / `lyrics_provider_id` / `lyrics_language` / `lyrics_notes` / `lyrics_last_checked_at`.
+- The response carries a `presentation` block (`plain`, `synced`, `script`, `romanizedLines`, `displayLines`) built by the existing `withScriptPresentation`, so Hindi (Devanagari) text is romanized server-side exactly as the player already expects.
+
+**Bulk import — `POST /api/admin/lyrics/import`**
+
+- Body keys are exactly `text`, `fileName`, `format`, `replaceVerified`; the payload is bounded to **768 KiB** (under the global 2 MB JSON limit so escaped content still fits) and **500 entries** max.
+- `server/utils/bulkLyricsImport.js` parses RFC-4180 CSV (header must include `songId`) or JSON (`[...]` / `{ entries: [...] }`), validates each entry, and never truncates — invalid rows are reported, not dropped.
+- The response reports `{ imported, rejected, duplicate, invalid, total }` plus per-row `invalid` / `rejected` details and the `importedSongIds`; each import re-runs the same duplicate rule as the single-save endpoint.
+
+**Read-back — no extra work for the player**
+
+`GET /api/lyrics/:id` already checks `lyrics_verified === true` **first** and returns `verified-db` without touching LRCLIB or the discovery cache, so the saved text is visible in the Dashboard **Lyrics & Chords** drawer and Song Details on the very next request — including the script presentation/romanized toggle. `resolveLegacyLyrics` now reports `synced` only when a parsed line actually carries a timestamp, so plain pasted text is no longer advertised as synced.
+
+**Client**
+
+- `client/src/services/adminMissingLyrics.js` — path builders, file/draft validation, strict response normalizers, and api-injected `fetchMissingLyricsQueue` / `saveVerifiedLyrics` / `importVerifiedLyrics` / `findSongLyricsSources`.
+- `client/src/pages/Admin/missingLyricsUi.js` — pure view/label/pagination/count-card helpers.
+- `client/src/pages/Admin/MissingLyricsQueue.jsx` — search + language + missing-only filters, paginated table, **Open Song** / **Find Sources** / **Open Source** / **Add Lyrics** row actions, and the CSV/JSON import panel. One request per explicit filter change (generation-guarded), **no polling, no auto-retry**.
+- `client/src/pages/Admin/AddLyricsDialog.jsx` — read-only Song/Artist, editable Language/Source URL/Source provider/Lyrics/Notes, `.txt`/`.lrc`-only file input, live Synced-Plain indicator, and single-flight save.
+
+```bash
+node --test "server/**/*.test.js"       # 2329
+node --test "client/src/**/*.test.js"   # 893 (812 baseline + 81 new)
+python -m unittest discover -s ml/tests -p "test_*.py"   # 1722 OK (3 platform skips)
+npm run build    # in client/
+```
+
+No third-party lyric page is ever fetched by this workflow — full lyrics enter the database only from the admin's own paste or an authorized file upload, or from the permitted LRCLIB API.
 
 ## 🔑 Admin Credentials
 
