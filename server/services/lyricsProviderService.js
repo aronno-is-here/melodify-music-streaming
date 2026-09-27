@@ -6,6 +6,8 @@ import {
   scoreLyricsMatch,
   selectBestLyricsCandidate,
 } from './lyricsMatchScoring.js';
+import { prepareTrackForProvider } from '../utils/trackNormalization.js';
+import { withScriptPresentation } from '../utils/lyricsRomanization.js';
 
 export const LYRICS_RESOLUTION_STATUS = Object.freeze({
   VERIFIED: 'verified',
@@ -110,7 +112,7 @@ export function createLyricsProviderService({
       return {
         notFound: false,
         song,
-        lyrics: resolveLegacyLyrics(song, { source: 'verified-db' }),
+        lyrics: withScriptPresentation(resolveLegacyLyrics(song, { source: 'verified-db' })),
       };
     }
 
@@ -124,71 +126,92 @@ export function createLyricsProviderService({
     const cached = lyricsCache.get(cacheKey);
     if (cached) {
       if (cached.status === LYRICS_RESOLUTION_STATUS.UNAVAILABLE && typeof song.lyrics === 'string' && song.lyrics.trim()) {
-        return { notFound: false, song, lyrics: resolveLegacyLyrics(song) };
+        return { notFound: false, song, lyrics: withScriptPresentation(resolveLegacyLyrics(song)) };
       }
       return { notFound: false, song, lyrics: cached };
     }
 
-    const params = {
-      track_name: song.title,
-      artist_name: song.artist,
-      album_name: song.album || undefined,
+    const prepared = prepareTrackForProvider({
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      duration: song.duration,
+    });
+    const baseParams = {
+      track_name: prepared.title || song.title,
+      artist_name: prepared.artist || song.artist,
+      album_name: prepared.album || song.album || undefined,
       duration: toSeconds(song.duration) || undefined,
     };
 
-    try {
-      const exactResponse = await lrclibClient.getExact(params);
-      if (exactResponse.status === 200 && exactResponse.body) {
-        const normalized = normalizeProviderLyrics(exactResponse.body);
-        if (normalized && normalized.lines.length > 0) {
-          const match = scoreLyricsMatch({ song, candidate: exactResponse.body });
-          if (match.classification === LYRICS_MATCH_CLASS.EXACT || match.classification === LYRICS_MATCH_CLASS.HIGH) {
-            const payload = {
-              source: 'lrclib-exact',
-              status: LYRICS_RESOLUTION_STATUS.PROVIDER,
-              synced: normalized.synced,
-              lines: normalized.lines,
-              plain: normalized.plain,
-              match: match.classification,
-              provider: {
-                provider: 'lrclib',
-                providerLyricsId: normalized.providerLyricsId,
-                trackName: normalized.trackName,
-                artistName: normalized.artistName,
-                albumName: normalized.albumName,
-              },
-            };
-            lyricsCache.set(cacheKey, payload);
-            return { notFound: false, song, lyrics: payload };
-          }
-          if (match.classification === LYRICS_MATCH_CLASS.AMBIGUOUS) {
-            const payload = {
-              source: 'provider-ambiguous',
-              status: LYRICS_RESOLUTION_STATUS.AMBIGUOUS,
-              synced: false,
-              lines: [],
-              plain: '',
-              match: match.classification,
-              provider: {
-                provider: 'lrclib',
-                providerLyricsId: normalized.providerLyricsId,
-                trackName: normalized.trackName,
-                artistName: normalized.artistName,
-                albumName: normalized.albumName,
-              },
-            };
-            lyricsCache.set(cacheKey, payload, { negative: true });
-            return { notFound: false, song, lyrics: payload };
-          }
+    const acceptedPayload = (normalized, match, source) => ({
+      source,
+      status: LYRICS_RESOLUTION_STATUS.PROVIDER,
+      synced: normalized.synced,
+      lines: normalized.lines,
+      plain: normalized.plain,
+      match: match.classification,
+      provider: {
+        provider: 'lrclib',
+        providerLyricsId: normalized.providerLyricsId,
+        trackName: normalized.trackName,
+        artistName: normalized.artistName,
+        albumName: normalized.albumName,
+      },
+    });
+
+    const ambiguousPayload = (normalized) => ({
+      source: 'provider-ambiguous',
+      status: LYRICS_RESOLUTION_STATUS.AMBIGUOUS,
+      synced: false,
+      lines: [],
+      plain: '',
+      match: LYRICS_MATCH_CLASS.AMBIGUOUS,
+      provider: {
+        provider: 'lrclib',
+        providerLyricsId: normalized.providerLyricsId,
+        trackName: normalized.trackName,
+        artistName: normalized.artistName,
+        albumName: normalized.albumName,
+      },
+    });
+
+    const attemptExact = async (params) => {
+      try {
+        const response = await lrclibClient.getExact(params);
+        if (response.status !== 200 || !response.body) return null;
+        const normalized = normalizeProviderLyrics(response.body);
+        if (!normalized || normalized.lines.length === 0) return null;
+        const match = scoreLyricsMatch({ song, candidate: response.body });
+        if (match.classification === LYRICS_MATCH_CLASS.EXACT || match.classification === LYRICS_MATCH_CLASS.HIGH) {
+          return { payload: acceptedPayload(normalized, match, 'lrclib-exact'), negative: false };
         }
+        if (match.classification === LYRICS_MATCH_CLASS.AMBIGUOUS) {
+          return { payload: ambiguousPayload(normalized), negative: true };
+        }
+        return null;
+      } catch {
+        return null;
       }
-    } catch {
-      // Continue to search fallback.
+    };
+
+    let exactResult = await attemptExact(baseParams);
+    if (!exactResult && baseParams.duration !== undefined) {
+      exactResult = await attemptExact({ ...baseParams, duration: undefined });
     }
+    if (exactResult) {
+      const payload = withScriptPresentation(exactResult.payload);
+      lyricsCache.set(cacheKey, payload, exactResult.negative ? { negative: true } : undefined);
+      return { notFound: false, song, lyrics: payload };
+    }
+
+    const searchQuery = [prepared.title || song.title, prepared.artist || song.artist]
+      .filter(Boolean)
+      .join(' ');
 
     try {
       const searchResponse = await lrclibClient.search({
-        q: `${song.title} ${song.artist}`,
+        q: searchQuery,
       });
       if (searchResponse.status === 200 && Array.isArray(searchResponse.body) && searchResponse.body.length > 0) {
         const { best, classification } = selectBestLyricsCandidate(song, searchResponse.body);
@@ -210,8 +233,9 @@ export function createLyricsProviderService({
                 albumName: normalized.albumName,
               },
             };
-            lyricsCache.set(cacheKey, payload);
-            return { notFound: false, song, lyrics: payload };
+            const presented = withScriptPresentation(payload);
+            lyricsCache.set(cacheKey, presented);
+            return { notFound: false, song, lyrics: presented };
           }
         }
 
@@ -225,8 +249,9 @@ export function createLyricsProviderService({
             match: classification,
             provider: { provider: 'lrclib' },
           };
-          lyricsCache.set(cacheKey, payload, { negative: true });
-          return { notFound: false, song, lyrics: payload };
+          const presented = withScriptPresentation(payload);
+          lyricsCache.set(cacheKey, presented, { negative: true });
+          return { notFound: false, song, lyrics: presented };
         }
       }
     } catch {
@@ -234,12 +259,12 @@ export function createLyricsProviderService({
     }
 
     if (typeof song.lyrics === 'string' && song.lyrics.trim()) {
-      const payload = resolveLegacyLyrics(song);
+      const payload = withScriptPresentation(resolveLegacyLyrics(song));
       lyricsCache.set(cacheKey, payload, { negative: true });
       return { notFound: false, song, lyrics: payload };
     }
 
-    const payload = {
+    const payload = withScriptPresentation({
       source: 'unavailable',
       status: LYRICS_RESOLUTION_STATUS.UNAVAILABLE,
       synced: false,
@@ -247,7 +272,7 @@ export function createLyricsProviderService({
       plain: '',
       match: LYRICS_MATCH_CLASS.NONE,
       provider: null,
-    };
+    });
     lyricsCache.set(cacheKey, payload, { negative: true });
     return { notFound: false, song, lyrics: payload };
   };

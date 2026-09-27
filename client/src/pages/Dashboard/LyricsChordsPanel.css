@@ -161,6 +161,39 @@
   padding: 8px 0;
 }
 
+/* Original / Romanized view toggle */
+.lc-view-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.lc-view-btn {
+  background: none;
+  border: none;
+  color: var(--gray);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+  transition: color 0.2s, background 0.2s;
+}
+.lc-view-btn:hover {
+  color: var(--white);
+}
+.lc-view-btn.active {
+  background: var(--sky-blue);
+  color: var(--white);
+}
+.lc-view-btn:focus-visible {
+  outline: 2px solid var(--sky-blue);
+  outline-offset: 2px;
+}
+
 .lc-lyric-line {
   color: rgba(255, 255, 255, 0.3);
   font-size: 15px;

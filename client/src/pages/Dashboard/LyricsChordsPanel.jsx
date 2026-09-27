@@ -17,6 +17,9 @@ export default function LyricsChordsPanel({ onClose }) {
   const [activeTab, setActiveTab] = useState('lyrics');
   const [lyricsLines, setLyricsLines] = useState([]);
   const [lyricsSynced, setLyricsSynced] = useState(false);
+  const [romanizedLines, setRomanizedLines] = useState(null);
+  const [lyricsScript, setLyricsScript] = useState('other');
+  const [lyricsView, setLyricsView] = useState('original');
   const [chords, setChords] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeLineIndex, setActiveLineIndex] = useState(-1);
@@ -27,6 +30,9 @@ export default function LyricsChordsPanel({ onClose }) {
     if (!song?._id) {
       setLyricsLines([]);
       setLyricsSynced(false);
+      setRomanizedLines(null);
+      setLyricsScript('other');
+      setLyricsView('original');
       setChords(song?.chords || '');
       return;
     }
@@ -35,13 +41,23 @@ export default function LyricsChordsPanel({ onClose }) {
     setLoading(true);
     setLyricsLines([]);
     setLyricsSynced(false);
+    setRomanizedLines(null);
+    setLyricsScript('other');
+    setLyricsView('original');
     setChords(song.chords || '');
 
     api.get(`/api/lyrics/${song._id}`).then((data) => {
       if (cancelled) return;
       if (data.success) {
+        const script = typeof data.script === 'string' ? data.script : 'other';
+        const romanized = Array.isArray(data.romanizedLines) && data.romanizedLines.length > 0
+          ? data.romanizedLines
+          : null;
         setLyricsLines(data.lines || []);
         setLyricsSynced(data.synced || false);
+        setRomanizedLines(romanized);
+        setLyricsScript(script);
+        setLyricsView(script === 'devanagari' && romanized ? 'romanized' : 'original');
       }
       setLoading(false);
     }).catch(() => {
@@ -51,22 +67,31 @@ export default function LyricsChordsPanel({ onClose }) {
     return () => { cancelled = true; };
   }, [song?._id, song?.chords]);
 
+  const showRomanized = lyricsView === 'romanized'
+    && Array.isArray(romanizedLines)
+    && romanizedLines.length > 0;
+  const displayLines = showRomanized ? romanizedLines : lyricsLines;
+  const canToggleLyricsView = Boolean(romanizedLines) && lyricsLines.length > 0;
+  const lyricsViewLabels = lyricsScript === 'bengali'
+    ? { original: 'বাংলা', romanized: 'Romanized' }
+    : { original: 'Original', romanized: 'Romanized' };
+
   useEffect(() => {
-    if (!lyricsSynced || lyricsLines.length === 0) {
+    if (!lyricsSynced || displayLines.length === 0) {
       setActiveLineIndex(-1);
       return;
     }
 
     const time = player.currentTime;
     let idx = -1;
-    for (let i = lyricsLines.length - 1; i >= 0; i--) {
-      if (lyricsLines[i].time !== null && time >= lyricsLines[i].time) {
+    for (let i = displayLines.length - 1; i >= 0; i--) {
+      if (displayLines[i].time !== null && time >= displayLines[i].time) {
         idx = i;
         break;
       }
     }
     setActiveLineIndex(idx);
-  }, [player.currentTime, lyricsSynced, lyricsLines]);
+  }, [player.currentTime, lyricsSynced, displayLines]);
 
   useEffect(() => {
     if (activeLineIndex < 0 || !lyricsContainerRef.current || !activeLineRef.current) return;
@@ -132,20 +157,42 @@ export default function LyricsChordsPanel({ onClose }) {
           <div className="lc-empty">Loading...</div>
         ) : activeTab === 'lyrics' ? (
           lyricsLines.length > 0 ? (
-            <div className={`lc-lyrics${lyricsSynced ? ' synced' : ''}`}>
-              {lyricsLines.map((line, i) => {
-                const isActive = lyricsSynced && i === activeLineIndex;
-                return (
-                  <div
-                    key={`${song._id}-lyric-${i}`}
-                    ref={isActive ? activeLineRef : null}
-                    className={`lc-lyric-line${isActive ? ' active' : ''}${!lyricsSynced ? ' static' : ''}`}
+            <>
+              {canToggleLyricsView ? (
+                <div className="lc-view-toggle" role="group" aria-label="Lyrics view">
+                  <button
+                    type="button"
+                    className={`lc-view-btn${lyricsView === 'original' ? ' active' : ''}`}
+                    aria-pressed={lyricsView === 'original'}
+                    onClick={() => setLyricsView('original')}
                   >
-                    {line.text || '\u00A0'}
-                  </div>
-                );
-              })}
-            </div>
+                    {lyricsViewLabels.original}
+                  </button>
+                  <button
+                    type="button"
+                    className={`lc-view-btn${lyricsView === 'romanized' ? ' active' : ''}`}
+                    aria-pressed={lyricsView === 'romanized'}
+                    onClick={() => setLyricsView('romanized')}
+                  >
+                    {lyricsViewLabels.romanized}
+                  </button>
+                </div>
+              ) : null}
+              <div className={`lc-lyrics${lyricsSynced ? ' synced' : ''}`}>
+                {displayLines.map((line, i) => {
+                  const isActive = lyricsSynced && i === activeLineIndex;
+                  return (
+                    <div
+                      key={`${song._id}-lyric-${i}`}
+                      ref={isActive ? activeLineRef : null}
+                      className={`lc-lyric-line${isActive ? ' active' : ''}${!lyricsSynced ? ' static' : ''}`}
+                    >
+                      {line.text || '\u00A0'}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <div className="lc-empty">
               <i className="fa-solid fa-music"></i>
