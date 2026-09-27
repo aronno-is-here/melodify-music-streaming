@@ -168,7 +168,7 @@ test('canonical compound index is unique only for two non-empty string identitie
     external_id: { $type: 'string', $gt: '' },
   });
   assert.notEqual(options.sparse, true);
-  assert.equal(indexes.length, 2);
+  assert.equal(indexes.length, 4);
 });
 
 test('partial identity filter excludes missing, empty, null, and non-string scalar metadata', () => {
@@ -195,6 +195,21 @@ test('YouTube lookup index is explicitly non-unique and filters missing or empty
   assert.deepEqual(index[1].partialFilterExpression, {
     youtube_id: { $type: 'string', $gt: '' },
   });
+});
+
+test('source channel indexes are non-unique and only cover populated channel ids', () => {
+  const indexes = Song.schema.indexes().filter(([keys]) => 'source_channel_id' in keys);
+  assert.equal(indexes.length, 2);
+  const channelOnly = indexes.find(([keys]) => !('source_provider' in keys));
+  const channelProvider = indexes.find(([keys]) => 'source_provider' in keys);
+  assert.deepEqual(channelOnly[0], { source_channel_id: 1, createdAt: -1 });
+  assert.deepEqual(channelProvider[0], { source_channel_id: 1, source_provider: 1, createdAt: -1 });
+  for (const [, options] of indexes) {
+    assert.equal(options.unique, false);
+    assert.deepEqual(options.partialFilterExpression, {
+      source_channel_id: { $type: 'string', $gt: '' },
+    });
+  }
 });
 
 test('no unguarded or single-field unique identity index is defined', () => {

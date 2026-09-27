@@ -54,6 +54,8 @@ const songSchema = new mongoose.Schema(
     normalized_genre: { type: String, trim: true, select: false },
     source_provider: { type: String, trim: true, maxlength: 64, select: false },
     external_id: { type: String, trim: true, maxlength: 256, select: false },
+    source_channel: { type: String, trim: true, maxlength: 256, select: false },
+    source_channel_id: { type: String, trim: true, maxlength: 64, select: false },
     // Missing metadata must not exclude legacy songs from future recommendations.
     recommendation_eligible: { type: Boolean, default: true, select: false },
     metadata_provenance: { type: metadataProvenanceSchema, select: false },
@@ -79,6 +81,22 @@ songSchema.index(
   {
     unique: false,
     partialFilterExpression: { youtube_id: { $type: 'string', $gt: '' } },
+  }
+);
+
+songSchema.index(
+  { source_channel_id: 1, createdAt: -1 },
+  {
+    unique: false,
+    partialFilterExpression: { source_channel_id: { $type: 'string', $gt: '' } },
+  }
+);
+
+songSchema.index(
+  { source_channel_id: 1, source_provider: 1, createdAt: -1 },
+  {
+    unique: false,
+    partialFilterExpression: { source_channel_id: { $type: 'string', $gt: '' } },
   }
 );
 
