@@ -1,11 +1,13 @@
 import { MAX_VIDEO_ID_LENGTH } from './youtubeCatalogClient.js';
 import { normalizeSourceProvider, normalizeExternalId } from '../utils/catalogIdentity.js';
+import { classifyNonMusic, CATALOG_NON_MUSIC } from '../utils/catalogMetadata.js';
 
 export const YOUTUBE_SOURCE_PROVIDER = normalizeSourceProvider('youtube');
 export const YOUTUBE_MUSIC_CATEGORY_ID = '10';
 export const YOUTUBE_MUSIC_CATEGORY = 'Music';
 export const MAX_TITLE_LENGTH = 200;
 export const MAX_CHANNEL_TITLE_LENGTH = 200;
+export const MAX_CHANNEL_ID_LENGTH = 64;
 export const MAX_STATUS_VALUE_LENGTH = 64;
 export const MAX_THUMBNAIL_URL_LENGTH = 1024;
 export const TOPIC_CHANNEL_SUFFIX = ' - Topic';
@@ -20,6 +22,7 @@ export const INELIGIBILITY_REASONS = Object.freeze([
   'incompatible-upload-status',
   'missing-live-status',
   'live-content',
+  'non-music-content',
 ]);
 
 const THUMBNAIL_QUALITY_ORDER = Object.freeze(['maxres', 'standard', 'high', 'medium', 'default']);
@@ -133,6 +136,9 @@ const normalizeCategory = (categoryId) => {
 
 const evaluateEligibility = ({
   hasTitle,
+  title,
+  artist,
+  category,
   durationSeconds,
   privacyStatus,
   embeddable,
@@ -151,6 +157,12 @@ const evaluateEligibility = ({
     reasons.push('live-content');
   } else if (liveBroadcastContent !== 'none') {
     reasons.push('missing-live-status');
+  }
+  if (
+    hasTitle
+    && classifyNonMusic({ title, artist, durationSeconds, category }).classification === CATALOG_NON_MUSIC.NON_MUSIC
+  ) {
+    reasons.push('non-music-content');
   }
   return reasons;
 };
@@ -178,6 +190,9 @@ export function normalizeYouTubeVideoCandidate(video) {
 
   const ineligibilityReasons = evaluateEligibility({
     hasTitle: rawTitle !== null,
+    title: rawTitle,
+    artist: artist.artist_candidate,
+    category,
     durationSeconds,
     privacyStatus,
     embeddable,
@@ -192,6 +207,7 @@ export function normalizeYouTubeVideoCandidate(video) {
     youtube_id: videoId,
     title: rawTitle,
     channel_title: channelTitle,
+    channel_id: normalizeBoundedString(snippet.channelId, MAX_CHANNEL_ID_LENGTH),
     artist_candidate: artist.artist_candidate,
     artist_candidate_source: artist.artist_candidate_source,
     poster_url: selectThumbnailUrl(snippet.thumbnails),

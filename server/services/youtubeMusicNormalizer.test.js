@@ -539,7 +539,7 @@ test('ARTIST: artist parsing never mutates or claims canonical Song.artist', () 
 test('CANDIDATE SHAPE: bounded machine-readable fields only', () => {
   const candidate = normalizeYouTubeVideoCandidate(makeVideo());
   const allowedKeys = [
-    'source_provider', 'external_id', 'youtube_id', 'title', 'channel_title',
+    'source_provider', 'external_id', 'youtube_id', 'title', 'channel_title', 'channel_id',
     'artist_candidate', 'artist_candidate_source', 'poster_url',
     'duration_seconds', 'duration', 'category', 'youtube_category_id',
     'genre', 'language', 'privacy_status', 'upload_status', 'embeddable',
