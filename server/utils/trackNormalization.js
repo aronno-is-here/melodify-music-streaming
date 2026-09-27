@@ -159,6 +159,8 @@ export function prepareTrackForProvider({ title, artist, album, duration } = {})
     if (prefix && remainder && !isNoiseOnly(remainder, BRACKET_NOISE_WORDS) && (artistMissing || prefixMatchesArtist)) {
       normalizedTitle = remainder;
       if (artistMissing) normalizedArtist = prefix;
+    } else if (prefix && remainder && !artistMissing && remainder.toLowerCase() === normalizedArtist.toLowerCase()) {
+      normalizedTitle = prefix;
     }
   }
 

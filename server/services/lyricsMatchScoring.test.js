@@ -107,3 +107,37 @@ test('scoreLyricsMatch never classifies far-off duration as exact', () => {
   });
   assert.notEqual(result.classification, LYRICS_MATCH_CLASS.EXACT);
 });
+
+test('scoreLyricsMatch scores the derived title when the artist repeats at the end', () => {
+  const result = scoreLyricsMatch({
+    song: {
+      title: 'Opare - Bay of Bengal (Official Video)',
+      artist: 'Bay of Bengal',
+      duration: '4:25',
+    },
+    candidate: {
+      trackName: 'Opare',
+      artistName: 'Bay of Bengal',
+      albumName: 'Bay of Bengal Songs',
+      duration: 265,
+    },
+  });
+  assert.equal(result.classification, LYRICS_MATCH_CLASS.EXACT);
+});
+
+test('scoreLyricsMatch scores the derived title when the artist leads the title', () => {
+  const result = scoreLyricsMatch({
+    song: {
+      title: 'Arijit Singh - Tum Hi Ho (Official Video)',
+      artist: 'Arijit Singh',
+      duration: '4:05',
+    },
+    candidate: {
+      trackName: 'Tum Hi Ho',
+      artistName: 'Arijit Singh',
+      duration: 245,
+    },
+  });
+  assert.equal(result.classification, LYRICS_MATCH_CLASS.EXACT);
+});
+
