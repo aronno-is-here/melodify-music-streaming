@@ -176,3 +176,38 @@ test('reports unavailable when nothing matches and no legacy lyrics exist', asyn
   assert.equal(result.lyrics.source, 'unavailable');
   assert.deepEqual(result.lyrics.lines, []);
 });
+
+test('verified devanagari lyrics expose romanized presentation without provider call', async () => {
+  const { service, calls } = makeService({
+    song: {
+      ...SONG,
+      title: 'Tum Hi Ho',
+      lyrics: 'तुम ही हो',
+      lyrics_verified: true,
+    },
+    getExact: () => {
+      throw new Error('getExact must not be called');
+    },
+    search: () => {
+      throw new Error('search must not be called');
+    },
+  });
+  const result = await service.resolveSongLyrics(SONG._id);
+  assert.equal(result.lyrics.source, 'verified-db');
+  assert.equal(result.lyrics.script, 'devanagari');
+  assert.equal(result.lyrics.lines[0].text, 'तुम ही हो');
+  assert.equal(result.lyrics.romanizedLines[0].text, 'tum hi ho');
+  assert.equal(result.lyrics.displayLines[0].text, 'tum hi ho');
+  assert.equal(calls.exact.length, 0);
+  assert.equal(calls.search.length, 0);
+});
+
+test('verified english lyrics expose original display lines only', async () => {
+  const { service } = makeService({
+    song: { ...SONG, lyrics: 'Comfortably Numb', lyrics_verified: true },
+  });
+  const result = await service.resolveSongLyrics(SONG._id);
+  assert.equal(result.lyrics.script, 'latin');
+  assert.equal(result.lyrics.romanizedLines, null);
+  assert.equal(result.lyrics.displayLines, result.lyrics.lines);
+});

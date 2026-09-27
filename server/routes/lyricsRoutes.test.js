@@ -102,3 +102,44 @@ test('lyrics route hides internal errors behind a fixed message', async () => {
   assert.equal(response.statusCode, 500);
   assert.deepEqual(response.body, { success: false, error: 'failed to load lyrics' });
 });
+
+test('lyrics route exposes romanized presentation fields for verified hindi lyrics', async () => {
+  const response = await invokeLyricsRoute({
+    song: {
+      _id: '64b64b64b64b64b64b64b640',
+      title: 'Tum Hi Ho',
+      artist: 'Arijit Singh',
+      duration: '4:05',
+      lyrics: 'तुम ही हो',
+      lyrics_verified: true,
+      lyrics_language: 'hi',
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.source, 'verified-db');
+  assert.equal(response.body.lyricsVerified, true);
+  assert.equal(response.body.script, 'devanagari');
+  assert.equal(response.body.lines[0].text, 'तुम ही हो');
+  assert.equal(response.body.romanizedLines[0].text, 'tum hi ho');
+  assert.equal(response.body.displayLines[0].text, 'tum hi ho');
+});
+
+test('lyrics route keeps original lines and null romanization for english lyrics', async () => {
+  const response = await invokeLyricsRoute({
+    song: {
+      _id: '64b64b64b64b64b64b64b640',
+      title: 'Comfortably Numb',
+      artist: 'Pink Floyd',
+      duration: '6:22',
+      lyrics: 'Hello? (Hello? Hello? Hello?)',
+      lyrics_verified: true,
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.script, 'latin');
+  assert.equal(response.body.romanizedLines, null);
+  assert.deepEqual(response.body.displayLines, response.body.lines);
+});

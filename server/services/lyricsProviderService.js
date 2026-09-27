@@ -7,6 +7,7 @@ import {
   selectBestLyricsCandidate,
 } from './lyricsMatchScoring.js';
 import { prepareTrackForProvider } from '../utils/trackNormalization.js';
+import { withScriptPresentation } from '../utils/lyricsRomanization.js';
 
 export const LYRICS_RESOLUTION_STATUS = Object.freeze({
   VERIFIED: 'verified',
@@ -111,7 +112,7 @@ export function createLyricsProviderService({
       return {
         notFound: false,
         song,
-        lyrics: resolveLegacyLyrics(song, { source: 'verified-db' }),
+        lyrics: withScriptPresentation(resolveLegacyLyrics(song, { source: 'verified-db' })),
       };
     }
 
@@ -125,7 +126,7 @@ export function createLyricsProviderService({
     const cached = lyricsCache.get(cacheKey);
     if (cached) {
       if (cached.status === LYRICS_RESOLUTION_STATUS.UNAVAILABLE && typeof song.lyrics === 'string' && song.lyrics.trim()) {
-        return { notFound: false, song, lyrics: resolveLegacyLyrics(song) };
+        return { notFound: false, song, lyrics: withScriptPresentation(resolveLegacyLyrics(song)) };
       }
       return { notFound: false, song, lyrics: cached };
     }
@@ -199,8 +200,9 @@ export function createLyricsProviderService({
       exactResult = await attemptExact({ ...baseParams, duration: undefined });
     }
     if (exactResult) {
-      lyricsCache.set(cacheKey, exactResult.payload, exactResult.negative ? { negative: true } : undefined);
-      return { notFound: false, song, lyrics: exactResult.payload };
+      const payload = withScriptPresentation(exactResult.payload);
+      lyricsCache.set(cacheKey, payload, exactResult.negative ? { negative: true } : undefined);
+      return { notFound: false, song, lyrics: payload };
     }
 
     const searchQuery = [prepared.title || song.title, prepared.artist || song.artist]
@@ -231,8 +233,9 @@ export function createLyricsProviderService({
                 albumName: normalized.albumName,
               },
             };
-            lyricsCache.set(cacheKey, payload);
-            return { notFound: false, song, lyrics: payload };
+            const presented = withScriptPresentation(payload);
+            lyricsCache.set(cacheKey, presented);
+            return { notFound: false, song, lyrics: presented };
           }
         }
 
@@ -246,8 +249,9 @@ export function createLyricsProviderService({
             match: classification,
             provider: { provider: 'lrclib' },
           };
-          lyricsCache.set(cacheKey, payload, { negative: true });
-          return { notFound: false, song, lyrics: payload };
+          const presented = withScriptPresentation(payload);
+          lyricsCache.set(cacheKey, presented, { negative: true });
+          return { notFound: false, song, lyrics: presented };
         }
       }
     } catch {
@@ -255,12 +259,12 @@ export function createLyricsProviderService({
     }
 
     if (typeof song.lyrics === 'string' && song.lyrics.trim()) {
-      const payload = resolveLegacyLyrics(song);
+      const payload = withScriptPresentation(resolveLegacyLyrics(song));
       lyricsCache.set(cacheKey, payload, { negative: true });
       return { notFound: false, song, lyrics: payload };
     }
 
-    const payload = {
+    const payload = withScriptPresentation({
       source: 'unavailable',
       status: LYRICS_RESOLUTION_STATUS.UNAVAILABLE,
       synced: false,
@@ -268,7 +272,7 @@ export function createLyricsProviderService({
       plain: '',
       match: LYRICS_MATCH_CLASS.NONE,
       provider: null,
-    };
+    });
     lyricsCache.set(cacheKey, payload, { negative: true });
     return { notFound: false, song, lyrics: payload };
   };
