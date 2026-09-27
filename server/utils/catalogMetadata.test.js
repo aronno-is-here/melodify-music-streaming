@@ -9,6 +9,7 @@ import {
   detectMetadataScript,
   detectUploaderAsArtist,
   extractCatalogArtistCandidate,
+  extractLyricsScriptSample,
   extractTrackTitle,
   inferCatalogLanguage,
   inferCatalogRegionTag,
@@ -17,6 +18,8 @@ import {
   isLabelLikeArtist,
   isNoisyTitle,
   isVersionSensitiveTitle,
+  looksLikePlaceholderLyrics,
+  LYRICS_PLACEHOLDER_PATTERN,
   normalizeCatalogText,
   resolveCatalogTrack,
   splitCatalogTitleSegments,
@@ -36,6 +39,24 @@ test('detectMetadataScript classifies scripts', () => {
   assert.equal(detectMetadataScript('\u0915\u0948\u0938\u0947 \u092c\u0924\u093e\u090f\u0902'), 'devanagari');
   assert.equal(detectMetadataScript(''), 'unknown');
   assert.equal(detectMetadataScript('???? ????'), 'unknown');
+});
+
+test('placeholder lyrics detection stays linear on long non-placeholder bodies', () => {
+  const mixed = Array.from({ length: 400 }, (_, index) => (index % 3 === 2 ? ',' : '?')).join(' ');
+  const started = process.hrtime.bigint();
+  assert.equal(looksLikePlaceholderLyrics(mixed), false);
+  assert.equal(LYRICS_PLACEHOLDER_PATTERN.test(mixed), false);
+  assert.equal(looksLikePlaceholderLyrics('  ? ? ?  \n'), true);
+  assert.equal(looksLikePlaceholderLyrics('plain text'), false);
+  assert.equal(looksLikePlaceholderLyrics('   \n\t '), false);
+  assert.equal(looksLikePlaceholderLyrics(''), false);
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+  assert.ok(elapsedMs < 1000, `placeholder detection took ${elapsedMs}ms`);
+  assert.equal(extractLyricsScriptSample(mixed).length > 0, true);
+  assert.equal(extractLyricsScriptSample(' ? ? ? '), '');
+  assert.equal(extractLyricsScriptSample('[00:12.00] one\n[00:15.50] two'), 'one two');
+  assert.throws(() => looksLikePlaceholderLyrics(null), TypeError);
+  assert.throws(() => extractLyricsScriptSample(1), TypeError);
 });
 
 test('classifyNonMusic flags strong interview and podcast titles', () => {

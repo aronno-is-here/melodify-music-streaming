@@ -153,7 +153,7 @@ export function normalizeCatalogText(value, maxLength = MAX_CATALOG_TITLE_LENGTH
   return normalized;
 }
 
-export const LYRICS_PLACEHOLDER_PATTERN = /^\s*\?+(?:\s*\?+)*\s*$/;
+export const LYRICS_PLACEHOLDER_PATTERN = /^(?=[?\s]*\?)[\s?]+$/;
 export const MAX_LYRICS_SCRIPT_SAMPLE_LENGTH = 4000;
 
 export function looksLikePlaceholderLyrics(raw) {
