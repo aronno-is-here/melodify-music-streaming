@@ -8,7 +8,7 @@ import {
   CATALOG_REPAIR_CONFIDENCE,
 } from '../utils/catalogMetadata.js';
 
-export const REPAIR_CATALOG_METADATA_USAGE = 'node server/scripts/repairCatalogMetadata.js --song-id <song-id> [--song-id <song-id>] [--apply]';
+export const REPAIR_CATALOG_METADATA_USAGE = 'node server/scripts/repairCatalogMetadata.js --song-id <song-id> [--song-id <song-id>...] [--apply] (dry-run by default; --apply writes)';
 
 export const REPAIRABLE_FIELDS = Object.freeze([
   'title',

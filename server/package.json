@@ -9,6 +9,8 @@
     "dev": "nodemon server.js",
     "seed": "node seed.js",
     "audit:catalog-content": "node scripts/auditCatalogContent.js",
+    "audit:catalog-metadata": "node scripts/auditCatalogMetadata.js",
+    "repair:catalog-metadata": "node scripts/repairCatalogMetadata.js",
     "catalog:import-region": "node scripts/importRegionalCatalog.js",
     "lyrics:prefetch": "node scripts/prefetchLyrics.js"
   },
