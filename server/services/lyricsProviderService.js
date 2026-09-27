@@ -91,7 +91,7 @@ function resolveLegacyLyrics(song, { source = 'legacy-unverified' } = {}) {
   return {
     source,
     status: source === 'verified-db' ? LYRICS_RESOLUTION_STATUS.VERIFIED : LYRICS_RESOLUTION_STATUS.LEGACY_UNVERIFIED,
-    synced: syncedLines.length > 0,
+    synced: syncedLines.some((line) => line.time !== null),
     lines: syncedLines.length > 0 ? syncedLines : plainLines(plain),
     plain,
     match: null,

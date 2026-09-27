@@ -44,6 +44,7 @@ test('nav: existing Admin items remain present and order preserved except insert
     'dashboard',
     'users',
     'music',
+    'missing-lyrics',
     'karaoke',
     'moderation',
     'subscriptions',

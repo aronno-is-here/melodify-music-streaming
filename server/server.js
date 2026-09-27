@@ -27,6 +27,7 @@ import listeningEventRoutes from './routes/listeningEventRoutes.js';
 import trendingRoutes from './routes/trendingRoutes.js';
 import recommendationRoutes from './routes/recommendationRoutes.js';
 import adminRecommendationRoutes from './routes/adminRecommendationRoutes.js';
+import adminLyricsRoutes from './routes/adminLyricsRoutes.js';
 import { isSensitiveResetPath, getSafeResetError } from './utils/resetSecurity.js';
 
 dotenv.config();
@@ -101,6 +102,7 @@ app.use('/api/playlists', playlistRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/admin/recommendations', adminRecommendationRoutes);
+app.use('/api/admin/lyrics', adminLyricsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/lyrics', lyricsRoutes);
