@@ -59,3 +59,51 @@ test('selectBestLyricsCandidate returns highest-scoring result', () => {
   assert.equal(selected.classification, LYRICS_MATCH_CLASS.EXACT);
   assert.equal(selected.best.trackName, 'Die With A Smile');
 });
+
+test('scoreLyricsMatch accepts noisy title and artist as exact after normalization', () => {
+  const result = scoreLyricsMatch({
+    song: {
+      title: 'Tum Hi Ho (Official Video)',
+      artist: 'Arijit Singh - Topic',
+      duration: '4:05',
+    },
+    candidate: {
+      trackName: 'Tum Hi Ho',
+      artistName: 'Arijit Singh',
+      duration: 245,
+    },
+  });
+  assert.equal(result.classification, LYRICS_MATCH_CLASS.EXACT);
+});
+
+test('scoreLyricsMatch keeps unknown-artist candidate ambiguous instead of high', () => {
+  const result = scoreLyricsMatch({
+    song: { title: 'Tum Hi Ho', artist: 'Arijit Singh', duration: '4:05' },
+    candidate: {
+      trackName: 'Tum Hi Ho',
+      artistName: 'Unknown Singers',
+      duration: 245,
+    },
+  });
+  assert.equal(result.classification, LYRICS_MATCH_CLASS.AMBIGUOUS);
+});
+
+test('scoreLyricsMatch lets album and duration raise the score when available', () => {
+  const song = { title: 'Tum Hi Ho', artist: 'Arijit Singh', album: 'Hamari Adhuri Kahani', duration: '4:05' };
+  const candidate = { trackName: 'Tum Hi Ho', artistName: 'Arijit Singh' };
+  const withoutExtras = scoreLyricsMatch({ song, candidate });
+  const withExtras = scoreLyricsMatch({
+    song,
+    candidate: { ...candidate, albumName: 'Hamari Adhuri Kahani', duration: 245 },
+  });
+  assert.ok(withExtras.score > withoutExtras.score);
+  assert.equal(withExtras.classification, LYRICS_MATCH_CLASS.EXACT);
+});
+
+test('scoreLyricsMatch never classifies far-off duration as exact', () => {
+  const result = scoreLyricsMatch({
+    song: { title: 'Tum Hi Ho', artist: 'Arijit Singh', duration: '4:05' },
+    candidate: { trackName: 'Tum Hi Ho', artistName: 'Arijit Singh', duration: 600 },
+  });
+  assert.notEqual(result.classification, LYRICS_MATCH_CLASS.EXACT);
+});

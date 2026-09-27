@@ -1,3 +1,9 @@
+import {
+  normalizeTrackAlbum,
+  normalizeTrackArtist,
+  normalizeTrackTitle,
+} from '../utils/trackNormalization.js';
+
 export const LYRICS_MATCH_CLASS = Object.freeze({
   EXACT: 'EXACT',
   HIGH: 'HIGH',
@@ -53,12 +59,12 @@ const hasVersionMarker = (value) => {
 };
 
 export function scoreLyricsMatch({ song, candidate }) {
-  const songTitle = normalize(song?.title);
-  const songArtist = normalize(song?.artist);
-  const songAlbum = normalize(song?.album);
-  const candidateTitle = normalize(candidate?.trackName || candidate?.title || candidate?.track_name);
-  const candidateArtist = normalize(candidate?.artistName || candidate?.artist || candidate?.artist_name);
-  const candidateAlbum = normalize(candidate?.albumName || candidate?.album || candidate?.album_name);
+  const songTitle = normalize(normalizeTrackTitle(song?.title));
+  const songArtist = normalize(normalizeTrackArtist(song?.artist));
+  const songAlbum = normalize(normalizeTrackAlbum(song?.album));
+  const candidateTitle = normalize(normalizeTrackTitle(candidate?.trackName || candidate?.title || candidate?.track_name));
+  const candidateArtist = normalize(normalizeTrackArtist(candidate?.artistName || candidate?.artist || candidate?.artist_name));
+  const candidateAlbum = normalize(normalizeTrackAlbum(candidate?.albumName || candidate?.album || candidate?.album_name));
 
   if (!songTitle || !songArtist || !candidateTitle || !candidateArtist) {
     return { classification: LYRICS_MATCH_CLASS.NONE, score: 0, reasons: ['missing-required-fields'] };
@@ -97,7 +103,7 @@ export function scoreLyricsMatch({ song, candidate }) {
     return { classification: LYRICS_MATCH_CLASS.EXACT, score, reasons: ['exact-title-artist'] };
   }
 
-  if (score >= 2.1 && titleSimilarity >= 0.5 && artistSimilarity >= 0.5 && !versionMismatch) {
+  if (score >= 2.1 && titleSimilarity >= 0.6 && (artistExact || artistSimilarity >= 0.6) && !versionMismatch) {
     return { classification: LYRICS_MATCH_CLASS.HIGH, score, reasons: ['high-confidence'] };
   }
 
