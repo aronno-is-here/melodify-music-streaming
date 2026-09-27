@@ -1,7 +1,24 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import usePlayer from '../../hooks/usePlayer.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import cssRaw from './LyricsChordsPanel.css?raw';
+
+const SOURCE_FALLBACK_STATUSES = new Set(['unavailable', 'ambiguous']);
+const hasSourceFallbackStatus = (status) => typeof status === 'string' && SOURCE_FALLBACK_STATUSES.has(status);
+const toSourceCandidate = (value) => (
+  value && typeof value === 'object' && typeof value.url === 'string' && value.url
+    ? {
+      provider: typeof value.provider === 'string' ? value.provider : '',
+      providerLabel: typeof value.providerLabel === 'string' ? value.providerLabel : '',
+      url: value.url,
+      title: typeof value.title === 'string' ? value.title : '',
+      artist: typeof value.artist === 'string' ? value.artist : '',
+      confidence: typeof value.confidence === 'string' ? value.confidence : '',
+    }
+    : null
+);
 
 export default function LyricsChordsPanel({ onClose }) {
   useLayoutEffect(() => {
@@ -13,6 +30,9 @@ export default function LyricsChordsPanel({ onClose }) {
   }, []);
 
   const player = usePlayer();
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const isAdmin = auth?.user?.role === 'admin';
   const song = player.currentSong;
   const [activeTab, setActiveTab] = useState('lyrics');
   const [lyricsLines, setLyricsLines] = useState([]);
@@ -22,6 +42,7 @@ export default function LyricsChordsPanel({ onClose }) {
   const [lyricsView, setLyricsView] = useState('original');
   const [chords, setChords] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sourceCandidate, setSourceCandidate] = useState(null);
   const [activeLineIndex, setActiveLineIndex] = useState(-1);
   const lyricsContainerRef = useRef(null);
   const activeLineRef = useRef(null);
@@ -34,6 +55,7 @@ export default function LyricsChordsPanel({ onClose }) {
       setLyricsScript('other');
       setLyricsView('original');
       setChords(song?.chords || '');
+      setSourceCandidate(null);
       return;
     }
 
@@ -45,6 +67,7 @@ export default function LyricsChordsPanel({ onClose }) {
     setLyricsScript('other');
     setLyricsView('original');
     setChords(song.chords || '');
+    setSourceCandidate(null);
 
     api.get(`/api/lyrics/${song._id}`).then((data) => {
       if (cancelled) return;
@@ -58,6 +81,19 @@ export default function LyricsChordsPanel({ onClose }) {
         setRomanizedLines(romanized);
         setLyricsScript(script);
         setLyricsView(script === 'devanagari' && romanized ? 'romanized' : 'original');
+
+        const cachedCandidate = toSourceCandidate(data.sourceCandidate);
+        if (cachedCandidate) {
+          setSourceCandidate(cachedCandidate);
+        } else if (hasSourceFallbackStatus(data.status) && localStorage.getItem('melodify_token')) {
+          api.get(`/api/lyrics/${song._id}/sources`).then((sources) => {
+            if (cancelled) return;
+            const discovered = Array.isArray(sources?.candidates)
+              ? toSourceCandidate(sources.candidates[0])
+              : null;
+            if (discovered) setSourceCandidate(discovered);
+          }).catch(() => {});
+        }
       }
       setLoading(false);
     }).catch(() => {
@@ -66,6 +102,11 @@ export default function LyricsChordsPanel({ onClose }) {
 
     return () => { cancelled = true; };
   }, [song?._id, song?.chords]);
+
+  const openAdminEditor = () => {
+    if (!song?._id) return;
+    navigate('/admin', { state: { section: 'music', editSongId: song._id } });
+  };
 
   const showRomanized = lyricsView === 'romanized'
     && Array.isArray(romanizedLines)
@@ -196,7 +237,29 @@ export default function LyricsChordsPanel({ onClose }) {
           ) : (
             <div className="lc-empty">
               <i className="fa-solid fa-music"></i>
-              <p>Lyrics not available for this song.</p>
+              <p>Lyrics not available in Melodify.</p>
+              {sourceCandidate ? (
+                <div className="lc-source-fallback">
+                  <span className="lc-source-label">Possible source found:</span>
+                  <a
+                    className="lc-source-link"
+                    href={sourceCandidate.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Source
+                  </a>
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      className="lc-source-add"
+                      onClick={openAdminEditor}
+                    >
+                      Add Verified Lyrics
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           )
         ) : chords.trim() ? (
