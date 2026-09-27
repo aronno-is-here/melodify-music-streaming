@@ -73,3 +73,42 @@ test('song content route updates valid metadata payload', async () => {
     Song.findByIdAndUpdate = original;
   }
 });
+
+test('song content route accepts lyrics source url and notes', async () => {
+  const handler = getContentHandler('put');
+  const original = Song.findByIdAndUpdate;
+  Song.findByIdAndUpdate = async (_id, update) => ({ _id: 'song-1', ...update });
+  try {
+    const res = createRes();
+    await handler({
+      params: { id: 'song-1' },
+      body: {
+        lyrics_source_url: 'https://genius.com/Artist-Track-lyrics',
+        lyrics_notes: '  verified against the discovered source  ',
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.song.lyrics_source_url, 'https://genius.com/Artist-Track-lyrics');
+    assert.equal(res.body.song.lyrics_notes, 'verified against the discovered source');
+  } finally {
+    Song.findByIdAndUpdate = original;
+  }
+});
+
+test('song content route rejects invalid lyrics source urls', async () => {
+  const handler = getContentHandler('patch');
+  const res = createRes();
+  await handler({ params: { id: 'x' }, body: { lyrics_source_url: 'javascript:alert(1)' } }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error, 'Invalid lyrics source URL');
+});
+
+test('song content route rejects overlong lyrics notes', async () => {
+  const handler = getContentHandler('patch');
+  const res = createRes();
+  await handler({ params: { id: 'x' }, body: { lyrics_notes: 'a'.repeat(1001) } }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error, 'Invalid lyrics notes');
+});
