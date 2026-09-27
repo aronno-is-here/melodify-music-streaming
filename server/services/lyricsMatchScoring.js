@@ -2,6 +2,7 @@ import {
   normalizeTrackAlbum,
   normalizeTrackArtist,
   normalizeTrackTitle,
+  prepareTrackForProvider,
 } from '../utils/trackNormalization.js';
 
 export const LYRICS_MATCH_CLASS = Object.freeze({
@@ -59,7 +60,13 @@ const hasVersionMarker = (value) => {
 };
 
 export function scoreLyricsMatch({ song, candidate }) {
-  const songTitle = normalize(normalizeTrackTitle(song?.title));
+  const preparedTitle = prepareTrackForProvider({
+    title: song?.title,
+    artist: song?.artist,
+    album: song?.album,
+    duration: song?.duration,
+  }).title;
+  const songTitle = normalize(preparedTitle || normalizeTrackTitle(song?.title));
   const songArtist = normalize(normalizeTrackArtist(song?.artist));
   const songAlbum = normalize(normalizeTrackAlbum(song?.album));
   const candidateTitle = normalize(normalizeTrackTitle(candidate?.trackName || candidate?.title || candidate?.track_name));

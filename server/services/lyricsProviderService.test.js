@@ -118,6 +118,42 @@ test('normalizes noisy title and artist into provider queries', async () => {
   assert.equal(calls.search[0].q, 'Tum Hi Ho Arijit Singh');
 });
 
+test('queries and accepts the derived title when the artist repeats at the end', async () => {
+  const { service, calls } = makeService({
+    song: {
+      ...SONG,
+      title: 'Opare - Bay of Bengal (Official Video)',
+      artist: 'Bay of Bengal',
+      album: '',
+      duration: '4:25',
+    },
+    getExact: (params) => (params.track_name === 'Opare'
+      ? {
+        status: 200,
+        body: {
+          id: 777,
+          trackName: 'Opare',
+          artistName: 'Bay of Bengal',
+          albumName: 'Bay of Bengal Songs',
+          duration: 265,
+          syncedLyrics: '[00:01.00]Line one',
+          plainLyrics: 'Line one',
+        },
+      }
+      : { status: 404, body: null }),
+    search: () => {
+      throw new Error('search must not be called');
+    },
+  });
+  const result = await service.resolveSongLyrics(SONG._id);
+  assert.equal(calls.exact[0].track_name, 'Opare');
+  assert.equal(calls.exact[0].artist_name, 'Bay of Bengal');
+  assert.equal(result.lyrics.status, 'provider');
+  assert.equal(result.lyrics.source, 'lrclib-exact');
+  assert.equal(result.lyrics.match, 'EXACT');
+  assert.equal(result.lyrics.lines.length, 1);
+});
+
 test('retries getExact without duration when duration attempt fails', async () => {
   const { service, calls } = makeService({
     song: SONG,

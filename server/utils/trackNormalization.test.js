@@ -63,6 +63,24 @@ test('prepareTrackForProvider adopts artist prefix when artist is missing', () =
   assert.equal(result.artist, 'Pritam');
 });
 
+test('prepareTrackForProvider drops trailing artist suffix from the title', () => {
+  const result = prepareTrackForProvider({
+    title: 'Opare - Bay of Bengal (Official Video)',
+    artist: 'Bay of Bengal',
+  });
+  assert.equal(result.title, 'Opare');
+  assert.equal(result.artist, 'Bay of Bengal');
+});
+
+test('prepareTrackForProvider keeps trailing suffix that does not match the artist', () => {
+  const result = prepareTrackForProvider({
+    title: 'Opare - Bay of Bengal (Official Video)',
+    artist: 'J A F Music',
+  });
+  assert.equal(result.title, 'Opare - Bay of Bengal');
+  assert.equal(result.artist, 'J A F Music');
+});
+
 test('prepareTrackForProvider handles empty input without throwing', () => {
   const result = prepareTrackForProvider({});
   assert.equal(result.title, '');
