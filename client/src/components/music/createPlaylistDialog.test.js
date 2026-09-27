@@ -123,3 +123,25 @@ test('create playlist button stays accessible with a clear label and focus state
   assert.equal(/aria-hidden="true"/.test(buttonBlock), true);
   assert.equal(/>Create Playlist</.test(buttonBlock.replace(/\n/g, '')), true);
 });
+
+test('suggestion scrollbar uses a thin cyan theme with a dark rounded track', () => {
+  const baseRule = libraryCss.match(/\.create-playlist-suggestions \{[^}]*\}/)[0];
+  assert.match(baseRule, /overflow-y: auto/);
+  assert.match(baseRule, /max-height: 260px/);
+  assert.match(baseRule, /scrollbar-width: thin/);
+  assert.match(baseRule, /scrollbar-color: var\(--mel-cyan\) rgba\(3, 9, 19, 0\.6\)/);
+});
+
+test('suggestion scrollbar styles webkit track, thumb, and hover without layout shift', () => {
+  assert.match(libraryCss, /\.create-playlist-suggestions::-webkit-scrollbar \{[^}]*width: 7px/);
+  assert.match(libraryCss, /\.create-playlist-suggestions::-webkit-scrollbar-track \{[^}]*background: rgba\(3, 9, 19, 0\.6\)/);
+  assert.match(libraryCss, /\.create-playlist-suggestions::-webkit-scrollbar-track \{[^}]*border-radius: var\(--mel-pill\)/);
+  assert.match(libraryCss, /\.create-playlist-suggestions::-webkit-scrollbar-thumb \{[^}]*background: var\(--mel-cyan\)/);
+  assert.match(libraryCss, /\.create-playlist-suggestions::-webkit-scrollbar-thumb \{[^}]*border-radius: var\(--mel-pill\)/);
+  assert.match(libraryCss, /\.create-playlist-suggestions::-webkit-scrollbar-thumb:hover \{[^}]*background: #31c9ec/);
+});
+
+test('scrollbar styling stays scoped to the suggestion list', () => {
+  assert.equal(/^(html|body)[^{]*::-webkit-scrollbar/m.test(libraryCss), false);
+  assert.equal(/scrollbar-color/.test(libraryCss.replace(/\.create-playlist-suggestions \{[^}]*\}/g, '')), false);
+});

@@ -182,6 +182,27 @@
   gap: 8px;
   max-height: 260px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mel-cyan) rgba(3, 9, 19, 0.6);
+}
+
+.create-playlist-suggestions::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.create-playlist-suggestions::-webkit-scrollbar-track {
+  background: rgba(3, 9, 19, 0.6);
+  border-radius: var(--mel-pill);
+}
+
+.create-playlist-suggestions::-webkit-scrollbar-thumb {
+  background: var(--mel-cyan);
+  border-radius: var(--mel-pill);
+}
+
+.create-playlist-suggestions::-webkit-scrollbar-thumb:hover {
+  background: #31c9ec;
 }
 
 .create-playlist-status {
