@@ -5,14 +5,16 @@ import { api } from '../../api/client.js';
 import cssRaw from './Admin.css?raw';
 import KaraokeForm from './KaraokeForm.jsx';
 import CatalogSyncPanel from './CatalogSyncPanel.jsx';
+import MissingLyricsQueue from './MissingLyricsQueue.jsx';
 import AdminAIRecommendation from './AdminAIRecommendation.jsx';
 
-const SECTIONS = ['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
+const SECTIONS = ['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
 
-const EXISTING_SECTIONS = new Set(['dashboard', 'users', 'music', 'karaoke', 'moderation', 'subscriptions']);
+const EXISTING_SECTIONS = new Set(['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions']);
 
 const sectionLabel = (s) => {
   if (s === 'ai-recommendation') return 'AI Recommendation';
+  if (s === 'missing-lyrics') return 'Missing Lyrics';
   if (s === 'karaoke') return 'Melodify Studio';
   return s.charAt(0).toUpperCase() + s.slice(1).replace('moderation', ' Content Moderation');
 };
@@ -617,6 +619,8 @@ export default function Admin() {
               </table>
             </div>
           )}
+
+          {section === 'missing-lyrics' && <MissingLyricsQueue />}
 
           {section === 'karaoke' && (
             <div id="karaoke" className="card">
