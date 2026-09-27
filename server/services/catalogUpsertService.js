@@ -1,5 +1,6 @@
 import Song from '../models/Song.js';
 import { normalizeSourceProvider, normalizeExternalId } from '../utils/catalogIdentity.js';
+import { resolveCatalogTrack, isVersionSensitiveTitle } from '../utils/catalogMetadata.js';
 import { formatDurationSeconds } from './youtubeMusicNormalizer.js';
 
 export const YOUTUBE_CATALOG_PROVIDER = normalizeSourceProvider('youtube');
@@ -93,6 +94,14 @@ export const createCatalogUpsertService = ({ SongModel = Song, now = () => new D
     if (typeof candidate.category === 'string' && candidate.category) {
       $set.category = candidate.category;
     }
+    const refreshChannel = normalizeContextString(candidate.channel_title, MAX_ARTIST_LENGTH);
+    if (refreshChannel !== null) {
+      $set.source_channel = refreshChannel;
+    }
+    const refreshChannelId = normalizeContextString(candidate.channel_id, 64);
+    if (refreshChannelId !== null) {
+      $set.source_channel_id = refreshChannelId;
+    }
     if (typeof candidate.recommendation_eligible === 'boolean') {
       $set.recommendation_eligible = candidate.recommendation_eligible;
     }
@@ -129,10 +138,23 @@ export const createCatalogUpsertService = ({ SongModel = Song, now = () => new D
       return skippedResult('ineligible');
     }
 
-    const artist = normalizeContextString(candidate.artist_candidate, MAX_ARTIST_LENGTH);
+    const versionSensitive = isVersionSensitiveTitle(title);
+    const resolved = versionSensitive
+      ? null
+      : resolveCatalogTrack({
+        title,
+        channelTitle: candidate.channel_title,
+        artistCandidate: candidate.artist_candidate,
+        artistCandidateSource: candidate.artist_candidate_source,
+      });
+    const storedTitle = versionSensitive || !resolved?.title ? title : resolved.title;
+    const artistValue = versionSensitive ? candidate.artist_candidate : resolved?.artist;
+    const artist = normalizeContextString(artistValue, MAX_ARTIST_LENGTH);
     if (artist === null) {
       return skippedResult('missing-artist');
     }
+    const sourceChannel = normalizeContextString(candidate.channel_title, MAX_ARTIST_LENGTH);
+    const sourceChannelId = normalizeContextString(candidate.channel_id, 64);
 
     const safeContext = isPlainObjectLike(context) ? context : {};
     const contextGenre = normalizeContextString(safeContext.genre, MAX_GENRE_CONTEXT_LENGTH);
@@ -206,7 +228,7 @@ export const createCatalogUpsertService = ({ SongModel = Song, now = () => new D
     }
 
     const insertFields = {
-      title,
+      title: storedTitle,
       artist,
       genre: contextGenre ?? UNKNOWN_GENRE_SENTINEL,
       youtube_id: youtubeId,
@@ -218,6 +240,8 @@ export const createCatalogUpsertService = ({ SongModel = Song, now = () => new D
         ? candidate.recommendation_eligible
         : true,
       normalized_artist: normalizeArtistValue(artist),
+      source_channel: sourceChannel,
+      source_channel_id: sourceChannelId,
       metadata_provenance: {
         source: provider,
         reference: externalId,

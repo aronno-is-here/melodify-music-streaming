@@ -9,6 +9,7 @@ export const CATALOG_IMPORT_MESSAGES = Object.freeze({
   invalidRequest: 'invalid catalog import request',
   unsupportedProvider: 'unsupported catalog provider',
   providerUnavailable: 'catalog provider unavailable',
+  missingArtist: 'catalog track has no resolvable artist',
   importFailed: 'catalog import failed',
 });
 
@@ -39,6 +40,8 @@ function sanitizeSong(song) {
     regional_tag: source.regional_tag ?? null,
     source_provider: source.source_provider ?? null,
     external_id: source.external_id ?? null,
+    source_channel: source.source_channel ?? null,
+    source_channel_id: source.source_channel_id ?? null,
   };
 }
 
@@ -112,17 +115,27 @@ export function createCatalogImportService({
       };
     }
 
+    if (typeof track.artist !== 'string' || !track.artist.trim()) {
+      throw new CatalogImportError(CATALOG_IMPORT_MESSAGES.missingArtist, 'ARTIST_UNKNOWN');
+    }
+
     let created;
     try {
       created = await SongModel.create({
         title: track.title,
-        artist: track.artist || 'Unknown Artist',
+        artist: track.artist.trim(),
         genre: resolvedGenre,
         youtube_id: track.youtube_id || '',
         poster_url: track.thumbnail || 'https://picsum.photos/150/150?random',
         duration: track.duration || '3:00',
         source_provider: CATALOG_PROVIDER.YOUTUBE,
         external_id: providerTrack,
+        source_channel: typeof track.sourceChannel === 'string' && track.sourceChannel
+          ? track.sourceChannel
+          : null,
+        source_channel_id: typeof track.sourceChannelId === 'string' && track.sourceChannelId
+          ? track.sourceChannelId
+          : null,
         language: resolvedLanguage,
         regional_tag: region || undefined,
         recommendation_eligible: true,

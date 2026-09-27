@@ -11,6 +11,12 @@ import {
   inferLanguageFromRegion,
   normalizeRegionTag,
 } from './regionalCatalog.js';
+import {
+  CATALOG_NON_MUSIC,
+  classifyNonMusic,
+  isVersionSensitiveTitle,
+  resolveCatalogTrack,
+} from '../utils/catalogMetadata.js';
 
 export const CATALOG_PROVIDER = Object.freeze({
   YOUTUBE: 'youtube',
@@ -39,10 +45,34 @@ function toSongSearchResult(candidate, { regionTag = null } = {}) {
   if (!isValidYouTubeTrackId(candidate.youtube_id)) return null;
   if (typeof candidate.title !== 'string' || !candidate.title.trim()) return null;
 
-  const title = candidate.title.trim();
-  const artist = typeof candidate.artist_candidate === 'string' && candidate.artist_candidate.trim()
+  const rawTitle = candidate.title.trim();
+  const channelTitle = typeof candidate.channel_title === 'string' ? candidate.channel_title : '';
+  const legacyArtist = typeof candidate.artist_candidate === 'string' && candidate.artist_candidate.trim()
     ? candidate.artist_candidate.trim()
     : null;
+  const legacyConfidence = candidate.artist_candidate_source === 'topic-channel' ? 'high' : 'uncertain';
+
+  const resolved = isVersionSensitiveTitle(rawTitle)
+    ? { title: rawTitle, artist: legacyArtist, artistConfidence: legacyConfidence }
+    : resolveCatalogTrack({
+      title: rawTitle,
+      channelTitle,
+      artistCandidate: candidate.artist_candidate,
+      artistCandidateSource: candidate.artist_candidate_source,
+    });
+
+  if (!resolved.title) return null;
+
+  const nonMusic = classifyNonMusic({
+    title: resolved.title,
+    artist: resolved.artist,
+    durationSeconds: candidate.duration_seconds,
+    category: candidate.category,
+  });
+  if (nonMusic.classification === CATALOG_NON_MUSIC.NON_MUSIC) return null;
+
+  const title = resolved.title;
+  const artist = resolved.artist;
   const sourceUrl = `https://www.youtube.com/watch?v=${candidate.youtube_id}`;
 
   return {
@@ -51,7 +81,7 @@ function toSongSearchResult(candidate, { regionTag = null } = {}) {
     providerTrackId: candidate.youtube_id,
     title,
     artist,
-    artistConfidence: candidate.artist_candidate_source === 'topic-channel' ? 'high' : 'uncertain',
+    artistConfidence: resolved.artistConfidence,
     youtube_id: candidate.youtube_id,
     thumbnail: typeof candidate.poster_url === 'string' ? candidate.poster_url : null,
     duration: typeof candidate.duration === 'string' ? candidate.duration : null,
@@ -61,6 +91,8 @@ function toSongSearchResult(candidate, { regionTag = null } = {}) {
     regionTag,
     sourceUrl,
     sourceReference: sourceUrl,
+    sourceChannel: channelTitle || null,
+    sourceChannelId: typeof candidate.channel_id === 'string' ? candidate.channel_id : null,
     catalogEligible: candidate.catalog_eligible === true,
   };
 }
