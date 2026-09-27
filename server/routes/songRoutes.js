@@ -15,6 +15,8 @@ import { escapeRegex } from '../utils/escapeRegex.js';
 const MAX_PROVIDER_ID_LENGTH = 256;
 const MAX_CONTENT_LANGUAGE_LENGTH = 64;
 const MAX_LYRICS_NOTES_LENGTH = 1000;
+const MAX_LYRICS_LENGTH = 100000;
+const MAX_LYRICS_VERIFIED_BY_LENGTH = 128;
 
 const isPlainObjectLike = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -195,6 +197,7 @@ const updateSongContent = async (req, res) => {
       'lyrics_notes',
       'lyrics_provider_id',
       'lyrics_language',
+      'lyrics_verified_by',
       'lyrics_match_status',
       'lyrics_last_checked_at',
       'chords',
@@ -219,7 +222,11 @@ const updateSongContent = async (req, res) => {
       if (req.body.lyrics !== null && typeof req.body.lyrics !== 'string') {
         return res.status(400).json({ success: false, error: 'Invalid lyrics value' });
       }
-      update.lyrics = req.body.lyrics || '';
+      const lyrics = req.body.lyrics || '';
+      if (lyrics.length > MAX_LYRICS_LENGTH) {
+        return res.status(400).json({ success: false, error: 'Invalid lyrics value' });
+      }
+      update.lyrics = lyrics;
     }
     if (req.body.lyrics_verified !== undefined) {
       if (typeof req.body.lyrics_verified !== 'boolean') {
@@ -264,6 +271,13 @@ const updateSongContent = async (req, res) => {
         return res.status(400).json({ success: false, error: 'Invalid lyrics language' });
       }
       update.lyrics_language = language || '';
+    }
+    if (req.body.lyrics_verified_by !== undefined) {
+      const verifiedBy = normalizeBoundedText(req.body.lyrics_verified_by, MAX_LYRICS_VERIFIED_BY_LENGTH);
+      if (req.body.lyrics_verified_by && !verifiedBy) {
+        return res.status(400).json({ success: false, error: 'Invalid lyrics verifier' });
+      }
+      update.lyrics_verified_by = verifiedBy || '';
     }
     if (req.body.lyrics_match_status !== undefined) {
       const allowedMatchStatus = new Set(['EXACT', 'HIGH', 'AMBIGUOUS', 'NONE']);

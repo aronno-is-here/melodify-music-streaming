@@ -29,6 +29,7 @@ const songSchema = new mongoose.Schema(
     lyrics_provider_id: { type: String, trim: true, maxlength: 256 },
     lyrics_last_checked_at: { type: Date },
     lyrics_language: { type: String, trim: true, maxlength: 64 },
+    lyrics_verified_by: { type: String, trim: true, maxlength: 128 },
     lyrics_match_status: { type: String, trim: true, maxlength: 32 },
     chords_source: { type: String, trim: true, maxlength: 64 },
     chords_verified: { type: Boolean, default: false },
