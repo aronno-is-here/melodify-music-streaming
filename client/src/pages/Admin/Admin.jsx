@@ -79,6 +79,8 @@ export default function Admin() {
   const [message, setMessage] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [editingSong, setEditingSong] = useState(null);
+  const [sourceUrlDraft, setSourceUrlDraft] = useState('');
+  const [lyricsSources, setLyricsSources] = useState({ status: 'idle', candidates: [] });
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -114,6 +116,40 @@ export default function Admin() {
     setMessage(msg);
     setTimeout(() => setMessage(''), 3000);
   };
+
+  const openSongEditor = (song) => {
+    setEditingSong(song);
+    setSourceUrlDraft(typeof song.lyrics_source_url === 'string' ? song.lyrics_source_url : '');
+    setLyricsSources({ status: 'idle', candidates: [] });
+  };
+
+  const loadLyricsSources = async (refresh = false) => {
+    if (!editingSong?._id) return;
+    setLyricsSources({ status: 'loading', candidates: [] });
+    const data = await api.get(
+      `/api/lyrics/${editingSong._id}/sources${refresh ? '?refresh=1' : ''}`,
+    );
+    if (data.success) {
+      setLyricsSources({
+        status: 'ready',
+        candidates: Array.isArray(data.candidates) ? data.candidates : [],
+      });
+    } else {
+      setLyricsSources({ status: 'error', candidates: [] });
+      showMessage(data.error || 'Failed to load suggested sources', true);
+    }
+  };
+
+  useEffect(() => {
+    const editId = location.state && typeof location.state.editSongId === 'string'
+      ? location.state.editSongId
+      : null;
+    if (!editId || songs.length === 0) return;
+    const target = songs.find((song) => song._id === editId);
+    if (!target) return;
+    openSongEditor(target);
+    navigate('/admin', { replace: true, state: { section: 'music' } });
+  }, [location.state, songs]);
 
   const deleteUser = async (id) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
@@ -199,6 +235,8 @@ export default function Admin() {
       lyrics: toText(formData.get('lyrics')),
       lyrics_verified: formData.get('lyrics_verified') === 'on',
       lyrics_source: toTrimmedText(formData.get('lyrics_source')) || 'none',
+      lyrics_source_url: sourceUrlDraft.trim(),
+      lyrics_notes: toTrimmedText(formData.get('lyrics_notes')),
       lyrics_provider_id: toTrimmedText(formData.get('lyrics_provider_id')),
       lyrics_language: toTrimmedText(formData.get('lyrics_language')),
       lyrics_match_status: toTrimmedText(formData.get('lyrics_match_status')) || 'NONE',
@@ -502,8 +540,43 @@ export default function Admin() {
                       <div className="form-group"><label>Provider ID</label><input type="text" name="lyrics_provider_id" defaultValue={editingSong.lyrics_provider_id || ''} /></div>
                       <div className="form-group"><label>Language</label><input type="text" name="lyrics_language" defaultValue={editingSong.lyrics_language || ''} /></div>
                       <div className="form-group"><label>Last Checked</label><input type="datetime-local" name="lyrics_last_checked_at" defaultValue={formatDateTimeLocal(editingSong.lyrics_last_checked_at)} /></div>
+                      <div className="form-group"><label>Source URL</label><input type="url" name="lyrics_source_url" value={sourceUrlDraft} onChange={(event) => setSourceUrlDraft(event.target.value)} placeholder="https://…" /></div>
+                      <div className="form-group"><label>Notes</label><input type="text" name="lyrics_notes" defaultValue={editingSong.lyrics_notes || ''} maxLength={1000} /></div>
                     </div>
                     <label className="admin-checkbox-row"><input type="checkbox" name="lyrics_verified" defaultChecked={editingSong.lyrics_verified === true} /> Lyrics verified</label>
+
+                    <div className="form-divider"><span>Suggested Sources</span></div>
+                    <div className="admin-sources-panel">
+                      {lyricsSources.status === 'idle' && (
+                        <p className="admin-sources-hint">Discover source pages for this song, then paste verified lyrics above.</p>
+                      )}
+                      {lyricsSources.status === 'loading' && (
+                        <p className="admin-sources-hint" role="status">Finding source pages…</p>
+                      )}
+                      {lyricsSources.status === 'error' && (
+                        <p className="admin-sources-hint" role="alert">Unable to load suggested sources.</p>
+                      )}
+                      {lyricsSources.status === 'ready' && lyricsSources.candidates.length === 0 && (
+                        <p className="admin-sources-hint">No source pages found for this song yet.</p>
+                      )}
+                      {lyricsSources.status === 'ready' && lyricsSources.candidates.length > 0 && (
+                        <ul className="admin-source-list">
+                          {lyricsSources.candidates.map((candidate) => (
+                            <li key={candidate.url} className="admin-source-row">
+                              <span className="admin-source-label">
+                                {[candidate.providerLabel, candidate.title, candidate.artist].filter(Boolean).join(' — ')}
+                              </span>
+                              <a className="btn" href={candidate.url} target="_blank" rel="noopener noreferrer">Open Source</a>
+                              <button type="button" className="btn" onClick={() => setSourceUrlDraft(candidate.url)}>Use URL</button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="admin-source-actions">
+                        <button type="button" className="btn" onClick={() => loadLyricsSources(false)} disabled={lyricsSources.status === 'loading'}>Find Sources</button>
+                        <button type="button" className="btn" onClick={() => loadLyricsSources(true)} disabled={lyricsSources.status === 'loading'}>Refresh Sources</button>
+                      </div>
+                    </div>
 
                     <div className="form-divider"><span>Chords Verification</span></div>
                     <div className="form-group"><label>Chords</label><textarea name="chords" defaultValue={editingSong.chords || ''} rows={4} className="admin-multiline-input" /></div>
@@ -535,7 +608,7 @@ export default function Admin() {
                       <td>{song.genre}</td>
                       <td>{song.duration}</td>
                       <td>
-                        <button className="btn" onClick={() => setEditingSong(song)}>Edit</button>
+                        <button className="btn" onClick={() => openSongEditor(song)}>Edit</button>
                         <button className="btn btn-danger" onClick={() => deleteSong(song._id)}>Delete</button>
                       </td>
                     </tr>

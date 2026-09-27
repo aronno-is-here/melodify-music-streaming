@@ -14,6 +14,7 @@ import { escapeRegex } from '../utils/escapeRegex.js';
 
 const MAX_PROVIDER_ID_LENGTH = 256;
 const MAX_CONTENT_LANGUAGE_LENGTH = 64;
+const MAX_LYRICS_NOTES_LENGTH = 1000;
 
 const isPlainObjectLike = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -39,6 +40,20 @@ const normalizeHttpsUrl = (value) => {
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol !== 'https:') return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
+const normalizeHttpUrl = (value) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 1024) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    if (parsed.username || parsed.password) return null;
     return parsed.toString();
   } catch {
     return null;
@@ -176,6 +191,8 @@ const updateSongContent = async (req, res) => {
       'lyrics',
       'lyrics_verified',
       'lyrics_source',
+      'lyrics_source_url',
+      'lyrics_notes',
       'lyrics_provider_id',
       'lyrics_language',
       'lyrics_match_status',
@@ -216,6 +233,23 @@ const updateSongContent = async (req, res) => {
         return res.status(400).json({ success: false, error: 'Invalid lyrics source' });
       }
       update.lyrics_source = req.body.lyrics_source;
+    }
+    if (req.body.lyrics_source_url !== undefined) {
+      const sourceUrl = normalizeHttpUrl(req.body.lyrics_source_url);
+      if (req.body.lyrics_source_url && !sourceUrl) {
+        return res.status(400).json({ success: false, error: 'Invalid lyrics source URL' });
+      }
+      update.lyrics_source_url = sourceUrl || '';
+    }
+    if (req.body.lyrics_notes !== undefined) {
+      if (req.body.lyrics_notes !== null && typeof req.body.lyrics_notes !== 'string') {
+        return res.status(400).json({ success: false, error: 'Invalid lyrics notes' });
+      }
+      const notes = typeof req.body.lyrics_notes === 'string' ? req.body.lyrics_notes.trim() : '';
+      if (notes.length > MAX_LYRICS_NOTES_LENGTH) {
+        return res.status(400).json({ success: false, error: 'Invalid lyrics notes' });
+      }
+      update.lyrics_notes = notes;
     }
     if (req.body.lyrics_provider_id !== undefined) {
       const providerId = normalizeBoundedText(req.body.lyrics_provider_id, MAX_PROVIDER_ID_LENGTH);

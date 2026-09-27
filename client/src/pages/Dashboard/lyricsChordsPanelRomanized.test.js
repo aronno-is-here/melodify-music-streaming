@@ -60,7 +60,7 @@ test('lyrics and chords behavior does not regress', () => {
   assert.match(src, /aria-label="Show lyrics"/);
   assert.match(src, /aria-label="Show chords"/);
   assert.match(src, /<pre className="lc-text lc-chords">\{chords\}<\/pre>/);
-  assert.match(src, /Lyrics not available for this song\./);
+  assert.match(src, /Lyrics not available in Melodify\./);
   assert.match(src, /Chords not available for this song\./);
   assert.match(src, /Loading\.\.\./);
   assert.match(src, /if \(e\.key === 'Escape'\) onClose\(\);/);

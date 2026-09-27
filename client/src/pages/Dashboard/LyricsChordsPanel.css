@@ -153,6 +153,54 @@
   font-family: 'Roboto', sans-serif;
 }
 
+/* Source fallback for lyrics not hosted in Melodify */
+.lc-source-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.lc-source-label {
+  color: var(--gray);
+  font-size: 12px;
+  font-family: 'Roboto', sans-serif;
+}
+
+.lc-source-link {
+  color: var(--sky-blue);
+  font-size: 13px;
+  font-family: 'Roboto', sans-serif;
+  text-decoration: none;
+  border: 1px solid rgba(0, 180, 216, 0.4);
+  border-radius: 6px;
+  padding: 7px 16px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.lc-source-link:hover {
+  background: rgba(0, 180, 216, 0.12);
+  border-color: var(--sky-blue);
+}
+
+.lc-source-add {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 12px;
+  font-family: 'Roboto', sans-serif;
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.lc-source-add:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 /* Synced lyrics */
 .lc-lyrics {
   display: flex;

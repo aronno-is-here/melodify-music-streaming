@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import lyricsRouter from './lyricsRoutes.js';
+import lyricsRouter, { lyricsSourceDiscovery } from './lyricsRoutes.js';
 import Song from '../models/Song.js';
+import { protect } from '../middleware/auth.js';
+import { buildLyricsSourceCacheKey } from '../services/lyricsSourceDiscoveryService.js';
 
 function createRes() {
   const res = {
@@ -17,6 +19,44 @@ function createRes() {
     },
   };
   return res;
+}
+
+function findRoute(path) {
+  return lyricsRouter.stack.find((entry) => entry.route && entry.route.path === path);
+}
+
+async function invokeSourcesRoute({
+  query = {},
+  user = { role: 'user' },
+  song = null,
+  findError = null,
+  fetchImpl = null,
+} = {}) {
+  const layer = findRoute('/:songId/sources');
+  const handler = layer.route.stack[layer.route.stack.length - 1].handle;
+  const originalFindById = Song.findById;
+  const originalFetch = globalThis.fetch;
+
+  Song.findById = () => {
+    if (findError) throw findError;
+    const value = song;
+    return { select: async () => value };
+  };
+  if (fetchImpl) {
+    globalThis.fetch = fetchImpl;
+  }
+
+  try {
+    const res = createRes();
+    await handler(
+      { params: { songId: song?._id ?? '64b64b64b64b64b64b64b640' }, query, user },
+      res,
+    );
+    return res;
+  } finally {
+    Song.findById = originalFindById;
+    globalThis.fetch = originalFetch;
+  }
 }
 
 async function invokeLyricsRoute({ song, findError = null, fetchImpl = null } = {}) {
@@ -142,4 +182,164 @@ test('lyrics route keeps original lines and null romanization for english lyrics
   assert.equal(response.body.script, 'latin');
   assert.equal(response.body.romanizedLines, null);
   assert.deepEqual(response.body.displayLines, response.body.lines);
+});
+
+test('lyrics route attaches a cached source candidate for unavailable lyrics', async () => {
+  const song = {
+    _id: 'd1d1d1d1d1d1d1d1d1d1d1d1',
+    title: 'No Lyric Track',
+    artist: 'Artist',
+    duration: '3:00',
+    lyrics: '',
+  };
+  const candidate = {
+    provider: 'genius',
+    providerLabel: 'Genius',
+    url: 'https://genius.com/Artist-No-Lyric-Track-lyrics',
+    title: 'No Lyric Track',
+    artist: 'Artist',
+    confidence: 'EXACT',
+    discoveredAt: '2026-09-26T00:00:00.000Z',
+  };
+  lyricsSourceDiscovery.cache.set(buildLyricsSourceCacheKey(song), {
+    category: 'ENGLISH',
+    combinedBengali: false,
+    candidates: [candidate],
+    attempted: ['azlyrics'],
+    discoveredAt: '2026-09-26T00:00:00.000Z',
+  });
+
+  const providerSearchCalls = [];
+  const response = await invokeLyricsRoute({
+    song,
+    fetchImpl: async (url) => {
+      providerSearchCalls.push(String(url));
+      return { ok: false, status: 404, headers: { get: () => null }, json: async () => ({}) };
+    },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.status, 'unavailable');
+  assert.deepEqual(response.body.sourceCandidate, {
+    provider: candidate.provider,
+    providerLabel: candidate.providerLabel,
+    url: candidate.url,
+    title: candidate.title,
+    artist: candidate.artist,
+    confidence: candidate.confidence,
+  });
+  assert.equal(
+    providerSearchCalls.some((url) => /azlyrics|genius|lyricfind|smule/.test(url)),
+    false,
+    'lyrics route must never trigger network discovery',
+  );
+});
+
+test('lyrics route omits the source candidate for verified lyrics', async () => {
+  const song = {
+    _id: 'd2d2d2d2d2d2d2d2d2d2d2d2',
+    title: 'Verified Track',
+    artist: 'Artist',
+    duration: '3:00',
+    lyrics: 'Line one\nLine two',
+    lyrics_verified: true,
+  };
+  lyricsSourceDiscovery.cache.set(buildLyricsSourceCacheKey(song), {
+    category: 'ENGLISH',
+    combinedBengali: false,
+    candidates: [{
+      provider: 'genius',
+      providerLabel: 'Genius',
+      url: 'https://genius.com/Artist-Verified-Track-lyrics',
+      title: 'Verified Track',
+      artist: 'Artist',
+      confidence: 'EXACT',
+      discoveredAt: '2026-09-26T00:00:00.000Z',
+    }],
+    attempted: ['genius'],
+    discoveredAt: '2026-09-26T00:00:00.000Z',
+  });
+
+  const response = await invokeLyricsRoute({ song });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.status, 'verified');
+  assert.equal(response.body.sourceCandidate, null);
+});
+
+test('lyrics sources route sits behind the protect middleware', () => {
+  const layer = findRoute('/:songId/sources');
+  assert.ok(layer, 'sources route must exist');
+  assert.equal(layer.route.stack[0].handle, protect);
+  assert.equal(layer.route.stack.length, 2, 'only protect + handler expected');
+});
+
+test('lyrics sources route rejects unsupported query keys', async () => {
+  const response = await invokeSourcesRoute({ query: { debug: '1' } });
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(response.body, { success: false, error: 'invalid lyrics sources query' });
+});
+
+test('lyrics sources route rejects malformed refresh values', async () => {
+  const response = await invokeSourcesRoute({ query: { refresh: '2' } });
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(response.body, { success: false, error: 'invalid lyrics sources query' });
+});
+
+test('lyrics sources route requires admin for refresh', async () => {
+  const response = await invokeSourcesRoute({
+    query: { refresh: '1' },
+    user: { role: 'user' },
+    song: { _id: 'e1e1e1e1e1e1e1e1e1e1e1e1', title: 'Track', artist: 'Artist', duration: '3:00' },
+  });
+  assert.equal(response.statusCode, 403);
+  assert.deepEqual(response.body, { success: false, error: 'Admin access required' });
+});
+
+test('lyrics sources route returns 404 when song is missing', async () => {
+  const response = await invokeSourcesRoute({ query: {}, song: null });
+  assert.equal(response.statusCode, 404);
+  assert.deepEqual(response.body, { success: false, error: 'Song not found' });
+});
+
+test('lyrics sources route hides internal errors behind a fixed message', async () => {
+  const response = await invokeSourcesRoute({
+    query: {},
+    findError: new Error('mongodb://secret-uri'),
+  });
+  assert.equal(response.statusCode, 500);
+  assert.deepEqual(response.body, { success: false, error: 'failed to load lyrics sources' });
+});
+
+test('lyrics sources route discovers bounded source candidates', async () => {
+  const song = {
+    _id: 'f1f1f1f1f1f1f1f1f1f1f1f1',
+    title: 'Khamoshiyan',
+    artist: 'Tahsan',
+    duration: '3:00',
+    language: 'hi',
+  };
+  const fetchImpl = async (url) => ({
+    ok: true,
+    status: 200,
+    url,
+    headers: { get: () => 'text/html; charset=utf-8' },
+    text: async () => (String(url).startsWith('https://search.azlyrics.com/')
+      ? '<html><body><a href="https://www.azlyrics.com/lyrics/tahsan/khamoshiyan.html">Tahsan - Khamoshiyan Lyrics</a></body></html>'
+      : '<html><body><p>No results.</p></body></html>'),
+  });
+
+  const response = await invokeSourcesRoute({ query: {}, song, fetchImpl });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(Object.keys(response.body).sort(), ['candidates', 'category', 'discoveredAt', 'success']);
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.category, 'HINDI');
+  assert.equal(response.body.candidates.length, 1);
+  assert.equal(response.body.candidates[0].provider, 'azlyrics');
+  assert.deepEqual(
+    Object.keys(response.body.candidates[0]).sort(),
+    ['artist', 'confidence', 'discoveredAt', 'provider', 'providerLabel', 'title', 'url'],
+  );
+  assert.equal(typeof response.body.discoveredAt, 'string');
 });

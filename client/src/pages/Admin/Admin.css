@@ -278,6 +278,48 @@ th {
   width: auto;
 }
 
+.admin-sources-panel {
+  margin: 4px 0 16px;
+}
+
+.admin-sources-hint {
+  color: var(--gray);
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.admin-source-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+
+.admin-source-label {
+  flex: 1 1 220px;
+  font-size: 13px;
+  color: #b3b3b3;
+  word-break: break-word;
+}
+
+.admin-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .stat-card {
   text-align: center;
   padding: 15px !important;
