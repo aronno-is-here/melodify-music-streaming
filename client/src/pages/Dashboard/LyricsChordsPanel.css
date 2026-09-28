@@ -132,6 +132,10 @@
   font-size: 13px;
   line-height: 1.6;
   color: var(--sky-blue);
+  white-space: pre;
+  overflow-x: auto;
+  word-break: normal;
+  padding-bottom: 8px;
 }
 
 .lc-empty {
@@ -278,5 +282,199 @@
 @media (prefers-reduced-motion: reduce) {
   .lc-lyric-line {
     transition: none;
+  }
+}
+
+/* Chords tab: metadata, transpose, chordpro and synced timeline views */
+.lc-chord-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 12px;
+}
+
+.lc-chord-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.lc-chord-meta-item {
+  color: var(--gray);
+  font-size: 12px;
+  font-family: 'Roboto', sans-serif;
+}
+
+.lc-chord-meta-item b {
+  color: var(--white);
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.lc-chord-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lc-chord-badge.verified {
+  background: rgba(0, 180, 216, 0.22);
+  color: var(--sky-blue);
+}
+
+.lc-transpose {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lc-transpose-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--white);
+  font-size: 12px;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.lc-transpose-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lc-transpose-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lc-transpose-btn:focus-visible {
+  outline: 2px solid var(--sky-blue);
+  outline-offset: 2px;
+}
+
+.lc-transpose-reset {
+  min-width: auto;
+}
+
+.lc-transpose-value {
+  color: var(--gray);
+  font-size: 12px;
+  min-width: 84px;
+  text-align: center;
+  font-family: 'Roboto', sans-serif;
+}
+
+.lc-chordpro {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.lc-chordpro-line {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.88);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.lc-chord-segment {
+  white-space: pre-wrap;
+}
+
+.lc-chord-token {
+  color: var(--sky-blue);
+  font-weight: 700;
+  display: inline-block;
+  min-width: 2ch;
+  margin-right: 4px;
+}
+
+.lc-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.lc-timeline-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s, color 0.2s;
+}
+
+.lc-timeline-row:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lc-timeline-row:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.lc-timeline-row:focus-visible {
+  outline: 2px solid var(--sky-blue);
+  outline-offset: 2px;
+}
+
+.lc-timeline-row.active {
+  background: rgba(0, 180, 216, 0.16);
+}
+
+.lc-timeline-time {
+  color: var(--gray);
+  font-size: 12px;
+  min-width: 44px;
+  font-family: 'Courier New', monospace;
+}
+
+.lc-timeline-chord {
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.lc-timeline-row.active .lc-timeline-chord {
+  color: var(--sky-blue);
+}
+
+@media (max-width: 768px) {
+  .lc-chord-toolbar {
+    gap: 8px;
+  }
+
+  .lc-chord-meta {
+    gap: 6px 10px;
+  }
+
+  .lc-transpose {
+    width: 100%;
+  }
+
+  .lc-transpose-value {
+    min-width: auto;
+    flex: 1;
+  }
+
+  .lc-chordpro-line {
+    font-size: 13px;
   }
 }

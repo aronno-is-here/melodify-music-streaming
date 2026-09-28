@@ -11,12 +11,24 @@ const router = express.Router();
 const assetsRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'assets');
 
 import { escapeRegex } from '../utils/escapeRegex.js';
+import {
+  CHORD_FORMATS,
+  MAX_CHORD_NOTES_LENGTH,
+  MAX_CHORD_TEXT_LENGTH,
+  MAX_CHORD_TUNING_LENGTH,
+  MAX_CHORD_VERIFIED_BY_LENGTH,
+  normalizeChordTimeline,
+  parseCapo,
+  parseChordKey,
+  validateChordText,
+} from '../../client/src/utils/chordSheet.js';
 
 const MAX_PROVIDER_ID_LENGTH = 256;
 const MAX_CONTENT_LANGUAGE_LENGTH = 64;
 const MAX_LYRICS_NOTES_LENGTH = 1000;
 const MAX_LYRICS_LENGTH = 100000;
 const MAX_LYRICS_VERIFIED_BY_LENGTH = 128;
+
 
 const isPlainObjectLike = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -208,6 +220,13 @@ const updateSongContent = async (req, res) => {
       'chordify_embed_url',
       'chords_reference_url',
       'chords_last_checked_at',
+      'chords_format',
+      'chords_key',
+      'chords_capo',
+      'chords_tuning',
+      'chords_notes',
+      'chords_verified_by',
+      'chord_timeline',
     ]);
 
     for (const key of Object.keys(req.body)) {
@@ -296,7 +315,20 @@ const updateSongContent = async (req, res) => {
       if (req.body.chords !== null && typeof req.body.chords !== 'string') {
         return res.status(400).json({ success: false, error: 'Invalid chords value' });
       }
-      update.chords = req.body.chords || '';
+      const chords = req.body.chords || '';
+      if (chords.length > MAX_CHORD_TEXT_LENGTH) {
+        return res.status(400).json({ success: false, error: 'Invalid chords value' });
+      }
+      const declaredFormat = typeof req.body.chords_format === 'string' && CHORD_FORMATS.includes(req.body.chords_format)
+        ? req.body.chords_format
+        : null;
+      if (chords && declaredFormat) {
+        const sheetCheck = validateChordText(chords, declaredFormat);
+        if (!sheetCheck.ok) {
+          return res.status(400).json({ success: false, error: 'Invalid chords sheet' });
+        }
+      }
+      update.chords = chords;
     }
     if (req.body.chords_verified !== undefined) {
       if (typeof req.body.chords_verified !== 'boolean') {
@@ -343,6 +375,60 @@ const updateSongContent = async (req, res) => {
       const checkedAt = normalizeOptionalDate(req.body.chords_last_checked_at);
       if (checkedAt === null) return res.status(400).json({ success: false, error: 'Invalid chords checked time' });
       update.chords_last_checked_at = checkedAt || null;
+    }
+
+    if (req.body.chords_format !== undefined) {
+      if (req.body.chords_format !== null && typeof req.body.chords_format !== 'string') {
+        return res.status(400).json({ success: false, error: 'Invalid chords format' });
+      }
+      const format = req.body.chords_format || null;
+      if (format && !CHORD_FORMATS.includes(format)) {
+        return res.status(400).json({ success: false, error: 'Invalid chords format' });
+      }
+      update.chords_format = format;
+    }
+    if (req.body.chords_key !== undefined) {
+      const parsedKey = parseChordKey(req.body.chords_key);
+      if (!parsedKey.ok) return res.status(400).json({ success: false, error: 'Invalid chords key' });
+      update.chords_key = parsedKey.key;
+    }
+    if (req.body.chords_capo !== undefined) {
+      const parsedCapo = parseCapo(req.body.chords_capo);
+      if (!parsedCapo.ok) return res.status(400).json({ success: false, error: 'Invalid chords capo' });
+      update.chords_capo = parsedCapo.capo;
+    }
+    if (req.body.chords_tuning !== undefined) {
+      const tuning = normalizeBoundedText(req.body.chords_tuning, MAX_CHORD_TUNING_LENGTH);
+      if (req.body.chords_tuning && !tuning) {
+        return res.status(400).json({ success: false, error: 'Invalid chords tuning' });
+      }
+      update.chords_tuning = tuning || '';
+    }
+    if (req.body.chords_notes !== undefined) {
+      if (req.body.chords_notes !== null && typeof req.body.chords_notes !== 'string') {
+        return res.status(400).json({ success: false, error: 'Invalid chords notes' });
+      }
+      const notes = typeof req.body.chords_notes === 'string' ? req.body.chords_notes.trim() : '';
+      if (notes.length > MAX_CHORD_NOTES_LENGTH) {
+        return res.status(400).json({ success: false, error: 'Invalid chords notes' });
+      }
+      update.chords_notes = notes;
+    }
+    if (req.body.chords_verified_by !== undefined) {
+      const verifiedBy = normalizeBoundedText(req.body.chords_verified_by, MAX_CHORD_VERIFIED_BY_LENGTH);
+      if (req.body.chords_verified_by && !verifiedBy) {
+        return res.status(400).json({ success: false, error: 'Invalid chords verifier' });
+      }
+      update.chords_verified_by = verifiedBy || '';
+    }
+    if (req.body.chord_timeline !== undefined) {
+      const normalizedTimeline = normalizeChordTimeline(
+        req.body.chord_timeline === '' ? null : req.body.chord_timeline
+      );
+      if (!normalizedTimeline.ok) {
+        return res.status(400).json({ success: false, error: 'Invalid chord timeline' });
+      }
+      update.chord_timeline = normalizedTimeline.entries;
     }
 
     if (Object.keys(update).length === 0) {

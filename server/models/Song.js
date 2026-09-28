@@ -9,6 +9,14 @@ const metadataProvenanceSchema = new mongoose.Schema(
   { _id: false, strict: true }
 );
 
+const chordTimelineEntrySchema = new mongoose.Schema(
+  {
+    time: { type: Number, required: true },
+    chord: { type: String, trim: true, maxlength: 32, required: true },
+  },
+  { _id: false, strict: true }
+);
+
 const songSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -38,6 +46,28 @@ const songSchema = new mongoose.Schema(
     chordify_url: { type: String, trim: true, maxlength: 1024 },
     chordify_embed_url: { type: String, trim: true, maxlength: 1024 },
     chords_reference_url: { type: String, trim: true, maxlength: 1024 },
+    chords_format: { type: String, trim: true, maxlength: 16 },
+    chords_key: { type: String, trim: true, maxlength: 8 },
+    chords_capo: {
+      type: Number,
+      default: null,
+      validate: {
+        validator: (value) => value == null || (Number.isInteger(value) && value >= 0 && value <= 12),
+        message: 'chords_capo must be an integer between 0 and 12',
+      },
+    },
+    chords_tuning: { type: String, trim: true, maxlength: 32 },
+    chords_notes: { type: String, trim: true, maxlength: 1000 },
+    chords_verified_by: { type: String, trim: true, maxlength: 128 },
+    chord_timeline: {
+      type: [chordTimelineEntrySchema],
+      default: undefined,
+      validate: {
+        validator: (value) => value == null || (Array.isArray(value) && value.length <= 2000),
+        message: 'chord_timeline must hold at most 2000 entries',
+      },
+    },
+
     // Opt in to these fields in future server queries; unknown metadata stays unset.
     language: { type: String, trim: true, maxlength: 16, select: false },
     category: { type: String, trim: true, select: false },

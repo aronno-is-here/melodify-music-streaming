@@ -5,6 +5,7 @@ import {
   normalizeChordifyEmbedUrl,
   normalizeChordifyUrl,
   normalizeChordReferenceUrl,
+  selectChordApiStatus,
   selectChordPresentation,
 } from './chordProvider.js';
 
@@ -49,4 +50,13 @@ test('selectChordPresentation returns unavailable when no chords exist', () => {
   const presentation = selectChordPresentation({ chords: '' });
   assert.equal(presentation.state, CHORD_STATES.UNAVAILABLE);
   assert.equal(presentation.chords, '');
+});
+
+test('selectChordApiStatus classifies verified unverified sourced and empty songs', () => {
+  assert.equal(selectChordApiStatus({ chords: 'C G Am', chords_verified: true }), 'verified');
+  assert.equal(selectChordApiStatus({ chords: 'C G Am', chords_verified: false }), 'available');
+  assert.equal(selectChordApiStatus({ chords: '', chords_reference_url: 'https://example.com/chords' }), 'source-found');
+  assert.equal(selectChordApiStatus({ chords: '', chords_reference_url: 'http://insecure.test/chords' }), 'unavailable');
+  assert.equal(selectChordApiStatus({ chords: '' }), 'unavailable');
+  assert.equal(selectChordApiStatus(null), 'unavailable');
 });

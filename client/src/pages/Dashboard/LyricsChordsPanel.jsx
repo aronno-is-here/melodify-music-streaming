@@ -1,12 +1,22 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import usePlayer from '../../hooks/usePlayer.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import cssRaw from './LyricsChordsPanel.css?raw';
+import {
+  CHORD_FORMATS,
+  detectChordFormat,
+  findActiveChord,
+  formatChordTime,
+  parseChordPro,
+  transposeChordSheet,
+} from '../../utils/chordSheet.js';
 
 const SOURCE_FALLBACK_STATUSES = new Set(['unavailable', 'ambiguous']);
 const hasSourceFallbackStatus = (status) => typeof status === 'string' && SOURCE_FALLBACK_STATUSES.has(status);
+const TRANSPOSE_FLOOR = -12;
+const TRANSPOSE_CEILING = 12;
 const toSourceCandidate = (value) => (
   value && typeof value === 'object' && typeof value.url === 'string' && value.url
     ? {
@@ -40,7 +50,10 @@ export default function LyricsChordsPanel({ onClose }) {
   const [romanizedLines, setRomanizedLines] = useState(null);
   const [lyricsScript, setLyricsScript] = useState('other');
   const [lyricsView, setLyricsView] = useState('original');
-  const [chords, setChords] = useState('');
+  const [chordText, setChordText] = useState('');
+  const [chordMeta, setChordMeta] = useState(null);
+  const [chordLoading, setChordLoading] = useState(false);
+  const [transposeOffset, setTransposeOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sourceCandidate, setSourceCandidate] = useState(null);
   const [activeLineIndex, setActiveLineIndex] = useState(-1);
@@ -54,7 +67,9 @@ export default function LyricsChordsPanel({ onClose }) {
       setRomanizedLines(null);
       setLyricsScript('other');
       setLyricsView('original');
-      setChords(song?.chords || '');
+      setChordText(song?.chords || '');
+      setChordMeta(null);
+      setTransposeOffset(0);
       setSourceCandidate(null);
       return;
     }
@@ -66,7 +81,9 @@ export default function LyricsChordsPanel({ onClose }) {
     setRomanizedLines(null);
     setLyricsScript('other');
     setLyricsView('original');
-    setChords(song.chords || '');
+    setChordText(song.chords || '');
+    setChordMeta(null);
+    setTransposeOffset(0);
     setSourceCandidate(null);
 
     api.get(`/api/lyrics/${song._id}`).then((data) => {
@@ -103,6 +120,44 @@ export default function LyricsChordsPanel({ onClose }) {
     return () => { cancelled = true; };
   }, [song?._id, song?.chords]);
 
+  useEffect(() => {
+    if (activeTab !== 'chords') return undefined;
+    if (!song?._id) {
+      setChordText('');
+      setChordMeta(null);
+      setChordLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setChordLoading(true);
+    setChordText(song.chords || '');
+    setChordMeta(null);
+    api.get(`/api/chords/${song._id}`).then((data) => {
+      if (cancelled) return;
+      if (data && data.success) {
+        setChordText(typeof data.text === 'string' ? data.text : '');
+        setChordMeta({
+          status: typeof data.status === 'string' ? data.status : '',
+          format: CHORD_FORMATS.includes(data.format) ? data.format : null,
+          key: typeof data.key === 'string' ? data.key : null,
+          capo: typeof data.capo === 'number' ? data.capo : null,
+          tuning: typeof data.tuning === 'string' ? data.tuning : null,
+          source: typeof data.source === 'string' ? data.source : null,
+          sourceUrl: typeof data.sourceUrl === 'string' ? data.sourceUrl : '',
+          verified: data.verified === true,
+          timeline: Array.isArray(data.timeline) ? data.timeline : null,
+        });
+        setTransposeOffset(0);
+      }
+      setChordLoading(false);
+    }).catch(() => {
+      if (!cancelled) setChordLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [activeTab, song?._id]);
+
   const openAdminEditor = () => {
     if (!song?._id) return;
     navigate('/admin', { state: { section: 'music', editSongId: song._id } });
@@ -116,6 +171,41 @@ export default function LyricsChordsPanel({ onClose }) {
   const lyricsViewLabels = lyricsScript === 'bengali'
     ? { original: 'বাংলা', romanized: 'Romanized' }
     : { original: 'Original', romanized: 'Romanized' };
+
+  const chordFormat = chordMeta && CHORD_FORMATS.includes(chordMeta.format)
+    ? chordMeta.format
+    : detectChordFormat(chordText);
+  const chords = useMemo(
+    () => transposeChordSheet(chordText, transposeOffset, chordFormat),
+    [chordText, transposeOffset, chordFormat]
+  );
+  const chordTimeline = Array.isArray(chordMeta?.timeline) && chordMeta.timeline.length > 0
+    ? chordMeta.timeline
+    : null;
+  const chordPro = useMemo(() => {
+    if (chordTimeline || chordFormat === 'plain') return null;
+    const parsed = parseChordPro(chords);
+    return parsed.valid ? parsed : null;
+  }, [chords, chordFormat, chordTimeline]);
+  const activeChordIndex = useMemo(
+    () => (chordTimeline ? findActiveChord(chordTimeline, player.currentTime) : -1),
+    [chordTimeline, player.currentTime]
+  );
+  const sourcePageUrl = chordMeta?.sourceUrl || '';
+
+  const changeTranspose = (delta) => {
+    setTransposeOffset((current) => {
+      const next = current + delta;
+      if (next < TRANSPOSE_FLOOR) return TRANSPOSE_FLOOR;
+      if (next > TRANSPOSE_CEILING) return TRANSPOSE_CEILING;
+      return next;
+    });
+  };
+
+  const seekToChord = (seconds) => {
+    if (!Number.isFinite(seconds) || !player.duration) return;
+    player.seek(seconds / player.duration);
+  };
 
   useEffect(() => {
     if (!lyricsSynced || displayLines.length === 0) {
@@ -153,6 +243,137 @@ export default function LyricsChordsPanel({ onClose }) {
   }, [onClose]);
 
   if (!song) return null;
+
+  const renderChordToolbar = () => (
+    <div className="lc-chord-toolbar">
+      <div className="lc-chord-meta">
+        <span className="lc-chord-meta-item">Key <b>{chordMeta?.key || 'Not set'}</b></span>
+        <span className="lc-chord-meta-item">Capo <b>{chordMeta?.capo === null || chordMeta?.capo === undefined ? '0' : chordMeta.capo}</b></span>
+        <span className="lc-chord-meta-item">Tuning <b>{chordMeta?.tuning || 'Standard'}</b></span>
+        <span className="lc-chord-meta-item">Format <b>{chordFormat}</b></span>
+        <span className={`lc-chord-meta-item lc-chord-badge${chordMeta?.verified ? ' verified' : ''}`}>
+          {chordMeta?.verified ? 'Verified' : 'Unverified'}
+        </span>
+      </div>
+      <div className="lc-transpose" role="group" aria-label="Transpose chords">
+        <button
+          type="button"
+          className="lc-transpose-btn"
+          onClick={() => changeTranspose(-1)}
+          disabled={transposeOffset <= TRANSPOSE_FLOOR}
+          aria-label="Transpose down one semitone"
+        >
+          <i className="fa-solid fa-minus"></i>
+        </button>
+        <span className="lc-transpose-value" aria-live="polite">
+          {transposeOffset > 0 ? `+${transposeOffset}` : transposeOffset} semitones
+        </span>
+        <button
+          type="button"
+          className="lc-transpose-btn"
+          onClick={() => changeTranspose(1)}
+          disabled={transposeOffset >= TRANSPOSE_CEILING}
+          aria-label="Transpose up one semitone"
+        >
+          <i className="fa-solid fa-plus"></i>
+        </button>
+        <button
+          type="button"
+          className="lc-transpose-btn lc-transpose-reset"
+          onClick={() => setTransposeOffset(0)}
+          disabled={transposeOffset === 0}
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderChordBody = () => {
+    if (chordTimeline) {
+      return (
+        <div className="lc-timeline">
+          {chordTimeline.map((entry, i) => (
+            <button
+              type="button"
+              key={`${song._id}-chord-time-${i}`}
+              className={`lc-timeline-row${i === activeChordIndex ? ' active' : ''}`}
+              onClick={() => seekToChord(entry.time)}
+              disabled={!player.duration}
+            >
+              <span className="lc-timeline-time">{formatChordTime(entry.time)}</span>
+              <span className="lc-timeline-chord">{entry.chord}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (chordPro) {
+      return (
+        <div className="lc-chordpro">
+          {chordPro.lines.map((line, i) => (
+            <div className="lc-chordpro-line" key={`${song._id}-chord-line-${i}`}>
+              {line.segments.map((segment, j) => (
+                <span className="lc-chord-segment" key={`${song._id}-chord-segment-${i}-${j}`}>
+                  {segment.chord ? <b className="lc-chord-token">{segment.chord}</b> : null}
+                  <span className="lc-chord-syllable">{segment.text}</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <pre className="lc-text lc-chords">{chords}</pre>;
+  };
+
+  const renderChordsTab = () => {
+    if (chordLoading) {
+      return <div className="lc-empty">Loading...</div>;
+    }
+
+    if (!chords.trim()) {
+      return (
+        <div className="lc-empty">
+          <i className="fa-solid fa-guitar"></i>
+          <p>Chords not available for this song.</p>
+          {sourcePageUrl ? (
+            <div className="lc-source-fallback">
+              <span className="lc-source-label">Possible source found:</span>
+              <a
+                className="lc-source-link"
+                href={sourcePageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View Source
+              </a>
+              {isAdmin ? (
+                <button type="button" className="lc-source-add" onClick={openAdminEditor}>
+                  Add Verified Chords
+                </button>
+              ) : null}
+            </div>
+          ) : isAdmin ? (
+            <div className="lc-source-fallback">
+              <button type="button" className="lc-source-add" onClick={openAdminEditor}>
+                Add Verified Chords
+              </button>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {renderChordToolbar()}
+        {renderChordBody()}
+      </>
+    );
+  };
 
   return (
     <div className="lc-panel">
@@ -262,13 +483,8 @@ export default function LyricsChordsPanel({ onClose }) {
               ) : null}
             </div>
           )
-        ) : chords.trim() ? (
-          <pre className="lc-text lc-chords">{chords}</pre>
         ) : (
-          <div className="lc-empty">
-            <i className="fa-solid fa-guitar"></i>
-            <p>Chords not available for this song.</p>
-          </div>
+          renderChordsTab()
         )}
       </div>
     </div>

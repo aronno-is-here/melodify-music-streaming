@@ -801,3 +801,39 @@ th {
     font-size: 12px;
   }
 }
+
+/* Chords editor: save, clear and bounded file import actions */
+.admin-chord-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+
+.admin-chord-import {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.admin-chord-file {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-chord-notice {
+  margin: 6px 0 10px;
+  font-size: 13px;
+  color: #7ee0a3;
+}
+
+.admin-chord-notice.error {
+  color: #ff8f8f;
+}
