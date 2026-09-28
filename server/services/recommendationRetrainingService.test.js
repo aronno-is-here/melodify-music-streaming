@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import test from 'node:test';
 import {
   DEFAULT_RETRAIN_SNAPSHOT_LIMIT,
   MAX_RETRAIN_SNAPSHOT_LIMIT,
+  RETRAIN_ARTIFACT_ROOT,
   RETRAINING_HEALTH_SOURCE,
   RETRAINING_HEALTH_STATES,
   RETRAIN_LEASE_GRACE_MS,
@@ -12,7 +14,10 @@ import {
   normalizeRetrainRunId,
   normalizeRetrainSnapshotLimit,
 } from './recommendationRetrainingService.js';
-import { RETRAIN_PYTHON_TIMEOUT_MS } from './recommendationPythonRunner.js';
+import {
+  RETRAIN_PROJECT_ROOT,
+  RETRAIN_PYTHON_TIMEOUT_MS,
+} from './recommendationPythonRunner.js';
 
 const RUN_ID = 'run-43-01';
 const RUN_AT = '2026-09-15T12:00:00.000Z';
@@ -199,6 +204,7 @@ const createDeps = ({
   runnerError = null,
   evalResult = { created: true, run: {} },
   snapResult = { created: true, snapshot: {} },
+  artifactRoot = '/tmp/artifacts',
 } = {}) => {
   const calls = { input: 0, runner: 0, eval: 0, snap: 0 };
   return {
@@ -233,7 +239,7 @@ const createDeps = ({
           return snapResult;
         },
       },
-      artifactRoot: '/tmp/artifacts',
+      artifactRoot,
       now: () => new Date('2026-09-15T12:00:00.000Z'),
     },
   };
@@ -623,4 +629,76 @@ test('service source never imports child_process or Express', async () => {
   assert.equal(source.includes('spawn'), false);
   assert.equal(source.includes('express'), false);
   assert.equal(source.includes('exec('), false);
+});
+
+test('retraining: default artifact root is absolute, deterministic and project-local', () => {
+  assert.equal(typeof RETRAIN_ARTIFACT_ROOT, 'string');
+  assert.notEqual(RETRAIN_ARTIFACT_ROOT.trim(), '');
+  assert.equal(path.isAbsolute(RETRAIN_ARTIFACT_ROOT), true);
+  assert.equal(RETRAIN_ARTIFACT_ROOT, path.join(RETRAIN_PROJECT_ROOT, 'ml', 'artifacts'));
+  assert.equal(path.resolve(RETRAIN_ARTIFACT_ROOT), RETRAIN_ARTIFACT_ROOT);
+  assert.equal(
+    path.relative(RETRAIN_PROJECT_ROOT, RETRAIN_ARTIFACT_ROOT),
+    path.join('ml', 'artifacts'),
+  );
+  assert.equal(RETRAIN_ARTIFACT_ROOT.includes('..'), false);
+  assert.equal(path.isAbsolute(RETRAIN_PROJECT_ROOT), true);
+});
+
+test('retraining: default invocation without artifactRoot reaches python with canonical root', async () => {
+  const { deps, calls, attemptModel } = createDeps();
+  delete deps.artifactRoot;
+  let capturedPayload = null;
+  deps.pythonRunner = {
+    async runRetrainingPython(payload) {
+      calls.runner += 1;
+      capturedPayload = payload;
+      return { output: validOutput(), stderr: '', exitCode: 0 };
+    },
+  };
+  const service = createRecommendationRetrainingService(deps);
+  const result = await service.runRecommendationRetraining({
+    runId: RUN_ID,
+    runAt: RUN_AT,
+  });
+  assert.equal(result.status, 'completed');
+  assert.equal(calls.runner, 1);
+  assert.equal(capturedPayload.artifact_root, RETRAIN_ARTIFACT_ROOT);
+  assert.equal(attemptModel.state.attempts[0].status, 'completed');
+});
+
+test('retraining: explicit valid artifactRootPath is still honored', async () => {
+  const { deps, calls } = createDeps({ artifactRoot: '/tmp/artifacts' });
+  let capturedPayload = null;
+  deps.pythonRunner = {
+    async runRetrainingPython(payload) {
+      calls.runner += 1;
+      capturedPayload = payload;
+      return { output: validOutput(), stderr: '', exitCode: 0 };
+    },
+  };
+  const service = createRecommendationRetrainingService(deps);
+  const result = await service.runRecommendationRetraining({
+    runId: RUN_ID,
+    runAt: RUN_AT,
+  });
+  assert.equal(result.status, 'completed');
+  assert.equal(capturedPayload.artifact_root, '/tmp/artifacts');
+});
+
+test('retraining: invalid explicit artifact roots are rejected before any lease', async () => {
+  for (const artifactRoot of ['', '   ', null, 7, 'ml/artifacts']) {
+    const { deps, leaseModel, attemptModel, calls } = createDeps({ artifactRoot });
+    const service = createRecommendationRetrainingService(deps);
+    await assert.rejects(
+      () => service.runRecommendationRetraining({ runId: RUN_ID, runAt: RUN_AT }),
+      (error) => {
+        assert.equal(error.message, 'invalid artifact root');
+        return true;
+      },
+    );
+    assert.equal(leaseModel.state.created.length, 0);
+    assert.equal(attemptModel.state.attempts.length, 0);
+    assert.equal(calls.runner, 0);
+  }
 });

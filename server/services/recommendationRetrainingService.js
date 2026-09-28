@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import path from 'node:path';
 import RecommendationRetrainingLease, {
   RETRAINING_LEASE_SCOPE,
 } from '../models/RecommendationRetrainingLease.js';
@@ -8,6 +9,7 @@ import RecommendationRetrainingAttempt, {
 import { createRecommendationTrainingInputService } from './recommendationTrainingInputService.js';
 import {
   createRecommendationPythonRunner,
+  RETRAIN_PROJECT_ROOT,
   RETRAIN_PYTHON_TIMEOUT_MS,
 } from './recommendationPythonRunner.js';
 import { createRecommendationEvaluationRunService } from './recommendationEvaluationRunService.js';
@@ -18,6 +20,11 @@ export const MAX_RETRAIN_SNAPSHOT_LIMIT = 100;
 export const SNAPSHOT_PERSIST_CONCURRENCY = 4;
 export const RETRAIN_LEASE_GRACE_MS = 60000;
 export const RETRAINING_HEALTH_SOURCE = 'retraining-health';
+export const RETRAIN_ARTIFACT_ROOT = path.join(
+  RETRAIN_PROJECT_ROOT,
+  'ml',
+  'artifacts',
+);
 export const RETRAINING_HEALTH_STATES = Object.freeze({
   RUNNING: 'running',
   NEVER_RUN: 'never-run',
@@ -415,7 +422,7 @@ export function createRecommendationRetrainingService({
   pythonRunner = createRecommendationPythonRunner(),
   evaluationRunService = createRecommendationEvaluationRunService(),
   snapshotService = createRecommendationSnapshotService(),
-  artifactRoot = null,
+  artifactRoot = RETRAIN_ARTIFACT_ROOT,
   now = () => new Date(),
   leaseGraceMs = RETRAIN_LEASE_GRACE_MS,
 } = {}) {
@@ -540,7 +547,11 @@ export function createRecommendationRetrainingService({
     const normalizedRunAt = normalizeRetrainRunAt(runAt);
     const normalizedLimit = normalizeRetrainSnapshotLimit(snapshotLimit);
 
-    if (typeof artifactRootPath !== 'string' || !artifactRootPath.trim()) {
+    if (
+      typeof artifactRootPath !== 'string'
+      || !artifactRootPath.trim()
+      || !path.isAbsolute(artifactRootPath)
+    ) {
       throw new RecommendationRetrainingValidationError('invalid artifact root');
     }
 
