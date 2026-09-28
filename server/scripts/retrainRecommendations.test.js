@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -10,6 +11,10 @@ import {
   parseRetrainArgs,
   runRetrainCli,
 } from './retrainRecommendations.js';
+import {
+  RETRAIN_ARTIFACT_ROOT,
+  createRecommendationRetrainingService,
+} from '../services/recommendationRetrainingService.js';
 
 const readSource = () =>
   readFileSync(
@@ -279,4 +284,155 @@ test('cli: source has no express/http retrain endpoint surface', () => {
   assert.equal(source.includes('--run-id'), true);
   assert.equal(source.includes('--run-at'), true);
   assert.equal(source.includes('child_process'), false);
+});
+
+const makeCliServiceDeps = () => {
+  const payloads = [];
+  return {
+    payloads,
+    deps: {
+      LeaseModel: {
+        async create(doc) {
+          return doc;
+        },
+        findOne() {
+          return { lean: async () => null };
+        },
+        async deleteOne() {
+          return { acknowledged: true, deletedCount: 0 };
+        },
+      },
+      AttemptModel: {
+        async create(doc) {
+          return doc;
+        },
+      },
+      trainingInputService: {
+        async collectRetrainingInput() {
+          return {
+            songs: [],
+            users: [],
+            events: [],
+            profiles: {},
+            event_window_truncated: false,
+            input_event_count: 0,
+          };
+        },
+      },
+      pythonRunner: {
+        async runRetrainingPython(payload) {
+          payloads.push(payload);
+          return {
+            output: {
+              schema_version: 1,
+              run_id: payload.run_id,
+              run_at: payload.run_at,
+              artifact_version: payload.run_id,
+              pipeline_stage: 'policy',
+              filtering: {},
+              evaluation: {},
+              snapshots: [],
+              artifact: {},
+            },
+            stderr: '',
+            exitCode: 0,
+          };
+        },
+      },
+      evaluationRunService: {
+        async recordEvaluationRun() {
+          return { created: true, run: {} };
+        },
+      },
+      snapshotService: {
+        async recordRecommendationSnapshot() {
+          return { created: true, snapshot: {} };
+        },
+      },
+      now: () => new Date('2026-09-15T12:00:00.000Z'),
+    },
+  };
+};
+
+test('cli: default invocation resolves the canonical artifact root and succeeds', async () => {
+  const out = [];
+  const err = [];
+  const { payloads, deps } = makeCliServiceDeps();
+  let serviceArgsCount = null;
+  const exitCode = await runRetrainCli(
+    ['--run-id', 'run-43-01', '--run-at', RUN_AT],
+    {
+      connect: async () => {},
+      createService: (...args) => {
+        serviceArgsCount = args.length;
+        return createRecommendationRetrainingService(deps);
+      },
+      disconnect: async () => {},
+      writeOut: (line) => out.push(line),
+      writeErr: (line) => err.push(line),
+    },
+  );
+  assert.equal(exitCode, 0);
+  assert.equal(err.length, 0);
+  assert.equal(serviceArgsCount, 0);
+  assert.equal(payloads.length, 1);
+  assert.equal(payloads[0].artifact_root, RETRAIN_ARTIFACT_ROOT);
+  const payload = JSON.parse(out[0]);
+  assert.equal(payload.status, 'completed');
+});
+
+test('cli: canonical artifact root is absolute, deterministic and project-local', () => {
+  assert.equal(typeof RETRAIN_ARTIFACT_ROOT, 'string');
+  assert.notEqual(RETRAIN_ARTIFACT_ROOT.trim(), '');
+  assert.equal(path.isAbsolute(RETRAIN_ARTIFACT_ROOT), true);
+  assert.equal(path.resolve(RETRAIN_ARTIFACT_ROOT), RETRAIN_ARTIFACT_ROOT);
+  assert.equal(RETRAIN_ARTIFACT_ROOT.includes('..'), false);
+  assert.equal(RETRAIN_ARTIFACT_ROOT, path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'ml',
+    'artifacts',
+  ));
+});
+
+test('cli: explicit artifact root injection still works', async () => {
+  const out = [];
+  const err = [];
+  const { payloads, deps } = makeCliServiceDeps();
+  deps.artifactRoot = '/tmp/explicit-artifacts';
+  const exitCode = await runRetrainCli(
+    ['--run-id', 'run-43-01', '--run-at', RUN_AT],
+    {
+      connect: async () => {},
+      createService: () => createRecommendationRetrainingService(deps),
+      disconnect: async () => {},
+      writeOut: (line) => out.push(line),
+      writeErr: (line) => err.push(line),
+    },
+  );
+  assert.equal(exitCode, 0);
+  assert.equal(err.length, 0);
+  assert.equal(payloads[0].artifact_root, '/tmp/explicit-artifacts');
+});
+
+test('cli: argument validation for run-id/run-at is unchanged', () => {
+  assert.equal(
+    RETRAIN_CLI_USAGE,
+    'node server/scripts/retrainRecommendations.js --run-id <safe-run-id> --run-at <timezone-aware-ISO8601> [--snapshot-limit <1-100>]',
+  );
+  assert.throws(
+    () => parseRetrainArgs(['--run-id', 'manual-UPPER', '--run-at', RUN_AT]),
+    (error) => {
+      assert.equal(error.message, RETRAIN_CLI_ERROR_MESSAGES.invalidRunId);
+      return true;
+    },
+  );
+  assert.throws(
+    () => parseRetrainArgs(['--run-id', 'ok', '--run-at', '2026-09-28T210408Z']),
+    (error) => {
+      assert.equal(error.message, RETRAIN_CLI_ERROR_MESSAGES.invalidRunAt);
+      return true;
+    },
+  );
 });
