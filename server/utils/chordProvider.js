@@ -5,6 +5,14 @@ export const CHORD_STATES = Object.freeze({
   UNAVAILABLE: 'unavailable',
 });
 
+export const CHORD_API_STATUS = Object.freeze({
+  VERIFIED: 'verified',
+  AVAILABLE: 'available',
+  UNAVAILABLE: 'unavailable',
+  SOURCE_FOUND: 'source-found',
+});
+
+
 export const CHORDIFY_ALLOWED_HOSTS = Object.freeze([
   'chordify.net',
   'www.chordify.net',
@@ -95,4 +103,17 @@ export function selectChordPresentation(songLike) {
     chordifyEmbedUrl: null,
     chordsVerified: false,
   };
+}
+
+export function selectChordApiStatus(songLike) {
+  const song = songLike && typeof songLike === 'object' ? songLike : {};
+  const presentation = selectChordPresentation(song);
+  const hasChordText = presentation.chords.trim().length > 0;
+  if (hasChordText && presentation.chordsVerified) return CHORD_API_STATUS.VERIFIED;
+  if (hasChordText) return CHORD_API_STATUS.AVAILABLE;
+  const referenceUrl = normalizeChordReferenceUrl(song.chords_reference_url);
+  if (presentation.chordifyUrl || presentation.chordifyEmbedUrl || referenceUrl) {
+    return CHORD_API_STATUS.SOURCE_FOUND;
+  }
+  return CHORD_API_STATUS.UNAVAILABLE;
 }
