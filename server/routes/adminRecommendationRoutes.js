@@ -17,6 +17,10 @@ import {
   RETRAINING_HEALTH_HTTP_MESSAGES,
   createRecommendationRetrainingService,
 } from '../services/recommendationRetrainingService.js';
+import {
+  ADMIN_RECOMMENDATION_PREFLIGHT_HTTP_MESSAGES,
+  createAdminRecommendationPreflightService,
+} from '../services/adminRecommendationPreflightService.js';
 import { stripTransportQueryMetadata } from '../utils/transportQueryMetadata.js';
 
 const ALLOWED_KEYS = Object.freeze(['pipeline_stage']);
@@ -39,6 +43,26 @@ const invalidHealthQuery = () => ({
   ok: false,
   error: RETRAINING_HEALTH_HTTP_MESSAGES.invalidQuery,
 });
+
+const invalidPreflightQuery = () => ({
+  ok: false,
+  error: ADMIN_RECOMMENDATION_PREFLIGHT_HTTP_MESSAGES.invalidQuery,
+});
+
+export function parseAdminRecommendationPreflightQuery(rawQuery) {
+  const query = stripTransportQueryMetadata(rawQuery);
+  if (query === undefined || query === null) {
+    return { ok: true, value: null };
+  }
+  if (typeof query !== 'object' || Array.isArray(query)) {
+    return invalidPreflightQuery();
+  }
+  for (const key of Object.keys(query)) {
+    void key;
+    return invalidPreflightQuery();
+  }
+  return { ok: true, value: null };
+}
 
 export function parseAdminRecommendationHealthQuery(rawQuery) {
   const query = stripTransportQueryMetadata(rawQuery);
@@ -132,6 +156,7 @@ export function createAdminRecommendationRouter({
   adminRecommendationMetricsService = createAdminRecommendationMetricsService(),
   adminRecommendationHistoryService = createAdminRecommendationHistoryService(),
   adminRecommendationHealthService = createRecommendationRetrainingService(),
+  adminRecommendationPreflightService = createAdminRecommendationPreflightService(),
 } = {}) {
   const router = Router();
 
@@ -235,6 +260,31 @@ export function createAdminRecommendationRouter({
         return res.status(500).json({
           success: false,
           error: ADMIN_RECOMMENDATION_HISTORY_HTTP_MESSAGES.failed,
+        });
+      }
+    },
+  );
+
+  router.get(
+    '/preflight',
+    protectMiddleware,
+    adminOnlyMiddleware,
+    async (req, res) => {
+      const parsed = parseAdminRecommendationPreflightQuery(req.query);
+      if (!parsed.ok) {
+        return res.status(400).json({
+          success: false,
+          error: parsed.error,
+        });
+      }
+
+      try {
+        const data = await adminRecommendationPreflightService.getRecommendationPreflight();
+        return res.status(200).json({ success: true, data });
+      } catch {
+        return res.status(500).json({
+          success: false,
+          error: ADMIN_RECOMMENDATION_PREFLIGHT_HTTP_MESSAGES.failed,
         });
       }
     },

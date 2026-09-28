@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAdminRecommendationMetrics } from '../../hooks/useAdminRecommendationMetrics.js';
 import { useAdminRecommendationHistory } from '../../hooks/useAdminRecommendationHistory.js';
 import { useAdminRecommendationHealth } from '../../hooks/useAdminRecommendationHealth.js';
+import { useAdminRecommendationPreflight } from '../../hooks/useAdminRecommendationPreflight.js';
 import {
   ADMIN_RECOMMENDATION_PIPELINE_STAGES,
   DEFAULT_ADMIN_RECOMMENDATION_PIPELINE_STAGE,
@@ -32,6 +33,13 @@ import {
   buildHealthStatusCards,
   selectAdminRecommendationHealthView,
 } from './aiRecommendationHealthUi.js';
+import {
+  ADMIN_AI_PREFLIGHT_MESSAGES,
+  ADMIN_AI_PREFLIGHT_VIEWS,
+  buildPreflightCards,
+  getPreflightSufficiencyMessage,
+  selectAdminRecommendationPreflightView,
+} from './aiRecommendationPreflightUi.js';
 
 export default function AdminAIRecommendation() {
   const [selectedStage, setSelectedStage] = useState(
@@ -61,6 +69,11 @@ export default function AdminAIRecommendation() {
     latest: healthLatest,
     refresh: refreshHealth,
   } = useAdminRecommendationHealth();
+  const {
+    state: preflightState,
+    data: preflightData,
+    refresh: refreshPreflight,
+  } = useAdminRecommendationPreflight();
 
   const view = selectAdminRecommendationDashboardView(metricsState);
   const metricCards = view === ADMIN_AI_DASHBOARD_VIEWS.READY
@@ -84,6 +97,12 @@ export default function AdminAIRecommendation() {
   const healthCards =
     healthView === ADMIN_AI_HEALTH_VIEWS.READY
       ? buildHealthStatusCards(backendState, lease, healthLatest)
+      : [];
+
+  const preflightView = selectAdminRecommendationPreflightView(preflightState);
+  const preflightCards =
+    preflightView === ADMIN_AI_PREFLIGHT_VIEWS.READY && preflightData
+      ? buildPreflightCards(preflightData)
       : [];
 
   const handleStageChange = (stage) => {
@@ -296,6 +315,50 @@ export default function AdminAIRecommendation() {
             onClick={() => refreshHealth()}
           >
             {ADMIN_AI_HEALTH_MESSAGES.RETRY}
+          </button>
+        </div>
+      )}
+
+      <h3 className="ai-rec-section-title">Training Readiness</h3>
+
+      {preflightView === ADMIN_AI_PREFLIGHT_VIEWS.LOADING && (
+        <p className="ai-rec-state" role="status" aria-live="polite">
+          {ADMIN_AI_PREFLIGHT_MESSAGES.LOADING}
+        </p>
+      )}
+
+      {preflightView === ADMIN_AI_PREFLIGHT_VIEWS.ERROR && (
+        <div className="ai-rec-state ai-rec-error" role="alert">
+          <p>{ADMIN_AI_PREFLIGHT_MESSAGES.ERROR}</p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => refreshPreflight()}
+          >
+            {ADMIN_AI_PREFLIGHT_MESSAGES.RETRY}
+          </button>
+        </div>
+      )}
+
+      {preflightView === ADMIN_AI_PREFLIGHT_VIEWS.READY && (
+        <div className="ai-rec-health">
+          <p className="ai-rec-state" role="status" aria-live="polite">
+            {getPreflightSufficiencyMessage(preflightData)}
+          </p>
+          <div className="ai-rec-summary-grid">
+            {preflightCards.map((card) => (
+              <div key={card.key} className="ai-rec-summary-card">
+                <span className="ai-rec-summary-label">{card.label}</span>
+                <span className="ai-rec-summary-value">{card.formatted}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn ai-rec-health-refresh"
+            onClick={() => refreshPreflight()}
+          >
+            {ADMIN_AI_PREFLIGHT_MESSAGES.RETRY}
           </button>
         </div>
       )}
