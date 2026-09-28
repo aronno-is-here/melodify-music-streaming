@@ -93,15 +93,24 @@ export default function Admin() {
 
   const handleSectionClick = (s) => {
     if (s === 'ai-recommendation') {
+      setSection('ai-recommendation');
       navigate('/admin/ai-recommendation');
       return;
     }
     if (location.pathname === '/admin/ai-recommendation') {
       navigate('/admin', { state: { section: s } });
+      setSection(s);
       return;
     }
     setSection(s);
   };
+
+  useEffect(() => {
+    if (location.pathname === '/admin/ai-recommendation') {
+      setSection('ai-recommendation');
+    }
+  }, [location.pathname]);
+
   const [stats, setStats] = useState({ users: 0, songs: 0, plays: 0, revenue: 0, activeSubs: 0, pendingReports: 0, recentPlays: [], monthlyRevenue: 0, lastMonthRevenue: 0, monthlySubs: 0, totalSubs: 0, revenueByPlan: {} });
   const [users, setUsers] = useState([]);
   const [songs, setSongs] = useState([]);
