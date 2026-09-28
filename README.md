@@ -975,6 +975,19 @@ node --test client/src/services/adminRecommendationHealth.test.js \
 python -m unittest discover -s ml/tests -p "test_*.py"
 ```
 
+### Admin AI Recommendation behavioral navigation verification
+
+Follow-up diagnosis of the report that the Admin **AI Recommendation** sidebar button "still does nothing" in production; no production code change was required.
+
+- **Mechanism (proven)** - on the pre-fix bundle the click only calls `navigate('/admin/ai-recommendation')`; the surviving `Admin` component keeps `section = 'dashboard'`, so the URL changes while the Dashboard stays rendered. A headless Edge CDP run against the still-READY pre-fix deployment reproduces it exactly: `pathname` updates, `.active` stays Dashboard, no `#ai-recommendation` heading, zero exceptions.
+- **Current production** - the identical CDP run against `https://melodify-music-streaming-eight.vercel.app` (CDP `Fetch` interception mocks `/api/*` as an authenticated admin; no credentials used) passes end to end: default Dashboard → click → `pathname` + `.active` + `#ai-recommendation h2` inside the viewport (also after a mid-scroll) + stage selector + empty states + Model Health → leaving restores Dashboard → deep link opens the AI section, with zero uncaught page exceptions. Long-lived tabs from before the deploy keep executing the pre-fix JS until reloaded.
+- **Regression test** - `client/src/pages/Admin/adminAiRecommendationBehavior.test.js` boots headless Edge against a built `client/dist` with mocked admin APIs and asserts the whole chain (default section, `cursor: pointer`, active styling, URL sync, rendered AI view, empty states, leave restore, deep link, no crash fallback). It skips automatically when `client/dist` is missing or Microsoft Edge is not installed.
+
+```bash
+npm run build --prefix client
+node --test client/src/pages/Admin/adminAiRecommendationBehavior.test.js
+```
+
 ### H01 emergency hotfix — mobile Dashboard scroll + engine-confirmed playback status
 
 Client-only hotfix on branch `frontend-modernization`; no server, Python, API, model, or dependency changes.
