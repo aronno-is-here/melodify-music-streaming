@@ -7,6 +7,7 @@ import {
   parseAdminRecommendationHistoryQuery,
   parseAdminRecommendationMetricsQuery,
   parseAdminRecommendationHealthQuery,
+  parseAdminRecommendationPreflightQuery,
 } from './adminRecommendationRoutes.js';
 import {
   ADMIN_RECOMMENDATION_METRICS_DEFAULT_STAGE,
@@ -203,14 +204,14 @@ test('106: no RECOMMENDATION_AI_ENABLED / aiEnabled gate in this route', () => {
   assert.equal(source.includes('503'), false);
 });
 
-test('107: route file has no POST/PUT/PATCH/DELETE handlers (GET /metrics + GET /history + GET /health only)', () => {
+test('107: route file has no POST/PUT/PATCH/DELETE handlers (GET /metrics + GET /history + GET /health + GET /preflight only)', () => {
   const source = readSource('./adminRecommendationRoutes.js');
   assert.equal(source.includes('router.post'), false);
   assert.equal(source.includes('router.put'), false);
   assert.equal(source.includes('router.patch'), false);
   assert.equal(source.includes('router.delete'), false);
   const gets = source.match(/router\.get\s*\(/g) || [];
-  assert.equal(gets.length, 3);
+  assert.equal(gets.length, 4);
 });
 
 test('108: no Python/child_process/write tokens in the route file', () => {
@@ -963,7 +964,7 @@ test('169: metrics query still rejects the history key and vice versa boundaries
   assert.equal(historyUnknown.ok, false);
 });
 
-test('170: /metrics, /history, and /health routes exist on one router with GET only', () => {
+test('170: /metrics, /history, /health, and /preflight routes exist on one router with GET only', () => {
   const router = createAdminRecommendationRouter({
     protectMiddleware: (req, res, next) => next(),
     adminOnlyMiddleware: (req, res, next) => next(),
@@ -992,7 +993,7 @@ test('170: /metrics, /history, and /health routes exist on one router with GET o
     .filter((l) => l.route)
     .map((l) => l.route.path)
     .sort();
-  assert.deepEqual(routePaths, ['/health', '/history', '/metrics']);
+  assert.deepEqual(routePaths, ['/health', '/history', '/metrics', '/preflight']);
   for (const layer of router.stack.filter((l) => l.route)) {
     assert.deepEqual(Object.keys(layer.route.methods), ['get']);
   }
@@ -1412,7 +1413,7 @@ test('197: never-run health payload still returns 200 with path metadata', async
   assert.equal(res.body.data.latest, null);
 });
 
-test('198: array-valued Vercel path metadata is ignored by all three parsers', () => {
+test('198: array-valued Vercel path metadata is ignored by all four parsers', () => {
   const metrics = parseAdminRecommendationMetricsQuery({
     pipeline_stage: 'hybrid',
     path: ['admin', 'recommendations', 'metrics'],
@@ -1440,4 +1441,287 @@ test('198: array-valued Vercel path metadata is ignored by all three parsers', (
   });
   assert.equal(healthWithUnknown.ok, false);
   assert.equal(healthWithUnknown.error, 'invalid recommendation health query');
+
+  const preflight = parseAdminRecommendationPreflightQuery({
+    path: ['admin', 'recommendations', 'preflight'],
+  });
+  assert.equal(preflight.ok, true);
+
+  const preflightWithUnknown = parseAdminRecommendationPreflightQuery({
+    path: ['admin', 'recommendations', 'preflight'],
+    debug: '1',
+  });
+  assert.equal(preflightWithUnknown.ok, false);
+  assert.equal(
+    preflightWithUnknown.error,
+    'invalid recommendation preflight query',
+  );
+});
+
+// --- GET /preflight ---
+
+const preflightData = {
+  source: 'recommendation-preflight',
+  feature_flags: {
+    recommendation_ai_enabled: true,
+    listening_events_enabled: true,
+  },
+  catalog: { songs: 26 },
+  telemetry: {
+    listening_events: 143,
+    usable_events: 91,
+    distinct_users: 7,
+    distinct_songs: 18,
+  },
+  persisted: { evaluation_runs: 3, snapshots: 12 },
+  sufficiency: { state: 'ready', reason: null },
+};
+
+function createPreflightHandler({
+  serviceResult = preflightData,
+  serviceError = null,
+  protectImpl = null,
+  adminOnlyImpl = null,
+} = {}) {
+  const serviceCalls = [];
+  const middlewareOrder = [];
+  const router = createAdminRecommendationRouter({
+    protectMiddleware:
+      protectImpl ??
+      ((req, _res, next) => {
+        middlewareOrder.push('protect');
+        next();
+      }),
+    adminOnlyMiddleware:
+      adminOnlyImpl ??
+      ((req, _res, next) => {
+        middlewareOrder.push('adminOnly');
+        next();
+      }),
+    adminRecommendationPreflightService: {
+      async getRecommendationPreflight(args) {
+        serviceCalls.push(args ?? null);
+        if (serviceError) throw serviceError;
+        return serviceResult;
+      },
+    },
+  });
+
+  const layer = router.stack.find((l) => l.route && l.route.path === '/preflight');
+  assert.ok(layer, 'expected GET /preflight route');
+  const handlers = layer.route.stack.map((s) => s.handle);
+
+  const invoke = async (query = {}, user = { role: 'admin' }) => {
+    const req = { query, headers: {} };
+    if (user !== null) req.user = user;
+    const res = createRes();
+    let index = 0;
+    const runNext = async () => {
+      if (index >= handlers.length) return;
+      const handler = handlers[index];
+      index += 1;
+      await handler(req, res, runNext);
+    };
+    await runNext();
+    return { req, res, serviceCalls, middlewareOrder };
+  };
+
+  return { invoke, serviceCalls, middlewareOrder, handlers, layer };
+}
+
+test('199: GET /preflight route exists with GET method only', () => {
+  const { layer } = createPreflightHandler();
+  assert.equal(layer.route.path, '/preflight');
+  assert.deepEqual(Object.keys(layer.route.methods), ['get']);
+});
+
+test('200: preflight middleware order is protect then adminOnly then handler', async () => {
+  const { invoke, middlewareOrder } = createPreflightHandler();
+  await invoke({});
+  assert.deepEqual(middlewareOrder, ['protect', 'adminOnly']);
+});
+
+test('201: preflight route stack has exactly three handlers', () => {
+  const { handlers } = createPreflightHandler();
+  assert.equal(handlers.length, 3);
+});
+
+test('202: preflight unauthenticated request short-circuits with 401', async () => {
+  const { invoke, serviceCalls } = createPreflightHandler({
+    protectImpl: (req, res) => {
+      res.status(401).json({ success: false, error: 'not authorized' });
+    },
+    adminOnlyImpl: (req, res, next) => next(),
+  });
+  const { res } = await invoke({}, null);
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.body.success, false);
+  assert.equal(serviceCalls.length, 0);
+});
+
+test('203: preflight non-admin short-circuits with 403 and no data', async () => {
+  const { invoke, serviceCalls } = createPreflightHandler({
+    adminOnlyImpl: (req, res) => {
+      res.status(403).json({ success: false, error: 'Admin access required' });
+    },
+  });
+  const { res } = await invoke({}, { role: 'user' });
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.success, false);
+  assert.equal(serviceCalls.length, 0);
+  assert.equal(res.body.data, undefined);
+});
+
+test('204: preflight admin request returns 200 with the aggregate payload', async () => {
+  const { invoke, serviceCalls } = createPreflightHandler();
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.deepEqual(res.body.data, preflightData);
+  assert.equal(serviceCalls.length, 1);
+});
+
+test('205: preflight response exposes only aggregate non-sensitive fields', async () => {
+  const { invoke } = createPreflightHandler();
+  const { res } = await invoke({});
+  const serialized = JSON.stringify(res.body);
+  for (const token of [
+    'mongodb://',
+    'MONGO_URI',
+    'JWT',
+    'password',
+    'api_key',
+    'Bearer',
+    'email',
+  ]) {
+    assert.equal(serialized.includes(token), false, `leaked: ${token}`);
+  }
+  assert.deepEqual(Object.keys(res.body.data).sort(), [
+    'catalog',
+    'feature_flags',
+    'persisted',
+    'source',
+    'sufficiency',
+    'telemetry',
+  ]);
+});
+
+test('206: preflight empty query and Vercel path metadata are accepted', async () => {
+  const { invoke, serviceCalls } = createPreflightHandler();
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 200);
+
+  const { res: withPath } = await invoke({
+    path: 'admin/recommendations/preflight',
+  });
+  assert.equal(withPath.statusCode, 200);
+  assert.equal(withPath.body.success, true);
+  assert.equal(serviceCalls.length, 2);
+});
+
+test('207: preflight unknown query key is rejected with 400 before the service', async () => {
+  const { invoke, serviceCalls } = createPreflightHandler();
+  const { res } = await invoke({ debug: '1' });
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(res.body, {
+    success: false,
+    error: 'invalid recommendation preflight query',
+  });
+  assert.equal(serviceCalls.length, 0);
+});
+
+test('208: preflight array and non-object queries are rejected with 400', () => {
+  assert.equal(parseAdminRecommendationPreflightQuery(['x']).ok, false);
+  assert.equal(
+    parseAdminRecommendationPreflightQuery({ userId: 'abc' }).ok,
+    false,
+  );
+  assert.equal(
+    parseAdminRecommendationPreflightQuery({ limit: '10' }).ok,
+    false,
+  );
+  assert.equal(parseAdminRecommendationPreflightQuery({}).ok, true);
+  assert.equal(parseAdminRecommendationPreflightQuery(undefined).ok, true);
+  assert.equal(parseAdminRecommendationPreflightQuery(null).ok, true);
+});
+
+test('209: preflight service failure returns a fixed 500 with no leak', async () => {
+  const { invoke } = createPreflightHandler({
+    serviceError: new Error('mongodb://user:pass@host'),
+  });
+  const { res } = await invoke({});
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, {
+    success: false,
+    error: 'failed to load recommendation preflight',
+  });
+  const serialized = JSON.stringify(res.body);
+  assert.equal(serialized.includes('mongodb'), false);
+  assert.equal(serialized.includes('stack'), false);
+});
+
+test('210: preflight handler never receives request identity or body input', async () => {
+  const seen = [];
+  const router = createAdminRecommendationRouter({
+    protectMiddleware: (req, res, next) => {
+      req.user = { role: 'admin', email: 'admin@example.com' };
+      next();
+    },
+    adminOnlyMiddleware: (req, res, next) => next(),
+    adminRecommendationPreflightService: {
+      async getRecommendationPreflight() {
+        seen.push(arguments.length);
+        return preflightData;
+      },
+    },
+  });
+  const layer = router.stack.find((l) => l.route && l.route.path === '/preflight');
+  const handlers = layer.route.stack.map((s) => s.handle);
+  const req = {
+    query: { path: 'admin/recommendations/preflight' },
+    headers: {},
+    body: { userId: 'leak' },
+    user: { role: 'admin', email: 'admin@example.com' },
+  };
+  const res = createRes();
+  let index = 0;
+  const runNext = async () => {
+    if (index >= handlers.length) return;
+    const handler = handlers[index];
+    index += 1;
+    await handler(req, res, runNext);
+  };
+  await runNext();
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(seen, [0]);
+  assert.equal(JSON.stringify(res.body).includes('admin@example.com'), false);
+  assert.equal(JSON.stringify(res.body).includes('leak'), false);
+});
+
+test('211: preflight route source stays read-only and free of retraining execution', () => {
+  const source = readSource('./adminRecommendationRoutes.js');
+  for (const token of [
+    'router.post',
+    'router.put',
+    'router.patch',
+    'router.delete',
+    'collectRetrainingInput',
+    'runRecommendationRetraining',
+    'child_process',
+    'spawn',
+    'python',
+    'countDocuments',
+    'upsert',
+    '.create(',
+    '.update',
+    '.delete',
+    'recommendationConfig',
+    'aiEnabled',
+    'RECOMMENDATION_AI_ENABLED',
+    '503',
+  ]) {
+    assert.equal(source.includes(token), false, `route source has: ${token}`);
+  }
+  assert.equal(/\btrain\b/.test(source), false);
+  assert.equal(source.includes('evaluate'), false);
 });

@@ -165,7 +165,7 @@ const forbiddenAdmin = (req, res) => {
 // ROUTE STRUCTURE
 // ============================================================
 
-test('structure: routes are GET /metrics, GET /history, and GET /health only (no write methods)', () => {
+test('structure: routes are GET /metrics, GET /history, GET /health, and GET /preflight only (no write methods)', () => {
   const router = createAdminRecommendationRouter({
     protectMiddleware: (req, res, next) => next(),
     adminOnlyMiddleware: (req, res, next) => next(),
@@ -206,6 +206,9 @@ test('structure: routes are GET /metrics, GET /history, and GET /health only (no
   const healthLayer = router.stack.find((l) => l.route && l.route.path === '/health');
   assert.ok(healthLayer, 'expected GET /health route');
   assert.deepEqual(Object.keys(healthLayer.route.methods), ['get']);
+  const preflightLayer = router.stack.find((l) => l.route && l.route.path === '/preflight');
+  assert.ok(preflightLayer, 'expected GET /preflight route');
+  assert.deepEqual(Object.keys(preflightLayer.route.methods), ['get']);
   const writePaths = router.stack.filter(
     (l) =>
       l.route &&

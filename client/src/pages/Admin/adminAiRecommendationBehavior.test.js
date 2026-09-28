@@ -140,6 +140,25 @@ const API_MOCKS = {
       latest: null,
     },
   },
+  '/api/admin/recommendations/preflight': {
+    success: true,
+    data: {
+      source: 'recommendation-preflight',
+      feature_flags: {
+        recommendation_ai_enabled: true,
+        listening_events_enabled: true,
+      },
+      catalog: { songs: 26 },
+      telemetry: {
+        listening_events: 0,
+        usable_events: 0,
+        distinct_users: 0,
+        distinct_songs: 0,
+      },
+      persisted: { evaluation_runs: 0, snapshots: 0 },
+      sufficiency: { state: 'insufficient', reason: 'NO_LISTENING_EVENTS' },
+    },
+  },
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -340,6 +359,15 @@ test(
         ),
         true,
         'click must sync both the URL and the active section state',
+      );
+
+      assert.equal(
+        await waitFor(
+          `document.querySelector('#ai-recommendation') !== null &&
+           document.body.textContent.includes('No persisted evaluation run')`,
+        ),
+        true,
+        'metrics empty state renders before inspecting the section',
       );
 
       const afterClick = await evaluate(`(() => {
