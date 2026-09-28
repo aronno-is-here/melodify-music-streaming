@@ -1213,3 +1213,231 @@ test('185: route source has no child_process/python/retrain execution tokens', (
     assert.equal(source.includes(token), false, token);
   }
 });
+
+// --- Vercel transport path metadata regression (/api/:path* rewrite) ---
+
+test('186: metrics with Vercel path metadata returns 200 and behaves exactly like the request without path', async () => {
+  const query = { pipeline_stage: 'policy', path: 'admin/recommendations/metrics' };
+  const before = JSON.stringify(query);
+  const withPath = createHandler();
+  const { res: resWithPath } = await withPath.invoke(query);
+  const withoutPath = createHandler();
+  const { res: resWithoutPath } = await withoutPath.invoke({
+    pipeline_stage: 'policy',
+  });
+
+  assert.equal(JSON.stringify(query), before, 'parse must not mutate the query');
+  assert.equal(resWithPath.statusCode, 200);
+  assert.equal(resWithoutPath.statusCode, 200);
+  assert.deepEqual(resWithPath.body, resWithoutPath.body);
+  assert.deepEqual(withPath.serviceCalls, [{ pipelineStage: 'policy' }]);
+  assert.deepEqual(withoutPath.serviceCalls, [{ pipelineStage: 'policy' }]);
+});
+
+test('187: history with Vercel path metadata returns 200 and behaves exactly like the request without path', async () => {
+  const withPath = createHistoryHandler();
+  const { res: resWithPath } = await withPath.invoke({
+    pipeline_stage: 'policy',
+    limit: '20',
+    path: 'admin/recommendations/history',
+  });
+  const withoutPath = createHistoryHandler();
+  const { res: resWithoutPath } = await withoutPath.invoke({
+    pipeline_stage: 'policy',
+    limit: '20',
+  });
+
+  assert.equal(resWithPath.statusCode, 200);
+  assert.equal(resWithoutPath.statusCode, 200);
+  assert.deepEqual(resWithPath.body, resWithoutPath.body);
+  assert.deepEqual(withPath.serviceCalls, [{ pipelineStage: 'policy', limit: 20 }]);
+  assert.deepEqual(withoutPath.serviceCalls, [
+    { pipelineStage: 'policy', limit: 20 },
+  ]);
+});
+
+test('188: health with Vercel path metadata returns 200 and behaves exactly like the request without path', async () => {
+  const withPath = createHealthHandler();
+  const { res: resWithPath } = await withPath.invoke({
+    path: 'admin/recommendations/health',
+  });
+  const withoutPath = createHealthHandler();
+  const { res: resWithoutPath } = await withoutPath.invoke({});
+
+  assert.equal(resWithPath.statusCode, 200);
+  assert.equal(resWithoutPath.statusCode, 200);
+  assert.deepEqual(resWithPath.body, resWithoutPath.body);
+  assert.equal(resWithPath.body.success, true);
+  assert.equal(withPath.serviceCalls.length, 1);
+  assert.equal(withoutPath.serviceCalls.length, 1);
+});
+
+test('189: metrics with real unknown query keys still returns 400 with path metadata present or absent', async () => {
+  const withPath = createHandler();
+  const { res: resWithPath } = await withPath.invoke({
+    pipeline_stage: 'policy',
+    path: 'admin/recommendations/metrics',
+    unexpected: 'x',
+  });
+  assert.equal(resWithPath.statusCode, 400);
+  assert.equal(resWithPath.body.error, 'invalid recommendation metrics query');
+
+  const withoutPath = createHandler();
+  const { res: resWithoutPath } = await withoutPath.invoke({ unexpected: 'x' });
+  assert.equal(resWithoutPath.statusCode, 400);
+  assert.equal(
+    resWithoutPath.body.error,
+    'invalid recommendation metrics query',
+  );
+
+  assert.equal(withPath.serviceCalls.length, 0);
+  assert.equal(withoutPath.serviceCalls.length, 0);
+});
+
+test('190: history with real unknown query keys still returns 400 with path metadata present or absent', async () => {
+  const withPath = createHistoryHandler();
+  const { res: resWithPath } = await withPath.invoke({
+    pipeline_stage: 'policy',
+    limit: '20',
+    path: 'admin/recommendations/history',
+    foo: 'bar',
+  });
+  assert.equal(resWithPath.statusCode, 400);
+  assert.equal(resWithPath.body.error, 'invalid recommendation history query');
+
+  const withoutPath = createHistoryHandler();
+  const { res: resWithoutPath } = await withoutPath.invoke({ foo: 'bar' });
+  assert.equal(resWithoutPath.statusCode, 400);
+  assert.equal(
+    resWithoutPath.body.error,
+    'invalid recommendation history query',
+  );
+
+  assert.equal(withPath.serviceCalls.length, 0);
+  assert.equal(withoutPath.serviceCalls.length, 0);
+});
+
+test('191: health with real unknown query keys still returns 400 with path metadata present or absent', async () => {
+  const withPath = createHealthHandler();
+  const { res: resWithPath } = await withPath.invoke({
+    path: 'admin/recommendations/health',
+    foo: 'bar',
+  });
+  assert.equal(resWithPath.statusCode, 400);
+  assert.equal(resWithPath.body.error, 'invalid recommendation health query');
+
+  const withoutPath = createHealthHandler();
+  const { res: resWithoutPath } = await withoutPath.invoke({ foo: 'bar' });
+  assert.equal(resWithoutPath.statusCode, 400);
+  assert.equal(
+    resWithoutPath.body.error,
+    'invalid recommendation health query',
+  );
+
+  assert.equal(withPath.serviceCalls.length, 0);
+  assert.equal(withoutPath.serviceCalls.length, 0);
+});
+
+test('192: policy stage is still accepted with path metadata', async () => {
+  const { invoke, serviceCalls } = createHandler();
+  const { res } = await invoke({
+    pipeline_stage: 'policy',
+    path: 'admin/recommendations/metrics',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(serviceCalls, [{ pipelineStage: 'policy' }]);
+});
+
+test('193: hybrid stage is still accepted with path metadata', async () => {
+  const { invoke, serviceCalls } = createHandler();
+  const { res } = await invoke({
+    pipeline_stage: 'hybrid',
+    path: 'admin/recommendations/metrics',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(serviceCalls, [{ pipelineStage: 'hybrid' }]);
+});
+
+test('194: collaborative stage is still accepted with path metadata', async () => {
+  const { invoke, serviceCalls } = createHandler();
+  const { res } = await invoke({
+    pipeline_stage: 'collaborative',
+    path: 'admin/recommendations/metrics',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(serviceCalls, [{ pipelineStage: 'collaborative' }]);
+});
+
+test('195: empty metrics payload still returns 200 with path metadata', async () => {
+  const { invoke } = createHandler({ serviceResult: noRunsData });
+  const { res } = await invoke({
+    pipeline_stage: 'policy',
+    path: 'admin/recommendations/metrics',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.data.state, 'no-runs');
+  assert.equal(res.body.data.latest, null);
+  assert.equal(res.body.data.source, 'evaluation-history');
+});
+
+test('196: empty history payload still returns 200 with path metadata', async () => {
+  const { invoke } = createHistoryHandler({
+    serviceResult: historyNoRunsData,
+  });
+  const { res } = await invoke({
+    pipeline_stage: 'policy',
+    limit: '20',
+    path: 'admin/recommendations/history',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.data.state, 'no-runs');
+  assert.equal(res.body.data.count, 0);
+  assert.deepEqual(res.body.data.runs, []);
+});
+
+test('197: never-run health payload still returns 200 with path metadata', async () => {
+  const { invoke } = createHealthHandler();
+  const { res } = await invoke({ path: 'admin/recommendations/health' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.data.state, 'never-run');
+  assert.equal(res.body.data.source, 'retraining-health');
+  assert.deepEqual(res.body.data.lease, {
+    active: false,
+    run_id: null,
+    expires_at: null,
+  });
+  assert.equal(res.body.data.latest, null);
+});
+
+test('198: array-valued Vercel path metadata is ignored by all three parsers', () => {
+  const metrics = parseAdminRecommendationMetricsQuery({
+    pipeline_stage: 'hybrid',
+    path: ['admin', 'recommendations', 'metrics'],
+  });
+  assert.equal(metrics.ok, true);
+  assert.equal(metrics.value.pipelineStage, 'hybrid');
+
+  const history = parseAdminRecommendationHistoryQuery({
+    pipeline_stage: 'policy',
+    limit: '20',
+    path: ['admin', 'recommendations', 'history'],
+  });
+  assert.equal(history.ok, true);
+  assert.equal(history.value.pipelineStage, 'policy');
+  assert.equal(history.value.limit, 20);
+
+  const health = parseAdminRecommendationHealthQuery({
+    path: ['admin', 'recommendations', 'health'],
+  });
+  assert.equal(health.ok, true);
+
+  const healthWithUnknown = parseAdminRecommendationHealthQuery({
+    path: ['admin', 'recommendations', 'health'],
+    debug: '1',
+  });
+  assert.equal(healthWithUnknown.ok, false);
+  assert.equal(healthWithUnknown.error, 'invalid recommendation health query');
+});

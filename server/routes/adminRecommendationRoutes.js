@@ -17,6 +17,7 @@ import {
   RETRAINING_HEALTH_HTTP_MESSAGES,
   createRecommendationRetrainingService,
 } from '../services/recommendationRetrainingService.js';
+import { stripTransportQueryMetadata } from '../utils/transportQueryMetadata.js';
 
 const ALLOWED_KEYS = Object.freeze(['pipeline_stage']);
 
@@ -39,7 +40,8 @@ const invalidHealthQuery = () => ({
   error: RETRAINING_HEALTH_HTTP_MESSAGES.invalidQuery,
 });
 
-export function parseAdminRecommendationHealthQuery(query) {
+export function parseAdminRecommendationHealthQuery(rawQuery) {
+  const query = stripTransportQueryMetadata(rawQuery);
   if (query === undefined || query === null) {
     return { ok: true, value: null };
   }
@@ -53,7 +55,8 @@ export function parseAdminRecommendationHealthQuery(query) {
   return { ok: true, value: null };
 }
 
-export function parseAdminRecommendationMetricsQuery(query) {
+export function parseAdminRecommendationMetricsQuery(rawQuery) {
+  const query = stripTransportQueryMetadata(rawQuery);
   if (query === undefined || query === null) {
     return {
       ok: true,
@@ -77,7 +80,8 @@ export function parseAdminRecommendationMetricsQuery(query) {
   return { ok: true, value: { pipelineStage } };
 }
 
-export function parseAdminRecommendationHistoryQuery(query) {
+export function parseAdminRecommendationHistoryQuery(rawQuery) {
+  const query = stripTransportQueryMetadata(rawQuery);
   if (query === undefined || query === null) {
     return {
       ok: true,
