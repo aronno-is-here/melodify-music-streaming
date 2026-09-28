@@ -7,6 +7,11 @@ import KaraokeForm from './KaraokeForm.jsx';
 import CatalogSyncPanel from './CatalogSyncPanel.jsx';
 import MissingLyricsQueue from './MissingLyricsQueue.jsx';
 import AdminAIRecommendation from './AdminAIRecommendation.jsx';
+import {
+  CHORD_FORMATS,
+  CHORD_IMPORT_EXTENSIONS,
+  readChordImportFile,
+} from '../../utils/chordSheet.js';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
 
@@ -36,6 +41,31 @@ const formatDateTimeLocal = (value) => {
   const hours = String(parsed.getHours()).padStart(2, '0');
   const minutes = String(parsed.getMinutes()).padStart(2, '0');
   return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const toCapoDraft = (value) => (value === null || value === undefined || value === '' ? '' : String(value));
+
+const toTimelineDraft = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return '';
+  return JSON.stringify(value, null, 2);
+};
+
+const parseTimelineDraft = (value) => {
+  const trimmed = toText(value).trim();
+  if (!trimmed) return { ok: true, value: [] };
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) return { ok: false, value: null };
+    return { ok: true, value: parsed };
+  } catch {
+    return { ok: false, value: null };
+  }
+};
+
+const toCapoPayload = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) ? numeric : null;
 };
 
 export default function Admin() {
@@ -83,6 +113,8 @@ export default function Admin() {
   const [editingSong, setEditingSong] = useState(null);
   const [sourceUrlDraft, setSourceUrlDraft] = useState('');
   const [lyricsSources, setLyricsSources] = useState({ status: 'idle', candidates: [] });
+  const [chordTimelineDraft, setChordTimelineDraft] = useState('');
+  const [chordNotice, setChordNotice] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,6 +155,8 @@ export default function Admin() {
     setEditingSong(song);
     setSourceUrlDraft(typeof song.lyrics_source_url === 'string' ? song.lyrics_source_url : '');
     setLyricsSources({ status: 'idle', candidates: [] });
+    setChordTimelineDraft(toTimelineDraft(song.chord_timeline));
+    setChordNotice(null);
   };
 
   const loadLyricsSources = async (refresh = false) => {
@@ -221,9 +255,81 @@ export default function Admin() {
     return null;
   };
 
+  const patchChordDraft = (patch) => {
+    setEditingSong((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
+  const buildChordDraftPayload = (timeline) => ({
+    chords: toText(editingSong.chords),
+    chords_verified: editingSong.chords_verified === true,
+    chords_source: CHORDS_SOURCE_OPTIONS.includes(editingSong.chords_source) ? editingSong.chords_source : 'none',
+    chords_provider_id: toText(editingSong.chords_provider_id).trim(),
+    chordify_url: toText(editingSong.chordify_url).trim(),
+    chordify_embed_url: toText(editingSong.chordify_embed_url).trim(),
+    chords_reference_url: toText(editingSong.chords_reference_url).trim(),
+    chords_last_checked_at: toText(editingSong.chords_last_checked_at),
+    chords_format: CHORD_FORMATS.includes(editingSong.chords_format) ? editingSong.chords_format : 'plain',
+    chords_key: toText(editingSong.chords_key).trim(),
+    chords_capo: toCapoPayload(editingSong.chords_capo),
+    chords_tuning: toText(editingSong.chords_tuning).trim(),
+    chords_notes: toText(editingSong.chords_notes).trim(),
+    chords_verified_by: toText(editingSong.chords_verified_by).trim(),
+    chord_timeline: timeline,
+  });
+
+  const onChordImportChange = async (extension, event) => {
+    const input = event.target;
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    const result = await readChordImportFile(file, extension);
+    if (!result.ok) {
+      setChordNotice({ text: result.error, isError: true });
+      return;
+    }
+    patchChordDraft({ chords: result.text, chords_format: result.format, chords_verified: false });
+    setChordNotice({ text: `${file.name} imported as ${result.format}. Save to keep it.`, isError: false });
+  };
+
+  const clearChordDraft = () => {
+    patchChordDraft({
+      chords: '',
+      chords_format: 'plain',
+      chords_key: '',
+      chords_capo: null,
+      chords_tuning: '',
+      chords_notes: '',
+      chords_verified_by: '',
+      chords_verified: false,
+      chord_timeline: null,
+    });
+    setChordTimelineDraft('');
+    setChordNotice({ text: 'Chords cleared. Save to keep the change.', isError: false });
+  };
+
+  const saveChordsOnly = async () => {
+    if (!editingSong?._id) return;
+    const timelineDraft = parseTimelineDraft(chordTimelineDraft);
+    if (!timelineDraft.ok) {
+      setChordNotice({ text: 'Chord timeline must be a JSON array.', isError: true });
+      return;
+    }
+    const song = await updateSongContent(editingSong._id, buildChordDraftPayload(timelineDraft.value));
+    if (!song) return;
+    setSongs((prev) => prev.map((item) => (item._id === song._id ? song : item)));
+    setEditingSong(song);
+    setChordNotice({ text: 'Chords saved.', isError: false });
+  };
+
   const saveSongEdits = async (event) => {
     event.preventDefault();
     if (!editingSong?._id) return;
+
+    const timelineDraft = parseTimelineDraft(chordTimelineDraft);
+    if (!timelineDraft.ok) {
+      setChordNotice({ text: 'Chord timeline must be a JSON array.', isError: true });
+      return;
+    }
 
     const formData = new FormData(event.target);
     const metadataPayload = {
@@ -243,14 +349,7 @@ export default function Admin() {
       lyrics_language: toTrimmedText(formData.get('lyrics_language')),
       lyrics_match_status: toTrimmedText(formData.get('lyrics_match_status')) || 'NONE',
       lyrics_last_checked_at: toText(formData.get('lyrics_last_checked_at')),
-      chords: toText(formData.get('chords')),
-      chords_verified: formData.get('chords_verified') === 'on',
-      chords_source: toTrimmedText(formData.get('chords_source')) || 'none',
-      chords_provider_id: toTrimmedText(formData.get('chords_provider_id')),
-      chordify_url: toTrimmedText(formData.get('chordify_url')),
-      chordify_embed_url: toTrimmedText(formData.get('chordify_embed_url')),
-      chords_reference_url: toTrimmedText(formData.get('chords_reference_url')),
-      chords_last_checked_at: toText(formData.get('chords_last_checked_at')),
+      ...buildChordDraftPayload(timelineDraft.value),
     };
 
     const metadataSong = await updateSong(editingSong._id, metadataPayload, { closeEditor: false, showSuccess: false });
@@ -263,6 +362,7 @@ export default function Admin() {
     }
 
     showMessage('Song updated');
+    setChordNotice(null);
     setSongs((prev) => prev.map((song) => (song._id === editingSong._id ? contentSong : song)));
     setEditingSong(null);
   };
@@ -581,16 +681,38 @@ export default function Admin() {
                     </div>
 
                     <div className="form-divider"><span>Chords Verification</span></div>
-                    <div className="form-group"><label>Chords</label><textarea name="chords" defaultValue={editingSong.chords || ''} rows={4} className="admin-multiline-input" /></div>
+                    <div className="form-group"><label>Chords</label><textarea name="chords" rows={6} className="admin-multiline-input" value={toText(editingSong.chords)} onChange={(event) => patchChordDraft({ chords: event.target.value })} /></div>
                     <div className="admin-verify-grid">
-                      <div className="form-group"><label>Chords Source</label><select name="chords_source" defaultValue={editingSong.chords_source || 'none'}>{CHORDS_SOURCE_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
-                      <div className="form-group"><label>Provider ID</label><input type="text" name="chords_provider_id" defaultValue={editingSong.chords_provider_id || ''} /></div>
-                      <div className="form-group"><label>Chordify URL</label><input type="url" name="chordify_url" defaultValue={editingSong.chordify_url || ''} /></div>
-                      <div className="form-group"><label>Chordify Embed URL</label><input type="url" name="chordify_embed_url" defaultValue={editingSong.chordify_embed_url || ''} /></div>
-                      <div className="form-group"><label>Reference URL</label><input type="url" name="chords_reference_url" defaultValue={editingSong.chords_reference_url || ''} /></div>
-                      <div className="form-group"><label>Last Checked</label><input type="datetime-local" name="chords_last_checked_at" defaultValue={formatDateTimeLocal(editingSong.chords_last_checked_at)} /></div>
+                      <div className="form-group"><label>Format</label><select name="chords_format" value={CHORD_FORMATS.includes(editingSong.chords_format) ? editingSong.chords_format : 'plain'} onChange={(event) => patchChordDraft({ chords_format: event.target.value })}>{CHORD_FORMATS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+                      <div className="form-group"><label>Key</label><input type="text" name="chords_key" value={toText(editingSong.chords_key)} onChange={(event) => patchChordDraft({ chords_key: event.target.value })} /></div>
+                      <div className="form-group"><label>Capo</label><input type="number" min="0" max="12" name="chords_capo" value={toCapoDraft(editingSong.chords_capo)} onChange={(event) => patchChordDraft({ chords_capo: event.target.value })} /></div>
+                      <div className="form-group"><label>Tuning</label><input type="text" name="chords_tuning" value={toText(editingSong.chords_tuning)} onChange={(event) => patchChordDraft({ chords_tuning: event.target.value })} /></div>
+                      <div className="form-group"><label>Verified By</label><input type="text" name="chords_verified_by" value={toText(editingSong.chords_verified_by)} onChange={(event) => patchChordDraft({ chords_verified_by: event.target.value })} /></div>
+                      <div className="form-group"><label>Chords Source</label><select name="chords_source" value={CHORDS_SOURCE_OPTIONS.includes(editingSong.chords_source) ? editingSong.chords_source : 'none'} onChange={(event) => patchChordDraft({ chords_source: event.target.value })}>{CHORDS_SOURCE_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
+                      <div className="form-group"><label>Provider ID</label><input type="text" name="chords_provider_id" value={toText(editingSong.chords_provider_id)} onChange={(event) => patchChordDraft({ chords_provider_id: event.target.value })} /></div>
+                      <div className="form-group"><label>Chordify URL</label><input type="url" name="chordify_url" value={toText(editingSong.chordify_url)} onChange={(event) => patchChordDraft({ chordify_url: event.target.value })} /></div>
+                      <div className="form-group"><label>Chordify Embed URL</label><input type="url" name="chordify_embed_url" value={toText(editingSong.chordify_embed_url)} onChange={(event) => patchChordDraft({ chordify_embed_url: event.target.value })} /></div>
+                      <div className="form-group"><label>Reference URL</label><input type="url" name="chords_reference_url" value={toText(editingSong.chords_reference_url)} onChange={(event) => patchChordDraft({ chords_reference_url: event.target.value })} /></div>
+                      <div className="form-group"><label>Last Checked</label><input type="datetime-local" name="chords_last_checked_at" value={formatDateTimeLocal(editingSong.chords_last_checked_at)} onChange={(event) => patchChordDraft({ chords_last_checked_at: event.target.value })} /></div>
                     </div>
-                    <label className="admin-checkbox-row"><input type="checkbox" name="chords_verified" defaultChecked={editingSong.chords_verified === true} /> Chords verified</label>
+                    <div className="form-group"><label>Notes</label><textarea name="chords_notes" rows={2} className="admin-multiline-input" value={toText(editingSong.chords_notes)} onChange={(event) => patchChordDraft({ chords_notes: event.target.value })} /></div>
+                    <div className="form-group"><label>Chord Timeline (JSON)</label><textarea name="chord_timeline" rows={3} className="admin-multiline-input" value={chordTimelineDraft} onChange={(event) => setChordTimelineDraft(event.target.value)} placeholder='[{"time":4,"chord":"G"}]' /></div>
+                    <label className="admin-checkbox-row"><input type="checkbox" name="chords_verified" checked={editingSong.chords_verified === true} onChange={(event) => patchChordDraft({ chords_verified: event.target.checked })} /> Chords verified</label>
+                    <div className="admin-chord-actions">
+                      <button type="button" className="btn" onClick={saveChordsOnly}>Save Chords</button>
+                      <button type="button" className="btn" onClick={clearChordDraft}>Clear Chords</button>
+                      {CHORD_IMPORT_EXTENSIONS.map((extension) => (
+                        <label className="btn admin-chord-import" key={extension}>
+                          {`Import .${extension}`}
+                          <input type="file" accept={`.${extension}`} className="admin-chord-file" onChange={(event) => onChordImportChange(extension, event)} />
+                        </label>
+                      ))}
+                    </div>
+                    {chordNotice ? (
+                      <p className={`admin-chord-notice${chordNotice.isError ? ' error' : ''}`} role={chordNotice.isError ? 'alert' : 'status'}>
+                        {chordNotice.text}
+                      </p>
+                    ) : null}
                     <button type="submit" className="btn">Save</button>
                     <button type="button" className="btn" onClick={() => setEditingSong(null)} style={{ marginLeft: 10 }}>Cancel</button>
                   </form>
