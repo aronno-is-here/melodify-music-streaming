@@ -41,6 +41,10 @@ const IMPORT_ENTRY_KEYS = new Set([
   'verifiedBy',
 ]);
 
+export const CHORD_BULK_MAX_BATCH = 200;
+const BULK_QUERY_KEYS = new Set(['replaceVerified']);
+const HTML_TAG_PATTERN = /<\/?[a-zA-Z][^>]*>/;
+
 const toBoundedString = (value, maxLength) => {
   if (value === null || value === undefined || value === '') return '';
   if (typeof value !== 'string') return null;
@@ -155,6 +159,69 @@ export const parseChordImportPayload = (payload) => {
   return { ok: true, error: null, entries };
 };
 
+export const parseChordBulkQuery = (query) => {
+  const source = query && typeof query === 'object' && !Array.isArray(query) ? query : {};
+  for (const key of Object.keys(source)) {
+    if (!BULK_QUERY_KEYS.has(key)) return { ok: false, error: 'Invalid chord bulk query' };
+    const value = source[key];
+    if (typeof value !== 'string' || (value !== 'true' && value !== 'false')) {
+      return { ok: false, error: 'Invalid chord bulk query' };
+    }
+  }
+  return { ok: true, error: null, replaceVerified: source.replaceVerified === 'true' };
+};
+
+const mapChordBulkEntry = (raw) => {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const hasChords = Object.prototype.hasOwnProperty.call(raw, 'chords');
+  const hasText = Object.prototype.hasOwnProperty.call(raw, 'text');
+  if (hasChords && hasText) return null;
+  if (hasChords) {
+    const mapped = { ...raw };
+    delete mapped.chords;
+    mapped.text = raw.chords;
+    return mapped;
+  }
+  return { ...raw };
+};
+
+export const parseChordBulkPayload = (payload) => {
+  if (!Array.isArray(payload) || payload.length === 0 || payload.length > CHORD_BULK_MAX_BATCH) {
+    return { ok: false, error: 'Invalid chord bulk batch', requested: 0, counts: null, entries: null };
+  }
+  const counts = { imported: 0, rejected: 0, duplicate: 0, invalid: 0 };
+  const entries = [];
+  const seen = new Set();
+  for (const raw of payload) {
+    const mapped = mapChordBulkEntry(raw);
+    if (!mapped) {
+      counts.invalid += 1;
+      continue;
+    }
+    const normalized = normalizeChordImportEntry(mapped);
+    if (normalized.error) {
+      counts.invalid += 1;
+      continue;
+    }
+    const entry = normalized.entry;
+    if (!('text' in mapped) || entry.text.trim().length === 0) {
+      counts.invalid += 1;
+      continue;
+    }
+    if (HTML_TAG_PATTERN.test(entry.text) || HTML_TAG_PATTERN.test(entry.notes)) {
+      counts.invalid += 1;
+      continue;
+    }
+    if (seen.has(entry.songId)) {
+      counts.duplicate += 1;
+      continue;
+    }
+    seen.add(entry.songId);
+    entries.push(entry);
+  }
+  return { ok: true, error: null, requested: payload.length, counts, entries };
+};
+
 router.post('/import', protect, adminOnly, async (req, res) => {
   try {
     const parsed = parseChordImportPayload(req.body);
@@ -187,6 +254,62 @@ router.post('/import', protect, adminOnly, async (req, res) => {
     }
 
     return res.json({ success: true, requested: parsed.entries.length, updated: parsed.entries.length });
+  } catch {
+    return res.status(500).json({ success: false, error: CHORDS_IMPORT_ERROR });
+  }
+});
+
+router.post('/bulk', protect, adminOnly, async (req, res) => {
+  try {
+    const query = parseChordBulkQuery(req.query);
+    if (!query.ok) {
+      return res.status(400).json({ success: false, error: query.error });
+    }
+    const parsed = parseChordBulkPayload(req.body);
+    if (!parsed.ok) {
+      return res.status(400).json({ success: false, error: parsed.error });
+    }
+    const { counts, entries } = parsed;
+    if (entries.length > 0) {
+      const songIds = entries.map((entry) => entry.songId);
+      const songs = await Song.find({ _id: { $in: songIds } }).select('_id chords_verified');
+      const verifiedById = new Map(songs.map((song) => [String(song._id), song.chords_verified === true]));
+      for (const entry of entries) {
+        if (!verifiedById.has(entry.songId)) {
+          counts.rejected += 1;
+          continue;
+        }
+        if (verifiedById.get(entry.songId) && !query.replaceVerified) {
+          counts.rejected += 1;
+          continue;
+        }
+        const update = {
+          chords: entry.text,
+          chords_format: entry.format,
+          chords_key: entry.key,
+          chords_capo: entry.capo,
+          chords_tuning: entry.tuning,
+          chords_notes: entry.notes,
+          chords_verified_by: entry.verifiedBy,
+          chord_timeline: entry.timeline,
+          chords_last_checked_at: new Date(),
+        };
+        if (entry.verifiedProvided) update.chords_verified = entry.verified;
+        if (entry.source) update.chords_source = entry.source;
+        if (entry.sourceUrl) update.chords_reference_url = entry.sourceUrl;
+        const updated = await Song.findByIdAndUpdate(entry.songId, update, { runValidators: true });
+        if (updated) counts.imported += 1;
+        else counts.rejected += 1;
+      }
+    }
+    return res.json({
+      success: true,
+      requested: parsed.requested,
+      imported: counts.imported,
+      rejected: counts.rejected,
+      duplicate: counts.duplicate,
+      invalid: counts.invalid,
+    });
   } catch {
     return res.status(500).json({ success: false, error: CHORDS_IMPORT_ERROR });
   }
