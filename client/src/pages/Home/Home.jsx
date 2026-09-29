@@ -105,10 +105,6 @@ export default function Home() {
                 <Link to="/studio" className="home-nav-link">Studio</Link>
                 <Link to="/feed" className="home-nav-link">Feed</Link>
               </nav>
-              <div className="home-search">
-                <i className="fas fa-search home-search-icon" aria-hidden="true" />
-                <input type="search" aria-label="Search songs, artists, or albums" placeholder="Search songs, artists, or albums..." className="home-search-input" />
-              </div>
             </div>
             <div className="home-right">
               <button className="home-icon-btn" aria-label="Notifications">

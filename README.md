@@ -7,13 +7,13 @@ A full-featured music streaming web application with user authentication, a song
 ## ✨ Features
 
 ### User Side
-- **Multi-step sign-up flow** — email → password → profile details (name, DOB, gender, country)
+- **Multi-step sign-up flow** — email → password → profile details (name, DOB, gender, country) with a dark segmented gender control (Man / Woman / Prefer not to say) and styled day, month, year, and country selects
 - **Login / Logout + recovery** with JWT authentication and bcrypt password hashing, plus modernized Login, Forgot Password, and Reset Password pages
 - **JWT purpose separation (04/43)** — access tokens carry `token_use: "access"`; password-reset tokens carry `token_use: "password-reset"`. Each flow rejects cross-purpose, missing, unknown, or malformed purposes. Existing sessions require re-login, and older reset links must be requested again.
 - **Reset-token handling (05/43)** — reset JWTs are not logged or returned to clients; reset-route failures and reset-sensitive global errors use fixed safe responses without logging raw errors or request bodies. Purpose separation remains enforced. Secure reset-token delivery is not yet implemented; the generic forgot-password acknowledgement does not indicate actual email delivery.
 - **Stale access-token invalidation (06/43)** — access tokens issued before a user's `passwordChangedAt` are rejected with the generic 401; tokens issued at or after that time remain valid (same-second tokens count as fresh). Password change and reset flows update `passwordChangedAt`; signup and fresh logins are unaffected.
 - **Modern authenticated app shell** — `/dashboard`, `/search`, `/library`, `/profile`, `/playlist/:id`, `/song/:id`, `/feed`, `/studio`, and `/user/:id` share a responsive shell with a fixed top bar, desktop sidebar navigation, mobile bottom navigation, and a persistent global player bar/mini-player; the sidebar and account menu also expose **Home → /** to the public homepage, and brand links on all non-homepage pages target `/dashboard`
-- **Song library and discovery views** — dedicated Search and Library routes plus a redesigned Dashboard discovery flow (Continue Listening, Trending Now, Recommended For You, Recently Added, Quick Picks, genre/artist mixes, and fast library access); the Library Playlists tab ships a **Create Playlist** dialog (name, debounced title/artist/album song search, quick-add selection, and partial-failure reporting), and local `/api/songs?q` search matches title, artist, and album
+- **Song library and discovery views** — dedicated Search and Library routes plus a redesigned Dashboard discovery flow (Continue Listening, Trending Now, Recommended For You, Recently Added, Quick Picks, genre/artist mixes, and fast library access); the Library Playlists tab ships a **Create Playlist** dialog (name, debounced title/artist/album song search, quick-add selection, and partial-failure reporting) plus an **Open Playlist** link into the `/playlist/:id` workspace, and local `/api/songs?q` search matches title, artist, and album
 - **Provider-backed catalog search** — authenticated `/api/catalog/search` powers Search with regional filter chips (Bangla, Kolkata Bengali, Hindi, English), merged local/external results, lazy `/api/catalog/import` before external play/favorite so actions resolve to canonical Song IDs, and Library/External source badges
 - **Modernized social + creator pages (B02B)** — `/feed`, `/studio`, and `/user/:id` now use the shared design system and shell contracts with responsive layouts, dialog-driven secondary actions, and global-player-safe playback behavior
 - **Melodify Studio** (`/studio`) — regional karaoke discovery (Bangla, Kolkata Bengali, Hindi, English) with provider-backed search, deterministic dedupe, and classified tracks: `KARAOKE_READY` (direct backing mix) or `SING_ALONG` (provider backing with synchronized mic recording)
@@ -56,7 +56,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Now Playing panel** — song title, artist, genre, duration, release date
 - **Upload songs** — any user can add songs with MP3/WAV audio + JPG/PNG poster via a modal form
 - **Profile page** — modernized account workspace with dialog-based account edit, password change, settings, and recording actions
-- **Dynamic Playlist page** (`/playlist/:id`) — modernized per-user playlist workspace (add/remove/rename/delete/search), integrated with the shared global player queue
+- **Dynamic Playlist page** (`/playlist/:id`) — modernized per-user playlist workspace (add/remove/rename/delete/search), integrated with the shared global player queue; owner-only actions are gated and disabled while a request is in flight, non-owners get a read-only view, and the page is reached from the Library Playlists tab's **Open Playlist** link (delete returns to `/library` instead of a full reload)
 - **Dynamic Song Details page** (`/song/:id`) — modernized song metadata + related tracks + lyrics/chords surface, integrated with the shared global player; song cards and rows across Dashboard/Search/Library/Profile open the details page on click without autoplaying (play/favorite buttons stay isolated)
 - **Modernized Premium page** (`/premium`) — redesigned plan comparison/FAQ experience with live subscription status and subscribe/cancel plans (Individual/Student/Duo) via `/api/subscriptions`; the sticky top navigation sits flush at the viewport top with flex-centered nav items and a shared Home link
 
@@ -1143,7 +1143,7 @@ ADMIN_PASSWORD=your-strong-password
 - Homepage layout uses a shared 1170px desktop content width with fluid 24px gutters.
 - The homepage navigation is a 60px fixed glass header with a fine blue separator.
 - Home/Premium/Studio/Feed links use compact bright labels; Home has an accessible current-page state and violet/blue underline.
-- The search field uses a compact 223 × 33px navy pill with an accessible label and readable placeholder.
+- The public homepage has no search field; discovery search lives at the authenticated `/search` route (and the Library search box), so the header keeps only the nav and account actions.
 - Header actions use an outline bell and a 32px purple profile circle linking to profile or sign-in according to authentication.
 - The desktop hero is a compact 390px composition aligned to the shared content container.
 - Hero art is cropped into the right half, mirrored toward the text, with masked edges rather than a rectangular photo panel.

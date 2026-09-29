@@ -7,6 +7,12 @@ import MelodifyBrand from '../../components/ui/MelodifyBrand.jsx';
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+const GENDER_OPTIONS = [
+  { value: 'man', label: 'Man' },
+  { value: 'woman', label: 'Woman' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+];
+
 function isLeapYear(value) {
   const year = Number(value);
   if (!Number.isFinite(year)) return false;
@@ -209,19 +215,19 @@ export default function Signup() {
               <div className="auth-form-group">
                 <label>Date of birth</label>
                 <div className="auth-grid-3">
-                  <select aria-label="Birth day" required value={day} onChange={(event) => setDay(event.target.value)}>
+                  <select className="auth-select" aria-label="Birth day" required value={day} onChange={(event) => setDay(event.target.value)}>
                     <option value="">Day</option>
                     {dayOptions.map((value) => (
                       <option key={value} value={value}>{value}</option>
                     ))}
                   </select>
-                  <select aria-label="Birth month" required value={month} onChange={(event) => setMonth(event.target.value)}>
+                  <select className="auth-select" aria-label="Birth month" required value={month} onChange={(event) => setMonth(event.target.value)}>
                     <option value="">Month</option>
                     {MONTH_NAMES.map((entry, index) => (
                       <option key={entry} value={index + 1}>{entry}</option>
                     ))}
                   </select>
-                  <select aria-label="Birth year" required value={year} onChange={(event) => setYear(event.target.value)}>
+                  <select className="auth-select" aria-label="Birth year" required value={year} onChange={(event) => setYear(event.target.value)}>
                     <option value="">Year</option>
                     {yearOptions.map((value) => (
                       <option key={value} value={value}>{value}</option>
@@ -231,32 +237,27 @@ export default function Signup() {
               </div>
 
               <div className="auth-form-group">
-                <label>Gender</label>
-                <div className="auth-radio-group">
-                  <label className="auth-radio">
-                    <input type="radio" name="gender" value="man" checked={gender === 'man'} onChange={(event) => setGender(event.target.value)} required />
-                    Man
-                  </label>
-                  <label className="auth-radio">
-                    <input type="radio" name="gender" value="woman" checked={gender === 'woman'} onChange={(event) => setGender(event.target.value)} />
-                    Woman
-                  </label>
-                  <label className="auth-radio">
-                    <input
-                      type="radio"
-                      name="gender"
-                      value="prefer_not_to_say"
-                      checked={gender === 'prefer_not_to_say'}
-                      onChange={(event) => setGender(event.target.value)}
-                    />
-                    Prefer not to say
-                  </label>
+                <span className="auth-group-label" id="signup-gender-label">Gender</span>
+                <div className="auth-segmented" role="radiogroup" aria-labelledby="signup-gender-label">
+                  {GENDER_OPTIONS.map((option, index) => (
+                    <label key={option.value} className="auth-segmented-option">
+                      <input
+                        type="radio"
+                        name="gender"
+                        value={option.value}
+                        checked={gender === option.value}
+                        onChange={(event) => setGender(event.target.value)}
+                        required={index === 0}
+                      />
+                      <span className="auth-segmented-label">{option.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
               <div className="auth-form-group">
                 <label htmlFor="signup-country">Country</label>
-                <select id="signup-country" required value={country} onChange={(event) => setCountry(event.target.value)}>
+                <select id="signup-country" className="auth-select" required value={country} onChange={(event) => setCountry(event.target.value)}>
                   <option value="">Choose a country</option>
                   <option value="Bangladesh">Bangladesh</option>
                   <option value="India">India</option>

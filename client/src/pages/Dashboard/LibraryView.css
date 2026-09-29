@@ -79,6 +79,25 @@
   margin-bottom: 14px;
 }
 
+.library-playlist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.library-playlist-open {
+  color: var(--mel-cyan-soft);
+  font-weight: 600;
+}
+
+.library-playlist-open:hover,
+.library-playlist-open:focus-visible {
+  border-color: rgba(0, 180, 216, 0.7);
+  background: rgba(0, 180, 216, 0.14);
+  color: #d7f8ff;
+}
+
 .create-playlist-btn {
   display: inline-flex;
   align-items: center;

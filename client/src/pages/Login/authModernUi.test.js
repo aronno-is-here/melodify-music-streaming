@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = 'D:/Aronno/Works/Melodify - Music Streaming Website/client/src';
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const loginSrc = readFileSync(join(root, 'pages', 'Login', 'Login.jsx'), 'utf8');
 const signupSrc = readFileSync(join(root, 'pages', 'Signup', 'Signup.jsx'), 'utf8');
 const forgotSrc = readFileSync(join(root, 'pages', 'ForgotPassword', 'ForgotPassword.jsx'), 'utf8');
