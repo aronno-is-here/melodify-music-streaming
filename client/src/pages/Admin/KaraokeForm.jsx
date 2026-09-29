@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../../api/client.js';
+import { getActiveAuthToken } from '../../auth/authToken.js';
 
 const GENRES = ['Pop', 'Rock', 'Bengali', 'Hindi', 'Romantic', 'Metal', 'Melodious', 'Love', 'Happy', 'Bollywood', 'Classical', 'Jazz', 'R&B'];
 
@@ -47,7 +48,7 @@ export default function KaraokeForm({ onSuccess, onError }) {
         formData.append('audio_file', audioFile);
         if (posterFile) formData.append('poster_file', posterFile);
 
-        const token = localStorage.getItem('melodify_token');
+        const token = getActiveAuthToken();
         const res = await fetch('/api/karaoke/upload', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },

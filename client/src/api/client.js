@@ -1,7 +1,9 @@
+import { clearAuthSession, getActiveAuthToken } from '../auth/authToken.js';
+
 const API = import.meta.env.VITE_API_URL || '';
 
 async function request(path, options = {}) {
-  const token = localStorage.getItem('melodify_token');
+  const token = getActiveAuthToken();
   const headers = { ...(options.headers || {}) };
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
@@ -12,7 +14,7 @@ async function request(path, options = {}) {
     const res = await fetch(`${API}${path}`, { ...options, headers });
 
     if (res.status === 401) {
-      localStorage.removeItem('melodify_token');
+      clearAuthSession();
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

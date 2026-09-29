@@ -300,7 +300,7 @@ test(
         true,
         'app shell must mount',
       );
-      await evaluate(`localStorage.setItem('melodify_token', 'behavior-test'); 'ok'`);
+      await evaluate(`sessionStorage.setItem('melodify_admin_token', 'behavior-test'); 'ok'`);
 
       await send('Page.navigate', { url: `${origin}/admin` });
       assert.equal(

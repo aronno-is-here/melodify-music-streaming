@@ -22,6 +22,7 @@ function Protected({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'admin') return <Navigate to="/admin" replace />;
   return children;
 }
 
@@ -33,11 +34,17 @@ function AdminProtected({ children }) {
   return children;
 }
 
+function PublicEntry({ children }) {
+  const { user } = useAuth();
+  if (user && user.role === 'admin') return <Navigate to="/admin" replace />;
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<PublicEntry><Home /></PublicEntry>} />
+      <Route path="/login" element={<PublicEntry><Login /></PublicEntry>} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />

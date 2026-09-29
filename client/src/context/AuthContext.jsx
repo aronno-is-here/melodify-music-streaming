@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
+import {
+  clearAuthSession,
+  isRestorableSession,
+  readActiveAuthSession,
+  storeAuthSession,
+} from '../auth/authToken.js';
 
 const AuthContext = createContext(null);
 
@@ -8,17 +14,25 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUser = async () => {
-    const token = localStorage.getItem('melodify_token');
-    if (!token) {
+    const session = readActiveAuthSession();
+    if (!session.token) {
       setLoading(false);
       return;
     }
     try {
       const data = await api.get('/api/auth/me');
-      if (data.success) setUser(data.user);
-      else localStorage.removeItem('melodify_token');
+      if (data.success) {
+        if (isRestorableSession(session.source, data.user && data.user.role)) {
+          setUser(data.user);
+        } else {
+          clearAuthSession();
+          setUser(null);
+        }
+      } else {
+        clearAuthSession();
+      }
     } catch {
-      localStorage.removeItem('melodify_token');
+      clearAuthSession();
     } finally {
       setLoading(false);
     }
@@ -29,12 +43,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = (token, userData) => {
-    localStorage.setItem('melodify_token', token);
+    storeAuthSession(token, userData && userData.role);
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('melodify_token');
+    clearAuthSession();
     setUser(null);
   };
 
