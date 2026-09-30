@@ -8,15 +8,7 @@ import SongRow from '../../components/music/SongRow.jsx';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
 import EmptyState from '../../components/music/EmptyState.jsx';
 import AppDialog from '../../components/ui/AppDialog.jsx';
-import {
-  FRIEND_ACTION_LABELS,
-  FRIEND_REJECT_LABEL,
-  FRIEND_STATUSES,
-  acceptFriendRequest,
-  fetchFriendStatus,
-  rejectFriendRequest,
-  sendFriendRequest,
-} from '../../services/friendRequests.js';
+import { buildProfileDetailRows, getProfileDetailVisibility } from './profileAboutUi.js';
 import cssRaw from './UserProfile.css?raw';
 
 const TABS = Object.freeze([
@@ -60,13 +52,10 @@ export default function UserProfile() {
   const [statusMessage, setStatusMessage] = useState('');
 
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followedBy, setFollowedBy] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
-
-  const [friendStatus, setFriendStatus] = useState(FRIEND_STATUSES.NONE);
-  const [friendRequestId, setFriendRequestId] = useState('');
-  const [friendLoading, setFriendLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState('overview');
   const [recordings, setRecordings] = useState([]);
@@ -89,6 +78,7 @@ export default function UserProfile() {
 
     setProfile(data.user);
     setIsFollowing(Boolean(data.isFollowing));
+    setFollowedBy(Boolean(data.followedBy));
     setFollowersCount(data.followersCount || 0);
     setFollowingCount(data.followingCount || 0);
     setLoading(false);
@@ -97,23 +87,6 @@ export default function UserProfile() {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
-
-  useEffect(() => {
-    if (!id || !currentUser || !profile) return undefined;
-    if (profile.isOwnProfile) return undefined;
-
-    let cancelled = false;
-    (async () => {
-      const result = await fetchFriendStatus(id, { apiClient: api });
-      if (cancelled || !result.ok) return;
-      setFriendStatus(result.status);
-      setFriendRequestId(result.requestId || '');
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id, currentUser, profile]);
 
   useEffect(() => {
     if (!profile) return;
@@ -138,6 +111,14 @@ export default function UserProfile() {
     player.playSong(songs, index);
   };
 
+  const followLabel = followLoading
+    ? 'Updating...'
+    : isFollowing
+      ? 'Following'
+      : followedBy
+        ? 'Follow Back'
+        : 'Follow';
+
   const handleFollow = async () => {
     if (followLoading) return;
     setFollowLoading(true);
@@ -157,52 +138,6 @@ export default function UserProfile() {
     setIsFollowing(!isFollowing);
     setFollowersCount(data.followersCount || 0);
     setStatusMessage(isFollowing ? 'Unfollowed user.' : 'Now following user.');
-  };
-
-  const handleFriendAction = async (action) => {
-    if (friendLoading) return;
-    setFriendLoading(true);
-    setStatusMessage('');
-
-    let result;
-    if (action === 'send') {
-      result = await sendFriendRequest(id, { apiClient: api });
-    } else if (action === 'accept') {
-      result = await acceptFriendRequest(friendRequestId, { apiClient: api });
-    } else if (action === 'reject') {
-      result = await rejectFriendRequest(friendRequestId, { apiClient: api });
-    } else {
-      setFriendLoading(false);
-      return;
-    }
-
-    setFriendLoading(false);
-
-    if (!result.ok) {
-      setStatusMessage(result.error || 'Unable to update friend request.');
-      if (result.code === 'FRIEND_REQUEST_INCOMING') {
-        setFriendStatus(FRIEND_STATUSES.INCOMING_PENDING);
-        setFriendRequestId(result.requestId || '');
-      }
-      return;
-    }
-
-    if (result.status === FRIEND_STATUSES.REJECTED) {
-      setFriendStatus(FRIEND_STATUSES.NONE);
-      setFriendRequestId('');
-      setStatusMessage('Friend request rejected.');
-      return;
-    }
-
-    setFriendStatus(result.status);
-    setFriendRequestId(result.requestId || '');
-    setStatusMessage(
-      result.status === FRIEND_STATUSES.OUTGOING_PENDING
-        ? 'Friend request sent.'
-        : result.status === FRIEND_STATUSES.FRIENDS
-          ? 'You are now friends.'
-          : '',
-    );
   };
 
   const openUserList = async (type) => {
@@ -226,6 +161,7 @@ export default function UserProfile() {
 
   const profileSongs = profile?.songs || [];
   const profilePosts = profile?.posts || [];
+  const detailRows = useMemo(() => buildProfileDetailRows(profile), [profile]);
 
   const listDialogTitle = useMemo(() => {
     if (listDialogType === 'followers') return 'Followers';
@@ -282,54 +218,8 @@ export default function UserProfile() {
                 onClick={handleFollow}
                 disabled={followLoading}
               >
-                {followLoading ? 'Updating...' : isFollowing ? 'Following' : 'Follow'}
+                {followLabel}
               </button>
-
-              <div className="up-friend-actions" role="group" aria-label="Friendship actions">
-                {friendStatus === FRIEND_STATUSES.NONE ? (
-                  <button
-                    type="button"
-                    className="music-pill-btn up-friend-btn"
-                    onClick={() => handleFriendAction('send')}
-                    disabled={friendLoading}
-                  >
-                    {friendLoading ? 'Sending...' : FRIEND_ACTION_LABELS.none}
-                  </button>
-                ) : null}
-
-                {friendStatus === FRIEND_STATUSES.OUTGOING_PENDING ? (
-                  <button type="button" className="music-pill-btn up-friend-btn" disabled>
-                    {FRIEND_ACTION_LABELS.outgoing_pending}
-                  </button>
-                ) : null}
-
-                {friendStatus === FRIEND_STATUSES.INCOMING_PENDING ? (
-                  <>
-                    <button
-                      type="button"
-                      className="music-pill-btn up-friend-btn"
-                      onClick={() => handleFriendAction('accept')}
-                      disabled={friendLoading}
-                    >
-                      {friendLoading ? 'Working...' : FRIEND_ACTION_LABELS.incoming_pending}
-                    </button>
-                    <button
-                      type="button"
-                      className="music-pill-btn up-friend-btn up-friend-btn--ghost"
-                      onClick={() => handleFriendAction('reject')}
-                      disabled={friendLoading}
-                    >
-                      {friendLoading ? 'Working...' : FRIEND_REJECT_LABEL}
-                    </button>
-                  </>
-                ) : null}
-
-                {friendStatus === FRIEND_STATUSES.FRIENDS ? (
-                  <button type="button" className="music-pill-btn up-friend-btn is-friends" disabled>
-                    {FRIEND_ACTION_LABELS.friends}
-                  </button>
-                ) : null}
-              </div>
             </div>
           ) : null}
 
@@ -350,6 +240,37 @@ export default function UserProfile() {
           </button>
         ))}
       </section>
+
+      {activeTab === 'overview' ? (
+        <section className="music-section app-surface">
+          <SectionHeader
+            title="About"
+            subtitle={profile.isOwnProfile ? 'Your profile details and their visibility' : 'Details this listener shares publicly'}
+          />
+
+          {detailRows.length > 0 ? (
+            <dl className="up-detail-list">
+              {detailRows.map((row) => (
+                <div className="up-detail-row" key={row.field}>
+                  <dt>{row.label}</dt>
+                  <dd>
+                    <span className="up-detail-value">{row.value}</span>
+                    {getProfileDetailVisibility(profile, row.field) ? (
+                      <span className="up-detail-visibility">{getProfileDetailVisibility(profile, row.field)}</span>
+                    ) : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <EmptyState
+              icon="fa-user"
+              title="No public details"
+              detail="This listener has not shared any public profile details."
+            />
+          )}
+        </section>
+      ) : null}
 
       {activeTab === 'overview' ? (
         <section className="music-section app-surface">

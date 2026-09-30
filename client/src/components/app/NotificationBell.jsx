@@ -1,19 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../api/client.js';
-import {
-  DEFAULT_NOTIFICATION_LIMIT,
-  fetchNotifications,
-  fetchUnreadCount,
-  markAllNotificationsRead,
-  markNotificationRead,
-} from '../../services/notifications.js';
-import { acceptFriendRequest, rejectFriendRequest } from '../../services/friendRequests.js';
+import { useNotifications } from '../../context/NotificationContext.jsx';
 import {
   NOTIFICATION_EMPTY_MESSAGE,
   NOTIFICATION_ERROR_MESSAGE,
-  buildNotificationItems,
-  clampUnreadCount,
   getUnreadBadge,
 } from './notificationUi.js';
 
@@ -35,50 +25,17 @@ function formatNotificationTime(value) {
 export default function NotificationBell({ variant = 'shell' }) {
   const navigate = useNavigate();
   const wrapperRef = useRef(null);
-  const generationRef = useRef(0);
   const isHomeVariant = variant === 'home';
 
+  const { items, unread, loading, error: sharedError, refreshUnread, loadList, markRead, markAllRead } = useNotifications();
+
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [items, setItems] = useState([]);
-  const [unread, setUnread] = useState(0);
   const [busy, setBusy] = useState({});
+  const [actionError, setActionError] = useState('');
 
   const badge = getUnreadBadge(unread);
-
-  const refreshUnread = useCallback(async () => {
-    const result = await fetchUnreadCount({ apiClient: api });
-    if (result.ok) setUnread(clampUnreadCount(result.count));
-    return result;
-  }, []);
-
-  const loadList = useCallback(async () => {
-    const generation = generationRef.current + 1;
-    generationRef.current = generation;
-    setLoading(true);
-    setError('');
-
-    const result = await fetchNotifications({ limit: DEFAULT_NOTIFICATION_LIMIT, apiClient: api });
-    if (generationRef.current !== generation) return;
-
-    if (!result.ok) {
-      setError(result.error || NOTIFICATION_ERROR_MESSAGE);
-      setLoading(false);
-      return;
-    }
-
-    setItems(buildNotificationItems(result.notifications));
-    setLoading(false);
-
-    const unreadCount = result.notifications.filter((item) => !item.read).length;
-    if (unreadCount > 0) {
-      const countResult = await fetchUnreadCount({ apiClient: api });
-      if (generationRef.current === generation && countResult.ok) {
-        setUnread(clampUnreadCount(countResult.count));
-      }
-    }
-  }, []);
+  const error = actionError || sharedError;
+  const setError = useCallback((message) => setActionError(message), []);
 
   useEffect(() => {
     refreshUnread();
@@ -86,6 +43,7 @@ export default function NotificationBell({ variant = 'shell' }) {
 
   useEffect(() => {
     if (!open) return undefined;
+    setError('');
     loadList();
     return undefined;
   }, [open, loadList]);
@@ -112,61 +70,31 @@ export default function NotificationBell({ variant = 'shell' }) {
   const openItem = useCallback(async (item) => {
     if (!item) return;
     if (!item.read) {
-      const result = await markNotificationRead(item._id, { apiClient: api });
-      if (result.ok) {
-        setItems((prev) => prev.map((row) => (row._id === item._id ? { ...row, read: true } : row)));
-        setUnread((prev) => Math.max(0, prev - 1));
-      }
+      await markRead(item._id);
     }
     setOpen(false);
     navigate(item.target);
-  }, [navigate]);
+  }, [markRead, navigate]);
 
   const handleMarkRead = useCallback(async (item) => {
     if (!item || item.read || busy[item._id]) return;
     setBusyFlag(item._id, true);
-    const result = await markNotificationRead(item._id, { apiClient: api });
+    const result = await markRead(item._id);
     setBusyFlag(item._id, false);
     if (!result.ok) {
       setError(result.error || NOTIFICATION_ERROR_MESSAGE);
-      return;
     }
-    setItems((prev) => prev.map((row) => (row._id === item._id ? { ...row, read: true } : row)));
-    setUnread((prev) => Math.max(0, prev - 1));
-  }, [busy, setBusyFlag]);
+  }, [busy, markRead, setBusyFlag]);
 
   const handleMarkAll = useCallback(async () => {
     if (busy.__markAll) return;
     setBusyFlag('__markAll', true);
-    const result = await markAllNotificationsRead({ apiClient: api });
+    const result = await markAllRead();
     setBusyFlag('__markAll', false);
     if (!result.ok) {
       setError(result.error || NOTIFICATION_ERROR_MESSAGE);
-      return;
     }
-    setItems((prev) => prev.map((row) => ({ ...row, read: true })));
-    setUnread(0);
-  }, [busy, setBusyFlag]);
-
-  const handleFriendAction = useCallback(async (item, action) => {
-    if (!item || !item.requestId || busy[item.requestId]) return;
-    setBusyFlag(item.requestId, true);
-
-    const result = action === 'accept'
-      ? await acceptFriendRequest(item.requestId, { apiClient: api })
-      : await rejectFriendRequest(item.requestId, { apiClient: api });
-
-    setBusyFlag(item.requestId, false);
-
-    if (!result.ok) {
-      setError(result.error || NOTIFICATION_ERROR_MESSAGE);
-      return;
-    }
-
-    setItems((prev) => prev.filter((row) => row._id !== item._id));
-    if (!item.read) setUnread((prev) => Math.max(0, prev - 1));
-    refreshUnread();
-  }, [busy, setBusyFlag, refreshUnread]);
+  }, [busy, markAllRead, setBusyFlag]);
 
   return (
     <div className="app-notifications" ref={wrapperRef}>
@@ -259,27 +187,6 @@ export default function NotificationBell({ variant = 'shell' }) {
                     >
                       <i className="fa-solid fa-check" aria-hidden="true"></i>
                     </button>
-                  ) : null}
-
-                  {item.showFriendActions ? (
-                    <div className="app-notification-actions">
-                      <button
-                        type="button"
-                        className="app-notification-action app-notification-accept"
-                        onClick={() => handleFriendAction(item, 'accept')}
-                        disabled={Boolean(busy[item.requestId])}
-                      >
-                        {busy[item.requestId] ? 'Working...' : 'Accept'}
-                      </button>
-                      <button
-                        type="button"
-                        className="app-notification-action app-notification-reject"
-                        onClick={() => handleFriendAction(item, 'reject')}
-                        disabled={Boolean(busy[item.requestId])}
-                      >
-                        Reject
-                      </button>
-                    </div>
                   ) : null}
                 </li>
               ))}

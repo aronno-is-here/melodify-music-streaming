@@ -8,6 +8,15 @@ export const DEFAULT_NOTIFICATION_LIMIT = 20;
 export const MAX_NOTIFICATION_LIMIT = 50;
 export const NOTIFICATION_SOURCE = 'notifications';
 
+/**
+ * Types the bell actually surfaces. Legacy friend-request notifications
+ * (`friend_request`, `friend_accepted`) are retired from the product: they are
+ * excluded from BOTH the list and the unread count so every bell shows one
+ * consistent backend-authoritative number. `read-all` may still mark them read
+ * (harmless superset - they are never listed or counted).
+ */
+export const ACTIVE_NOTIFICATION_TYPES = Object.freeze(['post_like', 'post_comment', 'post_share']);
+
 const SAFE_ACTOR_FIELDS = 'name avatar';
 const SAFE_POST_FIELDS = 'title';
 const SAFE_COMMENT_FIELDS = 'text';
@@ -65,7 +74,10 @@ router.get('/', protect, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid notification limit' });
     }
 
-    const docs = await Notification.find({ recipient: req.user._id })
+    const docs = await Notification.find({
+      recipient: req.user._id,
+      type: { $in: ACTIVE_NOTIFICATION_TYPES },
+    })
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .populate('actor', SAFE_ACTOR_FIELDS)
@@ -86,7 +98,11 @@ router.get('/', protect, async (req, res) => {
 
 router.get('/unread-count', protect, async (req, res) => {
   try {
-    const count = await Notification.countDocuments({ recipient: req.user._id, read: false });
+    const count = await Notification.countDocuments({
+      recipient: req.user._id,
+      read: false,
+      type: { $in: ACTIVE_NOTIFICATION_TYPES },
+    });
     return res.json({ success: true, count });
   } catch (error) {
     return res.status(500).json({ success: false, error: 'Failed to load unread count' });
