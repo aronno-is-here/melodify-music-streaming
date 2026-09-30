@@ -4,6 +4,7 @@ import Like from '../models/Like.js';
 import Comment from '../models/Comment.js';
 import Song from '../models/Song.js';
 import { protect } from '../middleware/auth.js';
+import { createNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -104,6 +105,27 @@ router.post('/', protect, async (req, res) => {
     res.json({ success: true, post: populated });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/:postId/share', protect, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId).select('_id author visibility');
+    if (!post) return res.status(404).json({ success: false, error: 'Post not found' });
+    if (post.visibility === 'private' && String(post.author) !== String(req.user._id)) {
+      return res.status(404).json({ success: false, error: 'Post not found' });
+    }
+
+    const notification = await createNotification({
+      recipient: post.author,
+      actor: req.user._id,
+      type: 'post_share',
+      post: post._id,
+    });
+
+    res.json({ success: true, shared: true, notified: Boolean(notification) });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to share post' });
   }
 });
 

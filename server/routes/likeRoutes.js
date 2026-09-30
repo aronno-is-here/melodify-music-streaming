@@ -2,6 +2,7 @@ import express from 'express';
 import Like from '../models/Like.js';
 import Post from '../models/Post.js';
 import { protect } from '../middleware/auth.js';
+import { createNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -17,6 +18,13 @@ router.post('/:postId', protect, async (req, res) => {
 
     await Like.create({ user: req.user._id, post: post._id });
     await Post.findByIdAndUpdate(post._id, { $inc: { likesCount: 1 } });
+
+    await createNotification({
+      recipient: post.author,
+      actor: req.user._id,
+      type: 'post_like',
+      post: post._id,
+    });
 
     const updated = await Post.findById(post._id);
     res.json({ success: true, isLiked: true, likesCount: updated.likesCount });
