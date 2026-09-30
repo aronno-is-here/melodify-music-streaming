@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import notificationRoutes from './notificationRoutes.js';
+import notificationRoutes, { ACTIVE_NOTIFICATION_TYPES } from './notificationRoutes.js';
 import likeRoutes from './likeRoutes.js';
 import commentRoutes from './commentRoutes.js';
 import postRoutes from './postRoutes.js';
@@ -374,6 +374,75 @@ test('12. createNotification never notifies a user about their own action', asyn
     });
     assert.equal(result, null);
     assert.equal(ctx.notificationStore._docs.length, 0);
+  } finally {
+    ctx.restore();
+  }
+});
+
+test('active notification types are exactly the post interaction set', () => {
+  assert.deepEqual([...ACTIVE_NOTIFICATION_TYPES], ['post_like', 'post_comment', 'post_share']);
+  assert.equal(ACTIVE_NOTIFICATION_TYPES.includes('friend_request'), false);
+  assert.equal(ACTIVE_NOTIFICATION_TYPES.includes('friend_accepted'), false);
+});
+
+test('legacy friend notification types are excluded from the bell list', async () => {
+  const ctx = setup({
+    notifications: [
+      seedNotification('n'.repeat(16) + '00000061', { type: 'post_like' }),
+      seedNotification('n'.repeat(16) + '00000062', { type: 'friend_request', friendRequest: 'f'.repeat(16) + '00000001' }),
+      seedNotification('n'.repeat(16) + '00000063', { type: 'friend_accepted', friendRequest: 'f'.repeat(16) + '00000001' }),
+      seedNotification('n'.repeat(16) + '00000064', { type: 'post_comment' }),
+    ],
+  });
+  try {
+    const res = await run(listHandler, { userId: USER_A });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.notifications.length, 2);
+    const types = res.body.notifications.map((item) => item.type).sort();
+    assert.deepEqual(types, ['post_comment', 'post_like']);
+    assert.equal(res.body.count, 2);
+  } finally {
+    ctx.restore();
+  }
+});
+
+test('unread count ignores legacy friend notification types so badges stay consistent', async () => {
+  const ctx = setup({
+    notifications: [
+      seedNotification('n'.repeat(16) + '00000071', { type: 'friend_request', read: false }),
+      seedNotification('n'.repeat(16) + '00000072', { type: 'friend_accepted', read: false }),
+      seedNotification('n'.repeat(16) + '00000073', { type: 'post_like', read: false }),
+      seedNotification('n'.repeat(16) + '00000074', { type: 'post_share', read: true }),
+    ],
+  });
+  try {
+    const count = await run(unreadHandler, { userId: USER_A });
+    assert.deepEqual(count.body, { success: true, count: 1 });
+
+    const list = await run(listHandler, { userId: USER_A });
+    const unreadListed = list.body.notifications.filter((item) => !item.read);
+    assert.equal(unreadListed.length, count.body.count, 'list and badge report the same unread set');
+  } finally {
+    ctx.restore();
+  }
+});
+
+test('read-all may mark legacy friend rows read as a harmless superset', async () => {
+  const ctx = setup({
+    notifications: [
+      seedNotification('n'.repeat(16) + '00000081', { type: 'friend_request' }),
+      seedNotification('n'.repeat(16) + '00000082', { type: 'post_like' }),
+    ],
+  });
+  try {
+    const res = await run(readAllHandler, { userId: USER_A });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.modified, 2);
+    assert.equal(ctx.notificationStore._docs.every((doc) => doc.read === true), true);
+
+    const count = await run(unreadHandler, { userId: USER_A });
+    assert.equal(count.body.count, 0);
   } finally {
     ctx.restore();
   }

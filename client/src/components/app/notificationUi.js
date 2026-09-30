@@ -58,18 +58,6 @@ export function getNotificationTarget(notification) {
   return '/feed';
 }
 
-export function getFriendActionRequestId(notification) {
-  if (!notification || notification.type !== 'friend_request') return null;
-  const request = notification.friendRequest;
-  if (typeof request === 'string' && request.trim()) return request;
-  if (request && typeof request === 'object' && typeof request._id === 'string') return request._id;
-  return null;
-}
-
-export function hasFriendActions(notification) {
-  return Boolean(getFriendActionRequestId(notification));
-}
-
 export function getUnreadBadge(count) {
   if (!Number.isInteger(count) || count <= 0) {
     return { show: false, text: '', ariaLabel: NOTIFICATION_UNREAD_ZERO_LABEL };
@@ -101,8 +89,6 @@ export function buildNotificationItems(notifications) {
       text: describeNotification(item),
       target: getNotificationTarget(item),
       read: Boolean(item.read),
-      requestId: getFriendActionRequestId(item),
-      showFriendActions: item.type === 'friend_request' && hasFriendActions(item),
       createdAt: item.createdAt || null,
       actorName: getNotificationActorName(item),
       initial: getNotificationInitial(item),

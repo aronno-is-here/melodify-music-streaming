@@ -62,6 +62,15 @@ function matches(doc, query = {}) {
       if ('$in' in condition && !condition.$in.some((value) => String(doc[key]) === String(value))) {
         return false;
       }
+      if ('$regex' in condition) {
+        let pattern;
+        try {
+          pattern = new RegExp(condition.$regex, condition.$options || '');
+        } catch {
+          return false;
+        }
+        if (!pattern.test(String(doc[key] === undefined || doc[key] === null ? '' : doc[key]))) return false;
+      }
       continue;
     }
     if (doc[key] === undefined || String(doc[key]) !== String(condition)) return false;
@@ -96,6 +105,7 @@ export function createCollection({
   uniqueKeys = [],
   idPrefix = 'a'.repeat(16),
   sortSpec = { createdAt: -1, _id: -1 },
+  populateRef = null,
 } = {}) {
   let counter = 0;
   const docs = [];
@@ -162,7 +172,15 @@ export function createCollection({
           cursor = cursor.slice(0, count);
           return api;
         },
-        populate() {
+        populate(path) {
+          if (typeof populateRef === 'function') {
+            cursor = cursor.map((doc) => {
+              const ref = doc[path];
+              if (ref === null || ref === undefined || typeof ref === 'object') return doc;
+              const target = populateRef(ref);
+              return target ? { ...doc, [path]: target } : doc;
+            });
+          }
           return api;
         },
         select() {
@@ -185,11 +203,19 @@ export function createCollection({
       docs.push(record);
       return hydrate({ ...record });
     },
-    async findByIdAndUpdate(id, update) {
-      const target = docs.find((doc) => String(doc._id) === String(id));
-      if (!target) return null;
-      applyUpdate(target, update);
-      return hydrate({ ...target });
+    findByIdAndUpdate(id, update) {
+      return chain(() => {
+        const target = docs.find((doc) => String(doc._id) === String(id));
+        if (!target) return null;
+        applyUpdate(target, update);
+        return hydrate({ ...target });
+      });
+    },
+    async findOneAndDelete(query = {}) {
+      const index = docs.findIndex((doc) => matches(doc, query));
+      if (index === -1) return null;
+      const [removed] = docs.splice(index, 1);
+      return hydrate({ ...removed });
     },
     async updateMany(query, update) {
       const targets = docs.filter((doc) => matches(doc, query));
@@ -220,6 +246,7 @@ export function installModelDoubles(models, collections) {
     'find',
     'create',
     'findByIdAndUpdate',
+    'findOneAndDelete',
     'updateMany',
     'deleteMany',
     'countDocuments',

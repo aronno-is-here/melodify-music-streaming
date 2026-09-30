@@ -1,17 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as notificationUiModule from './notificationUi.js';
 import {
   NOTIFICATION_EMPTY_MESSAGE,
   NOTIFICATION_ERROR_MESSAGE,
   buildNotificationItems,
   clampUnreadCount,
   describeNotification,
-  getFriendActionRequestId,
   getNotificationActorId,
   getNotificationActorName,
   getNotificationTarget,
   getUnreadBadge,
-  hasFriendActions,
 } from './notificationUi.js';
 
 function notification(overrides = {}) {
@@ -83,17 +82,18 @@ test('14. notification navigation targets profile or feed', () => {
   assert.equal(getNotificationTarget(notification({ type: 'friend_request', actor: { name: 'Rahim' } })), '/feed');
 });
 
-test('6. pending friend requests expose Accept/Reject actions', () => {
-  const pending = notification({ type: 'friend_request', friendRequest: 'r1', actor: { _id: 'u3', name: 'Rahim' } });
-  assert.equal(hasFriendActions(pending), true);
-  assert.equal(getFriendActionRequestId(pending), 'r1');
-  assert.equal(getFriendActionRequestId(notification({ type: 'friend_request', friendRequest: null })), null);
-  assert.equal(hasFriendActions(notification({ type: 'post_like', friendRequest: 'r1' })), false);
+test('6. friend action helpers are retired and items never expose action fields', () => {
+  assert.equal('getFriendActionRequestId' in notificationUiModule, false);
+  assert.equal('hasFriendActions' in notificationUiModule, false);
 
+  const pending = notification({ type: 'friend_request', friendRequest: 'r1', actor: { _id: 'u3', name: 'Rahim' } });
   const items = buildNotificationItems([pending, notification({ type: 'post_like' })]);
-  assert.equal(items[0].showFriendActions, true);
-  assert.equal(items[0].requestId, 'r1');
-  assert.equal(items[1].showFriendActions, false);
+  assert.equal('showFriendActions' in items[0], false);
+  assert.equal('requestId' in items[0], false);
+  assert.equal('showFriendActions' in items[1], false);
+  assert.equal('requestId' in items[1], false);
+  assert.equal(items[0].text, 'Rahim sent you a friend request');
+  assert.equal(items[0].target, '/user/u3');
   assert.equal(items[1].text, 'Nadia liked your post');
   assert.equal(items[1].target, '/feed');
   assert.equal(items[0].initial, 'R');

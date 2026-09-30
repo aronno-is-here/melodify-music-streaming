@@ -62,7 +62,7 @@ router.get('/:userId/followers', protect, async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('follower', 'name email avatar bio');
+      .populate('follower', 'name avatar');
 
     const total = await Follow.countDocuments({ following: req.params.userId });
     const followerIds = follows.map((f) => f.follower?._id).filter(Boolean);
@@ -70,12 +70,11 @@ router.get('/:userId/followers', protect, async (req, res) => {
     const myFollowing = await Follow.find({ follower: req.user._id, following: { $in: followerIds } }).select('following');
     const followingSet = new Set(myFollowing.map((f) => String(f.following)));
 
+    // Only public-safe identity fields: email/bio are per-field private.
     const users = follows.map((f) => ({
       _id: f.follower._id,
       name: f.follower.name,
-      email: f.follower.email,
       avatar: f.follower.avatar,
-      bio: f.follower.bio,
       isFollowing: followingSet.has(String(f.follower._id)),
     }));
 
@@ -95,7 +94,7 @@ router.get('/:userId/following', protect, async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('following', 'name email avatar bio');
+      .populate('following', 'name avatar');
 
     const total = await Follow.countDocuments({ follower: req.params.userId });
     const followingIds = follows.map((f) => f.following?._id).filter(Boolean);
@@ -103,12 +102,11 @@ router.get('/:userId/following', protect, async (req, res) => {
     const myFollowing = await Follow.find({ follower: req.user._id, following: { $in: followingIds } }).select('following');
     const followingSet = new Set(myFollowing.map((f) => String(f.following)));
 
+    // Only public-safe identity fields: email/bio are per-field private.
     const users = follows.map((f) => ({
       _id: f.following._id,
       name: f.following.name,
-      email: f.following.email,
       avatar: f.following.avatar,
-      bio: f.following.bio,
       isFollowing: followingSet.has(String(f.following._id)),
     }));
 

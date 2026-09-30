@@ -309,24 +309,51 @@
   gap: 8px;
 }
 
-.up-friend-actions {
+.up-detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.up-detail-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--mel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.up-friend-btn {
-  min-height: 44px;
+.up-detail-row dt {
+  margin: 0;
+  color: var(--mel-text-soft);
+  font-size: 0.85rem;
 }
 
-.up-friend-btn.is-friends {
-  background: rgba(56, 107, 255, 0.2);
+.up-detail-row dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.up-detail-value {
   color: var(--mel-text);
-  border: 1px solid rgba(56, 107, 255, 0.5);
+  font-weight: 600;
 }
 
-.up-friend-btn--ghost {
-  background: transparent;
+.up-detail-visibility {
+  flex: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--mel-text-soft);
   border: 1px solid var(--mel-border);
+  border-radius: 999px;
+  padding: 2px 8px;
 }

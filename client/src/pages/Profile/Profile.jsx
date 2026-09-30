@@ -5,6 +5,12 @@ import { api } from '../../api/client.js';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
 import EmptyState from '../../components/music/EmptyState.jsx';
 import AppDialog from '../../components/ui/AppDialog.jsx';
+import {
+  PROFILE_PRIVACY_FIELD_LABELS,
+  buildPrivacyToggle,
+  normalizeProfileVisibilityInput,
+  updateProfileVisibilityField,
+} from './profilePrivacyUi.js';
 import cssRaw from './Profile.css?raw';
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -35,6 +41,24 @@ function buildSuccessTone(message) {
     : 'error';
 }
 
+function ProfilePrivacyToggle({ field, value, onChange }) {
+  return (
+    <span className="profile-privacy-seg" role="group" aria-label={`${PROFILE_PRIVACY_FIELD_LABELS[field]} visibility`}>
+      {buildPrivacyToggle(value).map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={`profile-privacy-seg-btn${option.selected ? ' is-active' : ''}`}
+          aria-pressed={option.selected}
+          onClick={() => onChange(field, option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 export default function Profile() {
   useLayoutEffect(() => {
     const style = document.createElement('style');
@@ -55,8 +79,10 @@ export default function Profile() {
   const [dob, setDob] = useState(user?.dob ? String(user.dob).slice(0, 10) : '');
   const [gender, setGender] = useState(user?.gender || '');
   const [country, setCountry] = useState(user?.country || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [libraryVisibility, setLibraryVisibility] = useState(user?.libraryVisibility || 'private');
+  const [profileVisibility, setProfileVisibility] = useState(() => normalizeProfileVisibilityInput(user?.profileVisibility));
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -75,8 +101,10 @@ export default function Profile() {
     setDob(user.dob ? String(user.dob).slice(0, 10) : '');
     setGender(user.gender || '');
     setCountry(user.country || '');
+    setPhone(user.phone || '');
     setBio(user.bio || '');
     setLibraryVisibility(user.libraryVisibility || 'private');
+    setProfileVisibility(normalizeProfileVisibilityInput(user.profileVisibility));
 
     const fetchRecordings = async () => {
       setRecordingsLoading(true);
@@ -91,6 +119,8 @@ export default function Profile() {
   }, [user]);
 
   if (!user) return null;
+
+  const privacy = normalizeProfileVisibilityInput(profileVisibility);
 
   const initials = (user.name || 'U')
     .split(' ')
@@ -139,7 +169,7 @@ export default function Profile() {
     event.preventDefault();
     setMessage('');
 
-    const data = await api.put('/api/auth/me', { name, dob, gender, country });
+    const data = await api.put('/api/auth/me', { name, dob, gender, country, phone });
     if (!data.success) {
       setApiMessage(data.error || 'Update failed');
       return;
@@ -186,6 +216,24 @@ export default function Profile() {
     await refreshUser();
     setApiMessage('Settings updated successfully');
     setSettingsOpen(false);
+  };
+
+  const saveFieldPrivacy = async (field, value) => {
+    setMessage('');
+    const previous = normalizeProfileVisibilityInput(profileVisibility);
+    const next = updateProfileVisibilityField(previous, field, value);
+    if (next[field] === previous[field]) return;
+
+    setProfileVisibility(next);
+    const data = await api.put('/api/users/me/settings', { profileVisibility: next });
+    if (!data.success) {
+      setProfileVisibility(previous);
+      setApiMessage(data.error || 'Update failed');
+      return;
+    }
+
+    await refreshUser();
+    setApiMessage('Privacy settings updated');
   };
 
   const confirmDeleteRecording = async () => {
@@ -306,11 +354,48 @@ export default function Profile() {
           <SectionHeader title="Personal Information" subtitle="Managed through your Melodify account" />
           <div className="profile-grid">
             <article className="profile-card"><label>Full Name</label><strong>{user.name}</strong></article>
-            <article className="profile-card"><label>Email</label><strong>{user.email}</strong></article>
-            <article className="profile-card"><label>Date of Birth</label><strong>{user.dob ? String(user.dob).slice(0, 10) : '-'}</strong></article>
-            <article className="profile-card"><label>Gender</label><strong>{user.gender || '-'}</strong></article>
-            <article className="profile-card"><label>Country</label><strong>{user.country || '-'}</strong></article>
-            <article className="profile-card"><label>Bio</label><strong>{user.bio || 'No bio yet'}</strong></article>
+            <article className="profile-card">
+              <div className="profile-card-head">
+                <label>Email</label>
+                <ProfilePrivacyToggle field="email" value={privacy.email} onChange={saveFieldPrivacy} />
+              </div>
+              <strong>{user.email}</strong>
+            </article>
+            <article className="profile-card">
+              <div className="profile-card-head">
+                <label>Phone</label>
+                <ProfilePrivacyToggle field="phone" value={privacy.phone} onChange={saveFieldPrivacy} />
+              </div>
+              <strong>{user.phone || '-'}</strong>
+            </article>
+            <article className="profile-card">
+              <div className="profile-card-head">
+                <label>Date of Birth</label>
+                <ProfilePrivacyToggle field="dob" value={privacy.dob} onChange={saveFieldPrivacy} />
+              </div>
+              <strong>{user.dob ? String(user.dob).slice(0, 10) : '-'}</strong>
+            </article>
+            <article className="profile-card">
+              <div className="profile-card-head">
+                <label>Gender</label>
+                <ProfilePrivacyToggle field="gender" value={privacy.gender} onChange={saveFieldPrivacy} />
+              </div>
+              <strong>{user.gender || '-'}</strong>
+            </article>
+            <article className="profile-card">
+              <div className="profile-card-head">
+                <label>Country</label>
+                <ProfilePrivacyToggle field="country" value={privacy.country} onChange={saveFieldPrivacy} />
+              </div>
+              <strong>{user.country || '-'}</strong>
+            </article>
+            <article className="profile-card">
+              <div className="profile-card-head">
+                <label>Bio</label>
+                <ProfilePrivacyToggle field="bio" value={privacy.bio} onChange={saveFieldPrivacy} />
+              </div>
+              <strong>{user.bio || 'No bio yet'}</strong>
+            </article>
             <article className="profile-card"><label>Song Library</label><strong>{user.libraryVisibility || 'private'}</strong></article>
             <article className="profile-card"><label>Premium</label><strong><Link to="/premium" className="profile-link">Manage premium plan</Link></strong></article>
           </div>
@@ -395,6 +480,16 @@ export default function Profile() {
 
           <label htmlFor="profile-email">Email</label>
           <input id="profile-email" type="email" value={user.email} disabled />
+
+          <label htmlFor="profile-phone">Phone</label>
+          <input
+            id="profile-phone"
+            type="tel"
+            maxLength={40}
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="Add a contact number"
+          />
 
           <label htmlFor="profile-dob">Date of Birth</label>
           <input id="profile-dob" type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />

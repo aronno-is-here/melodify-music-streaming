@@ -6,6 +6,11 @@ import Song from '../models/Song.js';
 import Playlist from '../models/Playlist.js';
 import { protect } from '../middleware/auth.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
+import {
+  normalizeProfileVisibility,
+  parseProfileVisibilityUpdate,
+  projectProfileForViewer,
+} from '../utils/profileVisibility.js';
 
 const router = express.Router();
 
@@ -39,16 +44,15 @@ router.get('/search', protect, async (req, res) => {
       return res.json({ success: true, users: [], total: 0, pages: 0 });
     }
 
+    // People search matches name only: email is a private profile field, so it
+    // is neither matched nor returned (no probing whether an email exists).
     const filter = {
       _id: { $ne: req.user._id },
-      $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { email: { $regex: q, $options: 'i' } },
-      ],
+      name: { $regex: q, $options: 'i' },
     };
 
     const [users, total] = await Promise.all([
-      User.find(filter).select('name email avatar bio').skip(skip).limit(limit),
+      User.find(filter).select('name avatar bio profileVisibility').skip(skip).limit(limit),
       User.countDocuments(filter),
     ]);
 
@@ -56,14 +60,17 @@ router.get('/search', protect, async (req, res) => {
     const myFollowing = await Follow.find({ follower: req.user._id, following: { $in: userIds } }).select('following');
     const followingSet = new Set(myFollowing.map((f) => String(f.following)));
 
-    const usersWithFollowState = users.map((u) => ({
-      _id: u._id,
-      name: u.name,
-      email: u.email,
-      avatar: u.avatar,
-      bio: u.bio,
-      isFollowing: followingSet.has(String(u._id)),
-    }));
+    const usersWithFollowState = users.map((u) => {
+      const visibility = normalizeProfileVisibility(u.profileVisibility);
+      return {
+        _id: u._id,
+        name: u.name,
+        avatar: u.avatar,
+        // Bio is private by default; only explicitly public bios are shared.
+        ...(visibility.bio === 'public' && typeof u.bio === 'string' ? { bio: u.bio } : {}),
+        isFollowing: followingSet.has(String(u._id)),
+      };
+    });
 
     res.json({ success: true, users: usersWithFollowState, page, limit, total, pages: Math.ceil(total / limit) });
   } catch (error) {
@@ -73,16 +80,19 @@ router.get('/search', protect, async (req, res) => {
 
 router.get('/:userId', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId).select('name email avatar bio libraryVisibility createdAt');
+    const user = await User.findById(req.params.userId)
+      .select('name email avatar bio libraryVisibility createdAt dob gender country phone profileVisibility');
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-    const [followersCount, followingCount] = await Promise.all([
+    const isOwnProfile = String(user._id) === String(req.user._id);
+
+    const [followersCount, followingCount, isFollowing, followsViewer] = await Promise.all([
       Follow.countDocuments({ following: user._id }),
       Follow.countDocuments({ follower: user._id }),
+      Follow.findOne({ follower: req.user._id, following: user._id }),
+      // Does this profile follow the viewer? Drives the "Follow Back" label.
+      isOwnProfile ? Promise.resolve(null) : Follow.findOne({ follower: user._id, following: req.user._id }),
     ]);
-
-    const isFollowing = await Follow.findOne({ follower: req.user._id, following: user._id });
-    const isOwnProfile = String(user._id) === String(req.user._id);
 
     let songs = [];
     if (isOwnProfile || (user.libraryVisibility === 'public' && user._id)) {
@@ -113,18 +123,13 @@ router.get('/:userId', protect, async (req, res) => {
 
     res.json({
       success: true,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        bio: user.bio,
-        libraryVisibility: user.libraryVisibility,
-        createdAt: user.createdAt,
-      },
+      // Server-authoritative privacy: private fields are omitted entirely for
+      // anyone but the owner, so clients can never render what they never got.
+      user: projectProfileForViewer(user, req.user._id),
       followersCount,
       followingCount,
       isFollowing: !!isFollowing,
+      followedBy: isOwnProfile ? false : !!followsViewer,
       isOwnProfile,
       songs: isOwnProfile || user.libraryVisibility === 'public' ? songs : [],
       posts,
@@ -154,7 +159,7 @@ router.put('/me/avatar', protect, (req, res, next) => {
     }
     const avatar = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     const user = await User.findByIdAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true })
-      .select('name email avatar bio libraryVisibility gender country dob role');
+      .select('name email avatar bio libraryVisibility gender country dob role phone profileVisibility');
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update avatar.' });
@@ -163,20 +168,29 @@ router.put('/me/avatar', protect, (req, res, next) => {
 
 router.put('/me/settings', protect, async (req, res) => {
   try {
-    const { bio, libraryVisibility, avatar } = req.body;
+    const { bio, libraryVisibility, avatar, profileVisibility } = req.body;
     const update = {};
     if (bio !== undefined) update.bio = String(bio).slice(0, 500);
     if (libraryVisibility !== undefined && ['public', 'private'].includes(libraryVisibility)) {
       update.libraryVisibility = libraryVisibility;
     }
     if (avatar !== undefined) update.avatar = String(avatar).slice(0, 500);
+    if (profileVisibility !== undefined) {
+      try {
+        // Strict validation: unknown fields/values are rejected, never coerced.
+        const patch = parseProfileVisibilityUpdate(profileVisibility);
+        update.profileVisibility = { ...normalizeProfileVisibility(req.user.profileVisibility), ...patch };
+      } catch (error) {
+        return res.status(400).json({ success: false, error: 'Invalid profile visibility settings.' });
+      }
+    }
 
     if (Object.keys(update).length === 0) {
       return res.json({ success: false, error: 'No valid fields to update.' });
     }
 
     const user = await User.findByIdAndUpdate(req.user._id, update, { new: true, runValidators: true })
-      .select('name email avatar bio libraryVisibility gender country dob role');
+      .select('name email avatar bio libraryVisibility gender country dob role phone profileVisibility');
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
