@@ -439,7 +439,10 @@ const updateSongContent = async (req, res) => {
     if (!song) return res.status(404).json({ success: false, error: 'Song not found' });
     res.json({ success: true, song });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    if (error && error.name === 'CastError' && error.path === '_id') {
+      return res.status(400).json({ success: false, error: 'Invalid song id' });
+    }
+    res.status(500).json({ success: false, error: 'failed to update song content' });
   }
 };
 

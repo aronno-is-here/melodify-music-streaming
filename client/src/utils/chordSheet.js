@@ -1,7 +1,7 @@
 export const CHORD_FORMATS = Object.freeze(['plain', 'chordpro', 'synced']);
 export const CHORD_STATUSES = Object.freeze(['verified', 'available', 'unavailable', 'source-found']);
 export const CHORD_SOURCE_OPTIONS = Object.freeze(['db_verified', 'chordify', 'other', 'none']);
-export const CHORD_IMPORT_EXTENSIONS = Object.freeze(['cho', 'chordpro', 'txt']);
+export const CHORD_IMPORT_EXTENSIONS = Object.freeze(['cho', 'chordpro', 'txt', 'json']);
 export const MAX_CHORD_TEXT_LENGTH = 100000;
 export const MAX_CHORD_TOKEN_LENGTH = 32;
 export const MAX_CHORD_KEY_LENGTH = 8;
@@ -16,6 +16,27 @@ export const MAX_CHORD_TUNING_LENGTH = 32;
 export const MAX_CHORD_NOTES_LENGTH = 1000;
 export const MAX_CHORD_VERIFIED_BY_LENGTH = 128;
 export const MAX_CHORD_SOURCE_LENGTH = 64;
+export const MAX_CHORD_SOURCE_URL_LENGTH = 1024;
+export const CHORD_JSON_MESSAGES = Object.freeze({
+  INVALID_JSON: 'Invalid chord JSON format.',
+  UNKNOWN_FIELD: 'Unknown chord JSON field.',
+  NO_CONTENT: 'Chord JSON has no chord content.',
+});
+export const CHORD_JSON_FIELDS = Object.freeze([
+  'text',
+  'chords',
+  'format',
+  'key',
+  'capo',
+  'tuning',
+  'notes',
+  'timeline',
+  'chord_timeline',
+  'verified',
+  'source',
+  'sourceUrl',
+  'verifiedBy',
+]);
 
 const SHARP_NAMES = Object.freeze(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
 const FLAT_NAMES = Object.freeze(['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']);
@@ -262,8 +283,150 @@ export function findActiveChord(timeline, time) {
   return found;
 }
 
+const CHORD_JSON_FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const normalizeJsonOptionalText = (value, maxLength, error) => {
+  if (value === undefined || value === null || value === '') return { ok: true, value: '' };
+  if (typeof value !== 'string') return { ok: false, value: null, error };
+  const trimmed = value.trim();
+  if (trimmed.length > maxLength) return { ok: false, value: null, error };
+  return { ok: true, value: trimmed };
+};
+
+const normalizeJsonSourceUrl = (value) => {
+  if (value === undefined || value === null || value === '') return { ok: true, value: '' };
+  if (typeof value !== 'string' || value.length > MAX_CHORD_SOURCE_URL_LENGTH) return { ok: false, value: null };
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return { ok: false, value: null };
+    return { ok: true, value: parsed.toString() };
+  } catch {
+    return { ok: false, value: null };
+  }
+};
+
+export function parseChordJsonDocument(raw) {
+  const failure = (error) => ({
+    ok: false,
+    error,
+    text: '',
+    format: 'plain',
+    key: null,
+    capo: null,
+    tuning: '',
+    notes: '',
+    verified: false,
+    verifiedProvided: false,
+    source: null,
+    sourceUrl: '',
+    verifiedBy: '',
+    timeline: [],
+  });
+  if (typeof raw !== 'string') return failure('Chord sheet must be text');
+  if (raw.length > MAX_CHORD_TEXT_LENGTH) return failure('Chord sheet is too long');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return failure(CHORD_JSON_MESSAGES.INVALID_JSON);
+  }
+
+  let document = parsed;
+  if (Array.isArray(document)) document = { timeline: document };
+  if (!isPlainObject(document)) return failure(CHORD_JSON_MESSAGES.INVALID_JSON);
+
+  for (const key of Object.keys(document)) {
+    if (CHORD_JSON_FORBIDDEN_KEYS.has(key) || !CHORD_JSON_FIELDS.includes(key)) {
+      return failure(CHORD_JSON_MESSAGES.UNKNOWN_FIELD);
+    }
+  }
+
+  const readAlias = (primary, alias) => {
+    const hasPrimary = document[primary] !== undefined;
+    const hasAlias = document[alias] !== undefined;
+    if (hasPrimary && hasAlias) return { ok: false, value: null };
+    if (hasPrimary) return { ok: true, value: document[primary] };
+    if (hasAlias) return { ok: true, value: document[alias] };
+    return { ok: true, value: undefined };
+  };
+
+  const textAlias = readAlias('text', 'chords');
+  if (!textAlias.ok) return failure(CHORD_JSON_MESSAGES.INVALID_JSON);
+  let text = '';
+  if (textAlias.value !== undefined && textAlias.value !== null && textAlias.value !== '') {
+    if (typeof textAlias.value !== 'string') return failure('Invalid chords value');
+    text = textAlias.value;
+    if (text.length > MAX_CHORD_TEXT_LENGTH) return failure('Chord sheet is too long');
+    if (!text.trim()) text = '';
+  }
+
+  let format = document.format === undefined || document.format === null || document.format === ''
+    ? null
+    : document.format;
+  if (format !== null && !CHORD_FORMATS.includes(format)) return failure('Invalid chords format');
+  if (!format) format = text ? detectChordFormat(text) : 'plain';
+  if (text) {
+    const check = validateChordText(text, format);
+    if (!check.ok) return failure(check.error);
+  }
+
+  const key = parseChordKey(document.key === undefined ? null : document.key);
+  if (!key.ok) return failure('Invalid chords key');
+  const capo = parseCapo(document.capo === undefined ? null : document.capo);
+  if (!capo.ok) return failure('Invalid chords capo');
+
+  const tuning = normalizeJsonOptionalText(document.tuning, MAX_CHORD_TUNING_LENGTH, 'Invalid chords tuning');
+  if (!tuning.ok) return failure(tuning.error);
+  const notes = normalizeJsonOptionalText(document.notes, MAX_CHORD_NOTES_LENGTH, 'Invalid chords notes');
+  if (!notes.ok) return failure(notes.error);
+  const verifiedBy = normalizeJsonOptionalText(document.verifiedBy, MAX_CHORD_VERIFIED_BY_LENGTH, 'Invalid chords verifier');
+  if (!verifiedBy.ok) return failure(verifiedBy.error);
+
+  let verified = false;
+  let verifiedProvided = false;
+  if (document.verified !== undefined && document.verified !== null) {
+    if (typeof document.verified !== 'boolean') return failure('Invalid chords verification flag');
+    verified = document.verified;
+    verifiedProvided = true;
+  }
+
+  let source = null;
+  if (document.source !== undefined && document.source !== null && document.source !== '') {
+    if (!CHORD_SOURCE_OPTIONS.includes(document.source)) return failure('Invalid chords source');
+    source = document.source;
+  }
+
+  const sourceUrl = normalizeJsonSourceUrl(document.sourceUrl);
+  if (!sourceUrl.ok) return failure('Invalid chord source URL');
+
+  const timelineAlias = readAlias('timeline', 'chord_timeline');
+  if (!timelineAlias.ok) return failure(CHORD_JSON_MESSAGES.INVALID_JSON);
+  const timeline = normalizeChordTimeline(timelineAlias.value === undefined ? null : timelineAlias.value);
+  if (!timeline.ok) return failure(timeline.error);
+
+  if (!text.trim() && timeline.entries.length === 0) return failure(CHORD_JSON_MESSAGES.NO_CONTENT);
+
+  return {
+    ok: true,
+    error: null,
+    text,
+    format,
+    key: key.key,
+    capo: capo.capo,
+    tuning: tuning.value,
+    notes: notes.value,
+    verified,
+    verifiedProvided,
+    source,
+    sourceUrl: sourceUrl.value,
+    verifiedBy: verifiedBy.value,
+    timeline: timeline.entries,
+  };
+}
+
 export async function readChordImportFile(file, extension) {
-  const failure = (error) => ({ ok: false, error, text: '', format: 'plain' });
+  const failure = (error) => ({ ok: false, error, text: '', format: 'plain', doc: null });
   if (!file || typeof file.name !== 'string' || typeof file.text !== 'function') {
     return failure('Select a chord file to import');
   }
@@ -278,8 +441,13 @@ export async function readChordImportFile(file, extension) {
     return failure('Unable to read chord file');
   }
   if (text.length > MAX_CHORD_TEXT_LENGTH) return failure('Chord sheet is too long');
+  if (requested === 'json') {
+    const document = parseChordJsonDocument(text);
+    if (!document.ok) return failure(document.error);
+    return { ok: true, error: null, text: document.text, format: document.format, doc: document };
+  }
   const format = detectChordFormat(text);
   const check = validateChordText(text, format);
   if (!check.ok) return failure(check.error);
-  return { ok: true, error: null, text, format };
+  return { ok: true, error: null, text, format, doc: null };
 }

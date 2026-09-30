@@ -29,7 +29,7 @@ import {
 test('chord sheet constants stay bounded', () => {
   assert.deepEqual(CHORD_FORMATS, ['plain', 'chordpro', 'synced']);
   assert.deepEqual(CHORD_STATUSES, ['verified', 'available', 'unavailable', 'source-found']);
-  assert.deepEqual(CHORD_IMPORT_EXTENSIONS, ['cho', 'chordpro', 'txt']);
+  assert.deepEqual(CHORD_IMPORT_EXTENSIONS, ['cho', 'chordpro', 'txt', 'json']);
   assert.equal(MAX_CAPO, 12);
   assert.equal(MAX_TRANSPOSE_SEMITONES, 12);
   assert.equal(MAX_TIMELINE_ENTRIES, 2000);

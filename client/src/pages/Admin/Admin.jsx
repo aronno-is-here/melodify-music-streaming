@@ -12,6 +12,14 @@ import {
   CHORD_IMPORT_EXTENSIONS,
   readChordImportFile,
 } from '../../utils/chordSheet.js';
+import {
+  CHORD_EDITOR_STATES,
+  CHORD_EDITOR_STATE_LABELS,
+  buildChordPreview,
+  evaluateChordDraftSave,
+  hasChordContent,
+  selectChordListStatus,
+} from './chordEditorUi.js';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
 
@@ -124,6 +132,11 @@ export default function Admin() {
   const [lyricsSources, setLyricsSources] = useState({ status: 'idle', candidates: [] });
   const [chordTimelineDraft, setChordTimelineDraft] = useState('');
   const [chordNotice, setChordNotice] = useState(null);
+  const [chordWorkflow, setChordWorkflow] = useState(CHORD_EDITOR_STATES.EMPTY);
+  const [chordPreview, setChordPreview] = useState(null);
+  const [chordSaving, setChordSaving] = useState(false);
+  const [chordReplaceArmed, setChordReplaceArmed] = useState(false);
+  const [chordHasExisting, setChordHasExisting] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -165,6 +178,10 @@ export default function Admin() {
     setSourceUrlDraft(typeof song.lyrics_source_url === 'string' ? song.lyrics_source_url : '');
     setLyricsSources({ status: 'idle', candidates: [] });
     setChordTimelineDraft(toTimelineDraft(song.chord_timeline));
+    setChordHasExisting(hasChordContent(song));
+    setChordWorkflow(CHORD_EDITOR_STATES.EMPTY);
+    setChordPreview(null);
+    setChordReplaceArmed(false);
     setChordNotice(null);
   };
 
@@ -266,6 +283,11 @@ export default function Admin() {
 
   const patchChordDraft = (patch) => {
     setEditingSong((prev) => (prev ? { ...prev, ...patch } : prev));
+    setChordReplaceArmed(false);
+    setChordPreview(null);
+    if (chordWorkflow === CHORD_EDITOR_STATES.PREVIEW_READY || chordWorkflow === CHORD_EDITOR_STATES.SUCCESS) {
+      setChordWorkflow(CHORD_EDITOR_STATES.FILE_SELECTED);
+    }
   };
 
   const buildChordDraftPayload = (timeline) => ({
@@ -291,13 +313,38 @@ export default function Admin() {
     const file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
+    setChordPreview(null);
+    setChordWorkflow(CHORD_EDITOR_STATES.PARSING);
     const result = await readChordImportFile(file, extension);
     if (!result.ok) {
       setChordNotice({ text: result.error, isError: true });
+      setChordWorkflow(CHORD_EDITOR_STATES.ERROR);
       return;
     }
     patchChordDraft({ chords: result.text, chords_format: result.format, chords_verified: false });
-    setChordNotice({ text: `${file.name} imported as ${result.format}. Save to keep it.`, isError: false });
+    if (result.doc) {
+      patchChordDraft({
+        ...(result.doc.verifiedProvided ? { chords_verified: result.doc.verified } : {}),
+        chords_key: result.doc.key || '',
+        chords_capo: result.doc.capo === undefined ? null : result.doc.capo,
+        chords_tuning: result.doc.tuning,
+        chords_notes: result.doc.notes,
+        chords_verified_by: result.doc.verifiedBy,
+        ...(result.doc.source ? { chords_source: result.doc.source } : {}),
+        ...(result.doc.sourceUrl ? { chords_reference_url: result.doc.sourceUrl } : {}),
+      });
+      setChordTimelineDraft(toTimelineDraft(result.doc.timeline));
+    }
+    const timelineText = result.doc ? toTimelineDraft(result.doc.timeline) : chordTimelineDraft;
+    const evaluation = evaluateChordDraftSave({ text: result.text, format: result.format, timelineText });
+    if (evaluation.ok) {
+      setChordPreview(buildChordPreview({ text: result.text, timeline: evaluation.timeline }));
+      setChordWorkflow(CHORD_EDITOR_STATES.PREVIEW_READY);
+      setChordNotice({ text: `${file.name} imported as ${result.format}. Preview it below, then press Save Chords.`, isError: false });
+    } else {
+      setChordWorkflow(CHORD_EDITOR_STATES.ERROR);
+      setChordNotice({ text: evaluation.error, isError: true });
+    }
   };
 
   const clearChordDraft = () => {
@@ -313,21 +360,64 @@ export default function Admin() {
       chord_timeline: null,
     });
     setChordTimelineDraft('');
+    setChordPreview(null);
+    setChordWorkflow(CHORD_EDITOR_STATES.EMPTY);
     setChordNotice({ text: 'Chords cleared. Save to keep the change.', isError: false });
   };
 
-  const saveChordsOnly = async () => {
+  const previewChords = () => {
     if (!editingSong?._id) return;
-    const timelineDraft = parseTimelineDraft(chordTimelineDraft);
-    if (!timelineDraft.ok) {
-      setChordNotice({ text: 'Chord timeline must be a JSON array.', isError: true });
+    const evaluation = evaluateChordDraftSave({
+      text: toText(editingSong.chords),
+      format: editingSong.chords_format,
+      timelineText: chordTimelineDraft,
+    });
+    if (!evaluation.ok) {
+      setChordPreview(null);
+      setChordWorkflow(CHORD_EDITOR_STATES.ERROR);
+      setChordNotice({ text: evaluation.error, isError: true });
       return;
     }
-    const song = await updateSongContent(editingSong._id, buildChordDraftPayload(timelineDraft.value));
-    if (!song) return;
-    setSongs((prev) => prev.map((item) => (item._id === song._id ? song : item)));
-    setEditingSong(song);
-    setChordNotice({ text: 'Chords saved.', isError: false });
+    setChordPreview(buildChordPreview({ text: toText(editingSong.chords), timeline: evaluation.timeline }));
+    setChordWorkflow(CHORD_EDITOR_STATES.PREVIEW_READY);
+    setChordNotice(null);
+  };
+
+  const saveChordsOnly = async () => {
+    if (!editingSong?._id || chordSaving) return;
+    const evaluation = evaluateChordDraftSave({
+      text: toText(editingSong.chords),
+      format: editingSong.chords_format,
+      timelineText: chordTimelineDraft,
+    });
+    if (!evaluation.ok) {
+      setChordNotice({ text: evaluation.error, isError: true });
+      setChordWorkflow(CHORD_EDITOR_STATES.ERROR);
+      return;
+    }
+    if (chordHasExisting && !chordReplaceArmed) {
+      setChordReplaceArmed(true);
+      setChordNotice({ text: 'Existing chords will be replaced. Press Save Chords again to confirm.', isError: false });
+      return;
+    }
+    setChordSaving(true);
+    setChordWorkflow(CHORD_EDITOR_STATES.SAVING);
+    try {
+      const song = await updateSongContent(editingSong._id, buildChordDraftPayload(evaluation.timeline));
+      if (!song) {
+        setChordWorkflow(CHORD_EDITOR_STATES.ERROR);
+        return;
+      }
+      setSongs((prev) => prev.map((item) => (item._id === song._id ? song : item)));
+      setEditingSong(song);
+      setChordHasExisting(hasChordContent(song));
+      setChordReplaceArmed(false);
+      setChordPreview(buildChordPreview({ text: toText(song.chords), timeline: song.chord_timeline }));
+      setChordWorkflow(CHORD_EDITOR_STATES.SUCCESS);
+      setChordNotice({ text: 'Chords saved.', isError: false });
+    } finally {
+      setChordSaving(false);
+    }
   };
 
   const saveSongEdits = async (event) => {
@@ -453,6 +543,18 @@ export default function Admin() {
     const q = userSearch.toLowerCase();
     return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
   });
+
+  const chordDraftEvaluation = editingSong
+    ? evaluateChordDraftSave({
+      text: toText(editingSong.chords),
+      format: editingSong.chords_format,
+      timelineText: chordTimelineDraft,
+    })
+    : { ok: false };
+  const chordSaveDisabled = !editingSong?._id
+    || chordSaving
+    || chordWorkflow === CHORD_EDITOR_STATES.PARSING
+    || !chordDraftEvaluation.ok;
 
   if (loading) {
     return (
@@ -690,7 +792,7 @@ export default function Admin() {
                     </div>
 
                     <div className="form-divider"><span>Chords Verification</span></div>
-                    <div className="form-group"><label>Chords</label><textarea name="chords" rows={6} className="admin-multiline-input" value={toText(editingSong.chords)} onChange={(event) => patchChordDraft({ chords: event.target.value })} /></div>
+                    <div className="form-group"><label>Paste chord text</label><textarea name="chords" rows={6} className="admin-multiline-input" value={toText(editingSong.chords)} onChange={(event) => patchChordDraft({ chords: event.target.value })} /></div>
                     <div className="admin-verify-grid">
                       <div className="form-group"><label>Format</label><select name="chords_format" value={CHORD_FORMATS.includes(editingSong.chords_format) ? editingSong.chords_format : 'plain'} onChange={(event) => patchChordDraft({ chords_format: event.target.value })}>{CHORD_FORMATS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
                       <div className="form-group"><label>Key</label><input type="text" name="chords_key" value={toText(editingSong.chords_key)} onChange={(event) => patchChordDraft({ chords_key: event.target.value })} /></div>
@@ -705,18 +807,29 @@ export default function Admin() {
                       <div className="form-group"><label>Last Checked</label><input type="datetime-local" name="chords_last_checked_at" value={formatDateTimeLocal(editingSong.chords_last_checked_at)} onChange={(event) => patchChordDraft({ chords_last_checked_at: event.target.value })} /></div>
                     </div>
                     <div className="form-group"><label>Notes</label><textarea name="chords_notes" rows={2} className="admin-multiline-input" value={toText(editingSong.chords_notes)} onChange={(event) => patchChordDraft({ chords_notes: event.target.value })} /></div>
-                    <div className="form-group"><label>Chord Timeline (JSON)</label><textarea name="chord_timeline" rows={3} className="admin-multiline-input" value={chordTimelineDraft} onChange={(event) => setChordTimelineDraft(event.target.value)} placeholder='[{"time":4,"chord":"G"}]' /></div>
+                    <div className="form-group"><label>Chord Timeline (JSON)</label><textarea name="chord_timeline" rows={3} className="admin-multiline-input" value={chordTimelineDraft} onChange={(event) => { setChordTimelineDraft(event.target.value); setChordReplaceArmed(false); }} placeholder='[{"time":4,"chord":"G"}]' /></div>
                     <label className="admin-checkbox-row"><input type="checkbox" name="chords_verified" checked={editingSong.chords_verified === true} onChange={(event) => patchChordDraft({ chords_verified: event.target.checked })} /> Chords verified</label>
+                    {chordHasExisting ? (
+                      <p className="admin-chord-notice warn" role="status">Existing chords will be replaced.</p>
+                    ) : null}
                     <div className="admin-chord-actions">
-                      <button type="button" className="btn" onClick={saveChordsOnly}>Save Chords</button>
-                      <button type="button" className="btn" onClick={clearChordDraft}>Clear Chords</button>
+                      <button type="button" className="btn" disabled={chordWorkflow === CHORD_EDITOR_STATES.PARSING || chordSaving} onClick={previewChords}>Preview</button>
+                      <button type="button" className="btn" disabled={chordSaveDisabled} onClick={saveChordsOnly}>Save Chords</button>
+                      <button type="button" className="btn" disabled={chordSaving} onClick={clearChordDraft}>Clear Chords</button>
                       {CHORD_IMPORT_EXTENSIONS.map((extension) => (
                         <label className="btn admin-chord-import" key={extension}>
                           {`Import .${extension}`}
-                          <input type="file" accept={`.${extension}`} className="admin-chord-file" onChange={(event) => onChordImportChange(extension, event)} />
+                          <input type="file" accept={`.${extension}`} className="admin-chord-file" onChange={(event) => onChordImportChange(extension, event)} disabled={chordSaving} />
                         </label>
                       ))}
                     </div>
+                    <p className="admin-chord-state" role="status">{CHORD_EDITOR_STATE_LABELS[chordWorkflow]}</p>
+                    {chordPreview && chordPreview.kind !== 'empty' ? (
+                      <div className="admin-chord-preview" role="region" aria-label="Chord preview">
+                        <span className="admin-chord-preview-label">{chordPreview.kind === 'timeline' ? 'Preview (timed)' : 'Preview'}</span>
+                        <pre className="admin-chord-preview-body">{chordPreview.kind === 'timeline' ? chordPreview.lines.join('\n') : chordPreview.text}</pre>
+                      </div>
+                    ) : null}
                     {chordNotice ? (
                       <p className={`admin-chord-notice${chordNotice.isError ? ' error' : ''}`} role={chordNotice.isError ? 'alert' : 'status'}>
                         {chordNotice.text}
@@ -730,7 +843,7 @@ export default function Admin() {
               <CatalogSyncPanel />
               <table style={{ marginTop: 20 }}>
                 <thead>
-                  <tr><th>ID</th><th>Title</th><th>Artist</th><th>Genre</th><th>Duration</th><th>Actions</th></tr>
+                  <tr><th>ID</th><th>Title</th><th>Artist</th><th>Genre</th><th>Duration</th><th>Chords</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {songs.map((song) => (
@@ -740,6 +853,7 @@ export default function Admin() {
                       <td>{song.artist}</td>
                       <td>{song.genre}</td>
                       <td>{song.duration}</td>
+                      <td>{selectChordListStatus(song)}</td>
                       <td>
                         <button className="btn" onClick={() => openSongEditor(song)}>Edit</button>
                         <button className="btn btn-danger" onClick={() => deleteSong(song._id)}>Delete</button>
