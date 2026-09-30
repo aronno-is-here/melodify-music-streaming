@@ -558,6 +558,18 @@
   z-index: 46;
 }
 
+@media (max-width: 640px) {
+  .app-notification-panel {
+    position: fixed;
+    top: 72px;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    width: auto;
+    max-width: none;
+    max-height: min(460px, calc(100dvh - 212px));
+  }
+}
+
 .app-notification-head {
   display: flex;
   align-items: center;

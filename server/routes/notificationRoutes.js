@@ -21,6 +21,19 @@ const SAFE_ACTOR_FIELDS = 'name avatar';
 const SAFE_POST_FIELDS = 'title';
 const SAFE_COMMENT_FIELDS = 'text';
 
+export const MAX_NOTIFICATION_ACTOR_NAME_CHARS = 120;
+export const MAX_NOTIFICATION_ACTOR_AVATAR_CHARS = 2048;
+
+function boundActorName(value) {
+  if (typeof value !== 'string') return '';
+  return value.slice(0, MAX_NOTIFICATION_ACTOR_NAME_CHARS);
+}
+
+function boundActorAvatar(value) {
+  if (typeof value !== 'string') return '';
+  return value.length <= MAX_NOTIFICATION_ACTOR_AVATAR_CHARS ? value : '';
+}
+
 function parseLimit(raw) {
   if (raw === undefined || raw === null || raw === '') return DEFAULT_NOTIFICATION_LIMIT;
   if (Array.isArray(raw)) return NaN;
@@ -32,7 +45,11 @@ function parseLimit(raw) {
 export function projectNotification(doc) {
   if (!doc) return null;
   const actor = doc.actor && typeof doc.actor === 'object' && !Array.isArray(doc.actor) && (doc.actor._id || doc.actor.name)
-    ? { _id: doc.actor._id, name: doc.actor.name || '', avatar: doc.actor.avatar || '' }
+    ? {
+        _id: doc.actor._id,
+        name: boundActorName(doc.actor.name || ''),
+        avatar: boundActorAvatar(doc.actor.avatar || ''),
+      }
     : doc.actor;
   const post = doc.post && typeof doc.post === 'object' && !Array.isArray(doc.post) && doc.post._id
     ? { _id: doc.post._id, title: doc.post.title || '' }

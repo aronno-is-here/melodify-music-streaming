@@ -80,12 +80,12 @@ function projectActor(value) {
     actor._id = value._id;
   }
   if (value.name !== undefined) {
-    if (typeof value.name !== 'string' || value.name.length > 120) return undefined;
-    actor.name = value.name;
+    if (typeof value.name !== 'string') return undefined;
+    actor.name = value.name.length > 120 ? '' : value.name;
   }
   if (value.avatar !== undefined) {
-    if (typeof value.avatar !== 'string' || value.avatar.length > 4096) return undefined;
-    actor.avatar = value.avatar;
+    if (typeof value.avatar !== 'string') return undefined;
+    actor.avatar = value.avatar.length > 4096 ? '' : value.avatar;
   }
   for (const key of Object.keys(value)) {
     if (!ACTOR_FIELDS.includes(key)) return undefined;
