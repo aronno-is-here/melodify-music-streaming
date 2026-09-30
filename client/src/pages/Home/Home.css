@@ -143,23 +143,35 @@
 }
 
 .home-icon-btn {
-  width: 28px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
   border-radius: 50%;
-  background: transparent;
-  border: 0;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(163,185,255,0.34);
   color: #f3f1ff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.25s ease;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
 }
 
-.home-icon-btn:hover {
+.home-icon-btn:hover:not(:disabled) {
   color: #ffffff;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(174,196,255,0.6);
+}
+
+.home-icon-btn:focus-visible {
+  outline: 2px solid var(--home-sky);
+  outline-offset: 2px;
+}
+
+.home-icon-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .home-avatar {
@@ -183,8 +195,22 @@
   box-shadow: 0 0 0 2px rgba(108,63,197,0.5);
 }
 
+.home-avatar:focus-visible {
+  outline: 2px solid var(--home-sky);
+  outline-offset: 2px;
+}
+
 .home-avatar-text {
   line-height: 1;
+}
+
+.home-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 50%;
+  display: block;
 }
 
 /* ---- HERO ---- */
