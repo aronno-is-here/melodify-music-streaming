@@ -120,7 +120,16 @@ export default function Home() {
               )}
               <Link to={user ? '/profile' : '/login'} className="home-avatar" aria-label={user ? 'Your profile' : 'Sign in'}>
                 {user ? (
-                  <span className="home-avatar-text">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                  user.avatar ? (
+                    <img
+                      className="home-avatar-img"
+                      src={user.avatar}
+                      alt=""
+                      onError={(event) => handleImgError(event, '/home/avatar-fallback.svg')}
+                    />
+                  ) : (
+                    <span className="home-avatar-text">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                  )
                 ) : (
                   <i className="fas fa-user" />
                 )}
