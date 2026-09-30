@@ -2,6 +2,7 @@ import express from 'express';
 import Comment from '../models/Comment.js';
 import Post from '../models/Post.js';
 import { protect } from '../middleware/auth.js';
+import { createNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -43,6 +44,14 @@ router.post('/:postId', protect, async (req, res) => {
     });
 
     await Post.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
+
+    await createNotification({
+      recipient: post.author,
+      actor: req.user._id,
+      type: 'post_comment',
+      post: post._id,
+      comment: comment._id,
+    });
 
     const populated = await Comment.findById(comment._id).populate('author', 'name email avatar');
     res.json({ success: true, comment: populated });

@@ -10,7 +10,7 @@ const librarySrc = readFileSync(join(__dirname, 'LibraryView.jsx'), 'utf8');
 
 test('Search view is mobile-accessible and keyboard-friendly', () => {
   assert.match(searchSrc, /type="search"/);
-  assert.match(searchSrc, /aria-label="Search songs and users"/);
+  assert.match(searchSrc, /aria-label=\{isSongsMode \? 'Search songs, artists, albums' : 'Search people'\}/);
   assert.match(searchSrc, /role="status"/);
   assert.match(searchSrc, /SongRow/);
 });

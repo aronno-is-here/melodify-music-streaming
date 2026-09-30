@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { Link, useOutletContext, useParams } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { api } from '../../api/client.js';
 import usePlayer from '../../hooks/usePlayer.js';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
@@ -46,10 +46,12 @@ export default function Playlist() {
   }, []);
 
   const { id } = useParams();
+  const navigate = useNavigate();
   const {
     user,
     favoritedIds,
     toggleFavorite,
+    refreshCoreData,
   } = useOutletContext();
   const player = usePlayer();
 
@@ -64,11 +66,15 @@ export default function Playlist() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [pendingAction, setPendingAction] = useState('');
 
   const items = playlist?.items || [];
   const songs = useMemo(() => items.map((item) => item.songId).filter(Boolean), [items]);
   const existingIds = useMemo(() => new Set(songs.map((song) => String(song._id))), [songs]);
   const playingId = player.currentSong?._id ? String(player.currentSong._id) : null;
+  const isOwner = Boolean(
+    user?.email && playlist?.user_email && user.email === playlist.user_email,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -122,24 +128,56 @@ export default function Playlist() {
     setRenameOpen(true);
   };
 
+  const syncLibrary = async () => {
+    if (typeof refreshCoreData === 'function') {
+      try {
+        await refreshCoreData();
+      } catch {
+        /* library refresh is best effort */
+      }
+    }
+  };
+
   const addSong = async (songId) => {
-    const data = await api.post(`/api/playlists/${id}/songs`, { songId });
-    if (data.success) {
-      setPlaylist(data.playlist);
-      setSearchResults((prev) => prev.filter((song) => String(song._id) !== String(songId)));
-      setStatus({ tone: 'success', text: 'Song added to playlist.' });
-    } else {
-      setStatus({ tone: 'error', text: data.error || 'Unable to add this song right now.' });
+    if (!isOwner || pendingAction) return;
+    const targetId = String(songId);
+    setPendingAction(`add:${targetId}`);
+    try {
+      const data = await api.post(`/api/playlists/${id}/songs`, { songId: targetId });
+      if (data.success) {
+        setPlaylist(data.playlist);
+        setSearchResults((prev) => prev.filter((song) => String(song._id) !== targetId));
+        setStatus({ tone: 'success', text: 'Song added to playlist.' });
+        await syncLibrary();
+      } else {
+        setStatus({ tone: 'error', text: data.error || 'Unable to add this song right now.' });
+      }
+    } catch (error) {
+      setStatus({ tone: 'error', text: error?.message || 'Unable to add this song right now.' });
+    } finally {
+      setPendingAction('');
     }
   };
 
   const removeSong = async (songId) => {
-    const data = await api.del(`/api/playlists/${id}/songs/${songId}`);
-    if (data.success) {
-      setPlaylist(data.playlist);
-      setStatus({ tone: 'success', text: 'Song removed from playlist.' });
-    } else {
-      setStatus({ tone: 'error', text: data.error || 'Unable to remove this song right now.' });
+    if (!isOwner || pendingAction) return;
+    const targetId = String(songId);
+    const target = songs.find((song) => String(song._id) === targetId);
+    if (!target) return;
+    setPendingAction(`remove:${targetId}`);
+    try {
+      const data = await api.del(`/api/playlists/${id}/songs/${targetId}`);
+      if (data.success) {
+        setPlaylist(data.playlist);
+        setStatus({ tone: 'success', text: `Removed ${target.title} from this playlist.` });
+        await syncLibrary();
+      } else {
+        setStatus({ tone: 'error', text: data.error || 'Unable to remove this song right now.' });
+      }
+    } catch (error) {
+      setStatus({ tone: 'error', text: error?.message || 'Unable to remove this song right now.' });
+    } finally {
+      setPendingAction('');
     }
   };
 
@@ -149,24 +187,42 @@ export default function Playlist() {
       setRenameOpen(false);
       return;
     }
-
-    const data = await api.put(`/api/playlists/${id}`, { title: nextTitle });
-    if (data.success) {
-      setPlaylist(data.playlist);
-      setStatus({ tone: 'success', text: 'Playlist name updated.' });
-      setRenameOpen(false);
-    } else {
-      setStatus({ tone: 'error', text: data.error || 'Unable to rename this playlist right now.' });
+    if (pendingAction) return;
+    setPendingAction('rename');
+    try {
+      const data = await api.put(`/api/playlists/${id}`, { title: nextTitle });
+      if (data.success) {
+        setPlaylist(data.playlist);
+        setStatus({ tone: 'success', text: 'Playlist name updated.' });
+        setRenameOpen(false);
+        await syncLibrary();
+      } else {
+        setStatus({ tone: 'error', text: data.error || 'Unable to rename this playlist right now.' });
+      }
+    } catch (error) {
+      setStatus({ tone: 'error', text: error?.message || 'Unable to rename this playlist right now.' });
+    } finally {
+      setPendingAction('');
     }
   };
 
   const deletePlaylist = async () => {
-    const data = await api.del(`/api/playlists/${id}`);
-    if (data.success) {
-      window.location.href = '/library';
-      return;
+    if (pendingAction) return;
+    setPendingAction('delete');
+    try {
+      const data = await api.del(`/api/playlists/${id}`);
+      if (data.success) {
+        await syncLibrary();
+        setDeleteOpen(false);
+        navigate('/library');
+        return;
+      }
+      setStatus({ tone: 'error', text: data.error || 'Unable to delete this playlist right now.' });
+    } catch (error) {
+      setStatus({ tone: 'error', text: error?.message || 'Unable to delete this playlist right now.' });
+    } finally {
+      setPendingAction('');
     }
-    setStatus({ tone: 'error', text: data.error || 'Unable to delete this playlist right now.' });
   };
 
   const copyShareLink = async () => {
@@ -251,9 +307,13 @@ export default function Playlist() {
               <i className="fa-solid fa-play" aria-hidden="true"></i>
               Play All
             </button>
-            <button type="button" className="music-outline-btn" onClick={openRenameDialog}>Rename</button>
             <button type="button" className="music-outline-btn" onClick={() => setShareOpen(true)}>Share</button>
-            <button type="button" className="music-outline-btn playlist-danger" onClick={() => setDeleteOpen(true)}>Delete</button>
+            {isOwner ? (
+              <>
+                <button type="button" className="music-outline-btn" onClick={openRenameDialog}>Rename</button>
+                <button type="button" className="music-outline-btn playlist-danger" onClick={() => setDeleteOpen(true)}>Delete</button>
+              </>
+            ) : null}
           </div>
         </div>
       </section>
@@ -274,7 +334,7 @@ export default function Playlist() {
           <EmptyState
             icon="fa-compact-disc"
             title="No songs in this playlist yet"
-            detail="Use the search area below to add songs."
+            detail={isOwner ? 'Use the search area below to add songs.' : 'This playlist has no songs yet.'}
           />
         ) : (
           <div>
@@ -295,14 +355,18 @@ export default function Playlist() {
                   trailing={(
                     <div className="playlist-row-actions">
                       <span className="playlist-duration">{song.duration || '0:00'}</span>
-                      <button
-                        type="button"
-                        className="music-icon-control"
-                        aria-label={`Remove ${song.title} from playlist`}
-                        onClick={() => removeSong(song._id)}
-                      >
-                        <i className="fa-solid fa-trash-can" aria-hidden="true"></i>
-                      </button>
+                      {isOwner ? (
+                        <button
+                          type="button"
+                          className="music-icon-control"
+                          aria-label={`Remove ${song.title} from playlist`}
+                          title="Remove from playlist"
+                          disabled={Boolean(pendingAction)}
+                          onClick={() => removeSong(song._id)}
+                        >
+                          <i className="fa-solid fa-trash-can" aria-hidden="true"></i>
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="music-icon-control"
@@ -320,54 +384,57 @@ export default function Playlist() {
         )}
       </section>
 
-      <section className="music-section app-surface">
-        <SectionHeader
-          title="Add Songs"
-          subtitle="Search the catalog and add tracks to this playlist"
-        />
-        <label className="playlist-search-wrap" htmlFor="playlist-search">
-          <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          <input
-            id="playlist-search"
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search songs, artists, or genre"
+      {isOwner ? (
+        <section className="music-section app-surface">
+          <SectionHeader
+            title="Add Songs"
+            subtitle="Search the catalog and add tracks to this playlist"
           />
-        </label>
+          <label className="playlist-search-wrap" htmlFor="playlist-search">
+            <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input
+              id="playlist-search"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search songs, artists, or genre"
+            />
+          </label>
 
-        {search.trim() ? (
-          <div className="playlist-search-results" aria-busy={searching}>
-            {searching ? (
-              <p className="playlist-status" role="status">Searching songs...</p>
-            ) : searchResults.length === 0 ? (
-              <p className="playlist-status" role="status">No matching songs found.</p>
-            ) : (
-              searchResults.map((song) => (
-                <div key={song._id} className="playlist-search-row">
-                  <img
-                    src={song.poster_url || DEFAULT_POSTER}
-                    alt=""
-                    className="playlist-search-art"
-                    onError={(event) => { event.currentTarget.src = DEFAULT_POSTER; }}
-                  />
-                  <div className="playlist-search-meta">
-                    <strong>{song.title}</strong>
-                    <span>{song.artist}</span>
+          {search.trim() ? (
+            <div className="playlist-search-results" aria-busy={searching}>
+              {searching ? (
+                <p className="playlist-status" role="status">Searching songs...</p>
+              ) : searchResults.length === 0 ? (
+                <p className="playlist-status" role="status">No matching songs found.</p>
+              ) : (
+                searchResults.map((song) => (
+                  <div key={song._id} className="playlist-search-row">
+                    <img
+                      src={song.poster_url || DEFAULT_POSTER}
+                      alt=""
+                      className="playlist-search-art"
+                      onError={(event) => { event.currentTarget.src = DEFAULT_POSTER; }}
+                    />
+                    <div className="playlist-search-meta">
+                      <strong>{song.title}</strong>
+                      <span>{song.artist}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="music-outline-btn"
+                      disabled={Boolean(pendingAction)}
+                      onClick={() => addSong(song._id)}
+                    >
+                      Add
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="music-outline-btn"
-                    onClick={() => addSong(song._id)}
-                  >
-                    Add
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        ) : null}
-      </section>
+                ))
+              )}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <AppDialog
         open={renameOpen}

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
+import { getActiveAuthToken } from '../auth/authToken.js';
 import {
   createListeningTelemetryController,
   LISTENING_TELEMETRY_DISABLED_MESSAGE,
@@ -77,7 +78,7 @@ export function PlayerProvider({ children }) {
       },
       recordHistory: (songId) => {
         if (!songId) return Promise.resolve();
-        if (!localStorage.getItem('melodify_token')) return Promise.resolve();
+        if (!getActiveAuthToken()) return Promise.resolve();
         return api.post('/api/history', { songId }).catch(() => {});
       },
       makeId: () => {
@@ -91,7 +92,7 @@ export function PlayerProvider({ children }) {
         return out;
       },
       now: () => new Date(),
-      hasAuthToken: () => Boolean(localStorage.getItem('melodify_token')),
+      hasAuthToken: () => Boolean(getActiveAuthToken()),
     });
   }
   const telemetry = telemetryRef.current;

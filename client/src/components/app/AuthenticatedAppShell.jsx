@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import usePlayer from '../../hooks/usePlayer.js';
 import GlobalPlayerBar from './GlobalPlayerBar.jsx';
+import NotificationBell from './NotificationBell.jsx';
 import FullScreenPlayer from '../../pages/Dashboard/FullScreenPlayer.jsx';
 import MelodifyBrand from '../ui/MelodifyBrand.jsx';
 
@@ -161,6 +162,8 @@ export default function AuthenticatedAppShell() {
           </Link>
 
           <div className="app-header-actions" ref={menuRef}>
+            <NotificationBell />
+
             <button
               type="button"
               className="app-icon-btn"

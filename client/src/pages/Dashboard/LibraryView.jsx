@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import usePlayer from '../../hooks/usePlayer.js';
 import SongRow from '../../components/music/SongRow.jsx';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
@@ -207,14 +207,24 @@ export default function LibraryView() {
                   title={activePlaylist?.title || 'Playlist'}
                   subtitle={`${activePlaylistSongs.length} songs`}
                   action={(
-                    <button
-                      type="button"
-                      className="music-section-action"
-                      onClick={() => playQueueAt(activePlaylistSongs, 0)}
-                      disabled={activePlaylistSongs.length === 0}
-                    >
-                      Play All
-                    </button>
+                    <div className="library-playlist-actions">
+                      <button
+                        type="button"
+                        className="music-section-action"
+                        onClick={() => playQueueAt(activePlaylistSongs, 0)}
+                        disabled={activePlaylistSongs.length === 0}
+                      >
+                        Play All
+                      </button>
+                      {activePlaylist ? (
+                        <Link
+                          to={`/playlist/${activePlaylist._id}`}
+                          className="music-section-action library-playlist-open"
+                        >
+                          Open Playlist
+                        </Link>
+                      ) : null}
+                    </div>
                   )}
                 />
 

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import HeroSection from '../../components/home/HeroSection.jsx';
 import MelodifyBrand from '../../components/ui/MelodifyBrand.jsx';
+import NotificationBell from '../../components/app/NotificationBell.jsx';
 import { formatDuration } from '../../components/home/formatDuration.js';
 import cssRaw from './Home.css?raw';
 
@@ -105,18 +106,18 @@ export default function Home() {
                 <Link to="/studio" className="home-nav-link">Studio</Link>
                 <Link to="/feed" className="home-nav-link">Feed</Link>
               </nav>
-              <div className="home-search">
-                <i className="fas fa-search home-search-icon" aria-hidden="true" />
-                <input type="search" aria-label="Search songs, artists, or albums" placeholder="Search songs, artists, or albums..." className="home-search-input" />
-              </div>
             </div>
             <div className="home-right">
-              <button className="home-icon-btn" aria-label="Notifications">
-                <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-                  <path d="M5 17h14l-2-3V9a5 5 0 0 0-4-5V2h-2v2a5 5 0 0 0-4 5v5z" strokeLinejoin="round" />
-                  <path d="M10 20a2 2 0 0 0 4 0" />
-                </svg>
-              </button>
+              {user ? (
+                <NotificationBell variant="home" />
+              ) : (
+                <button type="button" className="home-icon-btn" aria-label="Sign in to view notifications" title="Sign in to view notifications" disabled aria-disabled="true">
+                  <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                    <path d="M5 17h14l-2-3V9a5 5 0 0 0-4-5V2h-2v2a5 5 0 0 0-4 5v5z" strokeLinejoin="round" />
+                    <path d="M10 20a2 2 0 0 0 4 0" />
+                  </svg>
+                </button>
+              )}
               <Link to={user ? '/profile' : '/login'} className="home-avatar" aria-label={user ? 'Your profile' : 'Sign in'}>
                 {user ? (
                   <span className="home-avatar-text">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
