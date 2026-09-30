@@ -743,6 +743,19 @@
   color: #ff8fa3;
 }
 
+.app-notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 14px;
+}
+
+.app-notification-empty i {
+  font-size: 22px;
+  color: var(--mel-text-muted);
+}
+
 .app-notification-retry {
   min-height: 34px;
   padding: 0 16px;

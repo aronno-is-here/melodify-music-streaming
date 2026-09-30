@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { api } from '../../api/client.js';
 import usePlayer from '../../hooks/usePlayer.js';
@@ -9,7 +9,14 @@ import './SearchView.css';
 
 const DEFAULT_SONG_LIMIT = 50;
 const CATALOG_SEARCH_LIMIT = 40;
+const PEOPLE_SEARCH_LIMIT = 12;
+const SEARCH_DEBOUNCE_MS = 250;
 const DEFAULT_POSTER = 'https://picsum.photos/120/120?random';
+
+const SONGS_TAB_ID = 'search-tab-songs';
+const PEOPLE_TAB_ID = 'search-tab-people';
+const SONGS_PANEL_ID = 'search-panel-songs';
+const PEOPLE_PANEL_ID = 'search-panel-people';
 
 const REGION_OPTIONS = [
   { id: '', label: 'All' },
@@ -44,13 +51,14 @@ const mapCatalogEntryToSong = (entry) => {
 
 export default function SearchView() {
   const {
-    songs,
     favoritedIds,
     toggleFavorite,
   } = useOutletContext();
   const player = usePlayer();
 
-  const [query, setQuery] = useState('');
+  const [mode, setMode] = useState('songs');
+  const [songQuery, setSongQuery] = useState('');
+  const [peopleQuery, setPeopleQuery] = useState('');
   const [regionTag, setRegionTag] = useState('');
   const [songResults, setSongResults] = useState([]);
   const [userResults, setUserResults] = useState([]);
@@ -59,15 +67,17 @@ export default function SearchView() {
   const [externalState, setExternalState] = useState('skipped');
   const [importingSongIds, setImportingSongIds] = useState(() => new Set());
 
+  const isSongsMode = mode === 'songs';
+
   useEffect(() => {
-    const trimmed = query.trim();
+    if (mode !== 'songs') return undefined;
+    const trimmed = songQuery.trim();
     if (!trimmed) {
-      setSongResults(songs.slice(0, 18));
-      setUserResults([]);
+      setSongResults([]);
       setCatalogError('');
       setExternalState('skipped');
       setLoading(false);
-      return;
+      return undefined;
     }
 
     let cancelled = false;
@@ -75,14 +85,9 @@ export default function SearchView() {
       setLoading(true);
       setCatalogError('');
       const regionQuery = regionTag ? `&region=${encodeURIComponent(regionTag)}` : '';
-      const [catalogPayload, userPayload] = await Promise.all([
-        api
-          .get(`/api/catalog/search?q=${encodeURIComponent(trimmed)}&limit=${CATALOG_SEARCH_LIMIT}${regionQuery}`)
-          .catch(() => ({ success: false })),
-        trimmed.length >= 2
-          ? api.get(`/api/users/search?q=${encodeURIComponent(trimmed)}&limit=12`).catch(() => ({ success: false }))
-          : Promise.resolve({ success: true, users: [] }),
-      ]);
+      const catalogPayload = await api
+        .get(`/api/catalog/search?q=${encodeURIComponent(trimmed)}&limit=${CATALOG_SEARCH_LIMIT}${regionQuery}`)
+        .catch(() => ({ success: false }));
 
       if (cancelled) return;
 
@@ -106,20 +111,42 @@ export default function SearchView() {
 
       setSongResults(results);
       setExternalState(nextState);
-      setUserResults(userPayload.success && Array.isArray(userPayload.users) ? userPayload.users : []);
       setLoading(false);
-    }, 250);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, songs, regionTag]);
+  }, [mode, songQuery, regionTag]);
 
-  const headline = useMemo(() => {
-    if (!query.trim()) return 'Search songs and artists';
-    return `Results for "${query.trim()}"`;
-  }, [query]);
+  useEffect(() => {
+    if (mode !== 'people') return undefined;
+    const trimmed = peopleQuery.trim();
+    if (!trimmed) {
+      setUserResults([]);
+      setLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      const userPayload = await api
+        .get(`/api/users/search?q=${encodeURIComponent(trimmed)}&limit=${PEOPLE_SEARCH_LIMIT}`)
+        .catch(() => ({ success: false }));
+
+      if (cancelled) return;
+
+      setUserResults(userPayload.success && Array.isArray(userPayload.users) ? userPayload.users : []);
+      setLoading(false);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [mode, peopleQuery]);
 
   const markImporting = (entryId, isImporting) => {
     setImportingSongIds((prev) => {
@@ -191,102 +218,158 @@ export default function SearchView() {
     await toggleFavorite(song._id);
   };
 
+  const handleQueryChange = (event) => {
+    const value = event.target.value;
+    if (mode === 'songs') setSongQuery(value);
+    else setPeopleQuery(value);
+  };
+
   return (
     <div className="search-view">
       <section className="search-hero app-surface">
-        <h1>{headline}</h1>
+        <h1>Search</h1>
+        <div className="search-mode-tabs" role="tablist" aria-label="Search modes">
+          <button
+            type="button"
+            role="tab"
+            id={SONGS_TAB_ID}
+            className={`search-mode-tab${isSongsMode ? ' active' : ''}`}
+            aria-selected={isSongsMode}
+            aria-controls={SONGS_PANEL_ID}
+            onClick={() => setMode('songs')}
+          >
+            Songs
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id={PEOPLE_TAB_ID}
+            className={`search-mode-tab${!isSongsMode ? ' active' : ''}`}
+            aria-selected={!isSongsMode}
+            aria-controls={PEOPLE_PANEL_ID}
+            onClick={() => setMode('people')}
+          >
+            People
+          </button>
+        </div>
         <label htmlFor="shell-search-input" className="search-input-wrap">
           <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           <input
             id="shell-search-input"
             type="search"
-            placeholder="Search by song title, artist, or user"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label="Search songs and users"
+            placeholder={isSongsMode ? 'Search songs, artists, albums...' : 'Search people...'}
+            value={isSongsMode ? songQuery : peopleQuery}
+            onChange={handleQueryChange}
+            aria-label={isSongsMode ? 'Search songs, artists, albums' : 'Search people'}
           />
         </label>
-        <div className="search-region-chips" role="tablist" aria-label="Search regions">
-          {REGION_OPTIONS.map((option) => (
-            <button
-              key={option.id || 'all'}
-              type="button"
-              className={`search-region-chip${regionTag === option.id ? ' active' : ''}`}
-              aria-pressed={regionTag === option.id}
-              onClick={() => setRegionTag(option.id)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {isSongsMode ? (
+          <div className="search-region-chips" role="group" aria-label="Search regions">
+            {REGION_OPTIONS.map((option) => (
+              <button
+                key={option.id || 'all'}
+                type="button"
+                className={`search-region-chip${regionTag === option.id ? ' active' : ''}`}
+                aria-pressed={regionTag === option.id}
+                onClick={() => setRegionTag(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </section>
 
-      <section className="music-section app-surface" aria-busy={loading}>
-        <SectionHeader
-          title="Songs"
-          subtitle="Playable results from your music catalog"
-        />
-        {loading ? (
-          <p className="dashboard-status" role="status">Searching...</p>
-        ) : null}
-        {!loading && catalogError ? (
-          <p className="search-feedback" role="status">{catalogError}</p>
-        ) : null}
-        {!loading && !catalogError && externalState === 'disabled' ? (
-          <p className="search-feedback">External catalog is unavailable right now.</p>
-        ) : null}
-        {!loading && songResults.length === 0 && !catalogError ? (
-          <EmptyState icon="fa-magnifying-glass" title="No songs found" detail="Try a different song title or artist." />
-        ) : null}
-        {!loading && songResults.length > 0 ? (
-          <div>
-            {songResults.map((song, index) => (
-              <SongRow
-                key={`${song._id}-${index}`}
-                song={song}
-                isPlaying={player.isPlaying}
-                isActive={player.currentSong?._id === song._id}
-                isFavorited={favoritedIds.has(String(song._id))}
-                onPlay={() => playResult(index)}
-                onToggleFavorite={() => handleToggleFavorite(song)}
-                trailing={(
-                  <span className={`song-source-badge${song.sourceType === 'external' ? ' external' : ''}`}>
-                    {importingSongIds.has(String(song._id)) ? 'Importing...' : (song.sourceType === 'external' ? 'External' : 'Library')}
+      {isSongsMode ? (
+        <section
+          className="music-section app-surface"
+          id={SONGS_PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={SONGS_TAB_ID}
+          aria-busy={loading}
+        >
+          <SectionHeader
+            title="Songs"
+            subtitle="Playable results from your music catalog"
+          />
+          {loading ? (
+            <p className="dashboard-status" role="status">Searching...</p>
+          ) : null}
+          {!loading && catalogError ? (
+            <p className="search-feedback" role="status">{catalogError}</p>
+          ) : null}
+          {!loading && !catalogError && externalState === 'disabled' ? (
+            <p className="search-feedback">External catalog is unavailable right now.</p>
+          ) : null}
+          {!loading && !catalogError && !songQuery.trim() ? (
+            <EmptyState
+              icon="fa-magnifying-glass"
+              title="Search for songs, artists, or albums."
+              detail="Results appear as you type."
+            />
+          ) : null}
+          {!loading && !catalogError && Boolean(songQuery.trim()) && songResults.length === 0 ? (
+            <EmptyState icon="fa-magnifying-glass" title="No songs found." detail="Try a different song title or artist." />
+          ) : null}
+          {!loading && songResults.length > 0 ? (
+            <div>
+              {songResults.map((song, index) => (
+                <SongRow
+                  key={`${song._id}-${index}`}
+                  song={song}
+                  isPlaying={player.isPlaying}
+                  isActive={player.currentSong?._id === song._id}
+                  isFavorited={favoritedIds.has(String(song._id))}
+                  onPlay={() => playResult(index)}
+                  onToggleFavorite={() => handleToggleFavorite(song)}
+                  trailing={(
+                    <span className={`song-source-badge${song.sourceType === 'external' ? ' external' : ''}`}>
+                      {importingSongIds.has(String(song._id)) ? 'Importing...' : (song.sourceType === 'external' ? 'External' : 'Library')}
+                    </span>
+                  )}
+                />
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : (
+        <section
+          className="music-section app-surface"
+          id={PEOPLE_PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={PEOPLE_TAB_ID}
+          aria-busy={loading}
+        >
+          <SectionHeader
+            title="People"
+            subtitle="Jump directly to public user profiles"
+          />
+          {loading ? (
+            <p className="dashboard-status" role="status">Searching...</p>
+          ) : null}
+          {!loading && !peopleQuery.trim() ? (
+            <EmptyState icon="fa-user" title="Search for people." detail="Find listeners by name." />
+          ) : null}
+          {!loading && Boolean(peopleQuery.trim()) && userResults.length === 0 ? (
+            <EmptyState icon="fa-user" title="No people found." detail="Try a different name." />
+          ) : null}
+          {userResults.length > 0 ? (
+            <div className="search-user-grid" role="list">
+              {userResults.map((entry) => (
+                <Link to={`/user/${entry._id}`} className="search-user-card" key={entry._id} role="listitem">
+                  <span className="search-user-avatar" aria-hidden="true">
+                    {entry.avatar ? <img src={entry.avatar} alt="" /> : (entry.name?.charAt(0)?.toUpperCase() || 'U')}
                   </span>
-                )}
-              />
-            ))}
-          </div>
-        ) : null}
-      </section>
-
-      <section className="music-section app-surface">
-        <SectionHeader
-          title="Users"
-          subtitle="Jump directly to public user profiles"
-        />
-        {query.trim().length < 2 ? (
-          <EmptyState icon="fa-user" title="Type at least 2 characters" detail="User search appears while you type." />
-        ) : null}
-        {query.trim().length >= 2 && userResults.length === 0 && !loading ? (
-          <EmptyState icon="fa-user" title="No users found" detail="Try a different name or email." />
-        ) : null}
-        {userResults.length > 0 ? (
-          <div className="search-user-grid" role="list">
-            {userResults.map((entry) => (
-              <Link to={`/user/${entry._id}`} className="search-user-card" key={entry._id} role="listitem">
-                <span className="search-user-avatar" aria-hidden="true">
-                  {entry.avatar ? <img src={entry.avatar} alt="" /> : (entry.name?.charAt(0)?.toUpperCase() || 'U')}
-                </span>
-                <span className="search-user-meta">
-                  <span className="search-user-name">{entry.name}</span>
-                  <span className="search-user-email">{entry.email}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        ) : null}
-      </section>
+                  <span className="search-user-meta">
+                    <span className="search-user-name">{entry.name}</span>
+                    <span className="search-user-email">{entry.email}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      )}
     </div>
   );
 }

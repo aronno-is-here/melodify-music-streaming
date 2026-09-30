@@ -96,3 +96,47 @@ test('homepage bell is only functional for signed-in visitors', () => {
   assert.match(homeSrc, /\{user \? \(\s*<NotificationBell variant="home" \/>\s*\) : \(/);
   assert.equal(/logout|localStorage|removeItem|melodify_token/.test(homeSrc), false);
 });
+
+test('3. bell remains clickable and opens even when the unread count is zero', () => {
+  const buttonStart = bellSrc.indexOf('aria-label={badge.ariaLabel}');
+  const buttonEnd = bellSrc.indexOf('</button>', buttonStart);
+  assert.ok(buttonStart >= 0 && buttonEnd > buttonStart, 'bell button markup not found');
+  const buttonBlock = bellSrc.slice(buttonStart, buttonEnd);
+  assert.equal(buttonBlock.includes('disabled'), false);
+  assert.match(buttonBlock, /onClick=\{\(\) => setOpen\(\(value\) => !value\)\}/);
+  assert.equal(/disabled=\{[^}]*unread/.test(bellSrc), false);
+  assert.match(bellSrc, /aria-expanded=\{open\}/);
+  assert.match(bellSrc, /\{open \? \(/);
+  assert.match(uiSrc, /NOTIFICATION_UNREAD_ZERO_LABEL = 'No unread notifications'/);
+});
+
+test('4. opening the bell with no notifications shows the empty state', () => {
+  assert.match(
+    bellSrc,
+    /\{!loading && !error && items\.length === 0 \? \(\s*<p className="app-notification-state app-notification-empty" role="status">[\s\S]*?\{NOTIFICATION_EMPTY_MESSAGE\}[\s\S]*?<\/p>\s*\) : null\}/,
+  );
+  assert.match(uiSrc, /NOTIFICATION_EMPTY_MESSAGE = 'No notifications yet\.'/);
+  assert.match(shellCss, /\.app-notification-empty\s*\{/);
+});
+
+test('5. existing notification list still renders', () => {
+  assert.match(bellSrc, /<ul className="app-notification-list" aria-label="Recent notifications">/);
+  assert.match(bellSrc, /\{items\.map\(\(item\) =>/);
+  assert.match(bellSrc, /Mark all read/);
+  assert.match(bellSrc, /aria-label="Mark notification as read"/);
+  assert.match(bellSrc, /app-notification-accept/);
+  assert.match(bellSrc, /app-notification-reject/);
+});
+
+test('6. loading and error retry states remain intact', () => {
+  assert.match(bellSrc, /Loading notifications\.\.\./);
+  assert.match(bellSrc, /role="alert"/);
+  assert.match(bellSrc, /className="app-notification-retry" onClick=\{loadList\}/);
+  assert.match(bellSrc, /setError\(result\.error \|\| NOTIFICATION_ERROR_MESSAGE\)/);
+  assert.match(bellSrc, /if \(!open\) return undefined;\s*loadList\(\);/);
+});
+
+test('signed-out homepage bell is explicitly non-functional', () => {
+  assert.match(homeSrc, /disabled aria-disabled="true"/);
+  assert.equal(/<button className="home-icon-btn" aria-label="Notifications"/.test(homeSrc), false);
+});

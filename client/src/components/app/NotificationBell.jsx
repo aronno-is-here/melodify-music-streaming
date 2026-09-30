@@ -221,7 +221,10 @@ export default function NotificationBell({ variant = 'shell' }) {
           ) : null}
 
           {!loading && !error && items.length === 0 ? (
-            <p className="app-notification-state" role="status">{NOTIFICATION_EMPTY_MESSAGE}</p>
+            <p className="app-notification-state app-notification-empty" role="status">
+              <i className="fa-solid fa-bell" aria-hidden="true"></i>
+              <span>{NOTIFICATION_EMPTY_MESSAGE}</span>
+            </p>
           ) : null}
 
           {!loading && !error && items.length > 0 ? (

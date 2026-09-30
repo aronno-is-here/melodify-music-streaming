@@ -111,7 +111,7 @@ export default function Home() {
               {user ? (
                 <NotificationBell variant="home" />
               ) : (
-                <button className="home-icon-btn" aria-label="Notifications" title="Sign in to view notifications">
+                <button type="button" className="home-icon-btn" aria-label="Sign in to view notifications" title="Sign in to view notifications" disabled aria-disabled="true">
                   <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
                     <path d="M5 17h14l-2-3V9a5 5 0 0 0-4-5V2h-2v2a5 5 0 0 0-4 5v5z" strokeLinejoin="round" />
                     <path d="M10 20a2 2 0 0 0 4 0" />
