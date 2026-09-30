@@ -905,28 +905,46 @@ th {
 
 .missing-lyrics-table-wrap {
   overflow-x: auto;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  border: 1px solid var(--mel-border);
+  border-radius: var(--mel-radius-10);
+  -webkit-overflow-scrolling: touch;
 }
 
 .missing-lyrics-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   font-size: 13px;
 }
 
 .missing-lyrics-table th,
 .missing-lyrics-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--mel-border);
   text-align: left;
   vertical-align: middle;
 }
 
 .missing-lyrics-table th {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--sky-blue);
+  background: var(--mel-bg-elev-2);
+  color: var(--mel-text-muted);
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.missing-lyrics-table td {
+  color: var(--mel-text-soft);
+}
+
+.missing-lyrics-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.missing-lyrics-table tbody tr:hover {
+  background: rgba(0, 180, 216, 0.05);
 }
 
 .missing-lyrics-actions {
@@ -936,12 +954,12 @@ th {
 }
 
 .missing-lyrics-action {
-  background: none;
-  border: 1px solid var(--sky-blue);
-  color: var(--sky-blue);
-  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--mel-border-strong);
+  color: var(--mel-text-soft);
+  border-radius: var(--mel-radius-10);
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   cursor: pointer;
 }
 
@@ -951,7 +969,8 @@ th {
 }
 
 .missing-lyrics-action:hover:not(:disabled) {
-  background: rgba(0, 180, 216, 0.12);
+  border-color: var(--mel-cyan);
+  color: var(--mel-text);
 }
 
 .missing-lyrics-pagination {
@@ -964,7 +983,7 @@ th {
 }
 
 .missing-lyrics-import {
-  margin-top: 20px;
+  margin-top: 0;
 }
 
 .missing-lyrics-import-row {
@@ -1810,5 +1829,118 @@ span.admin-table-art {
   .admin-revenue-grid,
   .admin-revenue-plans {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------
+   Checkpoint C - Lyrics, Chords, and Karaoke workspaces
+   ------------------------------------------------------------ */
+.admin-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--mel-space-3);
+  margin-bottom: var(--mel-space-3);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--mel-border);
+}
+
+.admin-panel-head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.admin-panel-subheading {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mel-cyan-soft);
+}
+
+.admin-inline-notice.admin-inline-notice--error {
+  background: rgba(255, 107, 107, 0.1);
+  border-color: rgba(255, 107, 107, 0.4);
+  color: #ff9b9b;
+}
+
+.missing-lyrics-queue .admin-state-block {
+  padding: 26px 16px;
+}
+
+.missing-lyrics-import {
+  margin-top: 0;
+}
+
+.add-lyrics-replace {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: var(--mel-radius-10);
+  background: rgba(255, 196, 0, 0.1);
+  border: 1px solid rgba(255, 196, 0, 0.3);
+  color: #ffd666;
+}
+
+.karaoke-source-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: var(--mel-space-3);
+  background: var(--mel-bg-elev-2);
+  border: 1px solid var(--mel-border);
+  border-radius: var(--mel-radius-10);
+}
+
+.karaoke-source-option {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--mel-radius-10) - 4px);
+  color: var(--mel-text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.karaoke-source-option:hover {
+  color: var(--mel-text);
+}
+
+.karaoke-source-option.is-active {
+  background: rgba(0, 180, 216, 0.15);
+  border-color: rgba(0, 180, 216, 0.45);
+  color: var(--mel-cyan-soft);
+}
+
+.karaoke-form-submit {
+  align-self: flex-start;
+}
+
+@media (max-width: 768px) {
+  .admin-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .karaoke-source-toggle {
+    display: flex;
+    width: 100%;
+  }
+
+  .karaoke-source-option {
+    flex: 1;
+  }
+
+  .missing-lyrics-import-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 360px) {
+  .karaoke-source-option {
+    padding: 7px 8px;
+    font-size: 12px;
   }
 }

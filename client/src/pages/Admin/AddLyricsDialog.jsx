@@ -248,7 +248,7 @@ export default function AddLyricsDialog({ row, onClose, onSaved }) {
 
       <div aria-live="polite">
         {error && (
-          <div className="catalog-sync-feedback is-error" role="alert">
+          <div className="admin-inline-notice admin-inline-notice--error" role="alert">
             {error}
           </div>
         )}

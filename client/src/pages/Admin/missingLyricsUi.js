@@ -28,6 +28,11 @@ export const MISSING_LYRICS_MESSAGES = Object.freeze({
   CANCEL: 'Cancel',
   SAVED: 'Verified lyrics saved.',
   IMPORTED: 'Import complete.',
+  QUEUE_LOADING: 'Loading lyrics...',
+  QUEUE_EMPTY: 'No missing lyrics found.',
+  QUEUE_EMPTY_FILTERED: 'No lyrics match the current filters.',
+  QUEUE_ERROR: 'Unable to load lyrics queue.',
+  QUEUE_RETRY: 'Retry',
 });
 
 export const LYRICS_STATUS_LABELS = Object.freeze({
@@ -75,6 +80,24 @@ export function lyricsStatusLabel(status) {
 
 export function lrclibStatusLabel(status) {
   return LRCLIB_STATUS_LABELS[status] || LRCLIB_STATUS_LABELS['not-stored'];
+}
+
+export function lyricsStatusBadgeTone(status) {
+  if (status === 'verified') return 'ok';
+  if (status === 'missing') return 'warn';
+  if (status === 'legacy') return 'info';
+  return 'muted';
+}
+
+export function lrclibStatusBadgeTone(status) {
+  return status === 'stored' ? 'ok' : 'muted';
+}
+
+export function hasActiveQueueFilters(filters) {
+  const record = filters && typeof filters === 'object' ? filters : {};
+  const query = typeof record.query === 'string' ? record.query.trim() : '';
+  const language = typeof record.language === 'string' ? record.language.trim() : '';
+  return Boolean(query || language);
 }
 
 export function formatLanguageLabel(row) {

@@ -15,7 +15,10 @@ import {
   buildPagination,
   buildQueueRowActions,
   formatLanguageLabel,
+  hasActiveQueueFilters,
+  lyricsStatusBadgeTone,
   lyricsStatusLabel,
+  lrclibStatusBadgeTone,
   lrclibStatusLabel,
   selectMissingLyricsView,
 } from './missingLyricsUi.js';
@@ -50,7 +53,6 @@ export default function MissingLyricsQueue() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [data, setData] = useState(EMPTY_DATA);
   const [view, setView] = useState(MISSING_LYRICS_VIEWS.LOADING);
-  const [error, setError] = useState('');
   const [dialogRow, setDialogRow] = useState(null);
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
@@ -66,11 +68,9 @@ export default function MissingLyricsQueue() {
     const generation = generationRef.current + 1;
     generationRef.current = generation;
     setView(MISSING_LYRICS_VIEWS.LOADING);
-    setError('');
     const result = await fetchMissingLyricsQueue(next);
     if (generation !== generationRef.current) return;
     if (!result.ok) {
-      setError(result.error);
       setView(MISSING_LYRICS_VIEWS.ERROR);
       return;
     }
@@ -85,6 +85,12 @@ export default function MissingLyricsQueue() {
   const applyFilters = (nextPage) => {
     setNotice('');
     setPage(nextPage);
+    setRefreshToken((token) => token + 1);
+  };
+
+  const retryQueue = () => {
+    setNotice('');
+    setActionError('');
     setRefreshToken((token) => token + 1);
   };
 
@@ -160,15 +166,29 @@ export default function MissingLyricsQueue() {
   };
 
   const pagination = buildPagination(data.page, data.pages);
+  const hasActiveFilters = hasActiveQueueFilters({ query, language });
 
   return (
-    <section className="missing-lyrics-panel" aria-labelledby="missing-lyrics-heading">
-      <div className="form-divider"><span>Lyrics Operations</span></div>
-      <h3 id="missing-lyrics-heading">Missing Lyrics</h3>
-      <p className="catalog-sync-hint">
-        Work through songs that have no usable verified local lyrics. Save verified text with the
-        Add Lyrics dialog, or import a CSV/JSON batch (max {MAX_BULK_LYRICS_ENTRIES} entries).
-      </p>
+    <section className="admin-page missing-lyrics-panel" aria-labelledby="missing-lyrics-heading">
+      <div className="admin-page-header">
+        <div className="admin-page-header-text">
+          <h2>Lyrics Management</h2>
+          <p className="admin-page-subtitle">
+            Manage verified lyrics, review missing lyrics, and import lyric content.
+          </p>
+        </div>
+      </div>
+
+      <section className="admin-panel missing-lyrics-queue" aria-labelledby="missing-lyrics-heading">
+        <div className="admin-panel-head">
+          <div>
+            <h3 id="missing-lyrics-heading">Missing Lyrics</h3>
+            <p className="catalog-sync-hint">
+              Work through songs that have no usable verified local lyrics. Save verified text with the
+              Add Lyrics dialog, or import a CSV/JSON batch (max {MAX_BULK_LYRICS_ENTRIES} entries).
+            </p>
+          </div>
+        </div>
 
       <form className="missing-lyrics-filters" onSubmit={submitSearch} noValidate>
         <div className="form-group">
@@ -210,19 +230,26 @@ export default function MissingLyricsQueue() {
 
       <div aria-live="polite">
         {view === MISSING_LYRICS_VIEWS.LOADING && (
-          <div className="catalog-sync-feedback is-loading" role="status">{MISSING_LYRICS_MESSAGES.LOADING}</div>
+          <div className="admin-state-block" role="status">{MISSING_LYRICS_MESSAGES.QUEUE_LOADING}</div>
         )}
         {view === MISSING_LYRICS_VIEWS.ERROR && (
-          <div className="catalog-sync-feedback is-error" role="alert">
-            {error || ADMIN_MISSING_LYRICS_MESSAGES.QUEUE_FAILED}
+          <div className="admin-state-block admin-error-state" role="alert">
+            <p>{MISSING_LYRICS_MESSAGES.QUEUE_ERROR}</p>
+            <button type="button" className="btn" onClick={retryQueue}>
+              {MISSING_LYRICS_MESSAGES.QUEUE_RETRY}
+            </button>
           </div>
         )}
         {view === MISSING_LYRICS_VIEWS.EMPTY && (
-          <div className="catalog-sync-feedback">{MISSING_LYRICS_MESSAGES.EMPTY}</div>
+          <div className="admin-state-block" role="status">
+            {hasActiveFilters
+              ? MISSING_LYRICS_MESSAGES.QUEUE_EMPTY_FILTERED
+              : MISSING_LYRICS_MESSAGES.QUEUE_EMPTY}
+          </div>
         )}
         {notice && <div className="catalog-sync-feedback is-success">{notice}</div>}
         {actionError && (
-          <div className="catalog-sync-feedback is-error" role="alert">{actionError}</div>
+          <div className="admin-inline-notice admin-inline-notice--error" role="alert">{actionError}</div>
         )}
       </div>
 
@@ -248,8 +275,16 @@ export default function MissingLyricsQueue() {
                     <td>{row.title || '—'}</td>
                     <td>{row.artist || '—'}</td>
                     <td>{formatLanguageLabel(row)}</td>
-                    <td>{lyricsStatusLabel(row.lyricsStatus)}</td>
-                    <td>{lrclibStatusLabel(row.lrclibStatus)}</td>
+                    <td>
+                      <span className={`admin-badge ${lyricsStatusBadgeTone(row.lyricsStatus)}`}>
+                        {lyricsStatusLabel(row.lyricsStatus)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`admin-badge ${lrclibStatusBadgeTone(row.lrclibStatus)}`}>
+                        {lrclibStatusLabel(row.lrclibStatus)}
+                      </span>
+                    </td>
                     <td>
                       {actions.canOpenSource ? (
                         <a href={actions.openSourceUrl} target="_blank" rel="noopener noreferrer">
@@ -305,11 +340,13 @@ export default function MissingLyricsQueue() {
           >
             {MISSING_LYRICS_MESSAGES.NEXT}
           </button>
-        </nav>
-      )}
+          </nav>
+        )}
 
-      <div className="missing-lyrics-import">
-        <div className="form-divider"><span>Batch import</span></div>
+      </section>
+
+      <div className="admin-panel missing-lyrics-import">
+        <h4 className="admin-panel-subheading">Batch import</h4>
         <div className="missing-lyrics-import-row">
           <label htmlFor="missing-lyrics-import-file">
             Import file
@@ -338,7 +375,7 @@ export default function MissingLyricsQueue() {
         </div>
         <div aria-live="polite">
           {importError && (
-            <div className="catalog-sync-feedback is-error" role="alert">{importError}</div>
+            <div className="admin-inline-notice admin-inline-notice--error" role="alert">{importError}</div>
           )}
           {importResult && (
             <div className="catalog-sync-feedback is-success" role="status">

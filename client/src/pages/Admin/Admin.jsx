@@ -38,6 +38,18 @@ import {
   selectAdminStatValue,
   selectStatCardPresentation,
 } from './adminDashboardMusicUi.js';
+import {
+  ADMIN_CHORD_MESSAGES,
+  ADMIN_CHORD_STATUS_FILTERS,
+  ADMIN_KARAOKE_MESSAGES,
+  filterAdminChordSongs,
+  selectAdminChordView,
+  selectAdminKaraokeView,
+  selectKaraokeAvailability,
+  selectKaraokeAvailabilityTone,
+  selectKaraokeSource,
+  selectKaraokeSourceTone,
+} from './adminContentWorkspacesUi.js';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
 
@@ -196,6 +208,8 @@ export default function Admin() {
   const [addingSong, setAddingSong] = useState(false);
   const [songSearch, setSongSearch] = useState('');
   const [songGenreFilter, setSongGenreFilter] = useState('all');
+  const [chordSearch, setChordSearch] = useState('');
+  const [chordStatusFilter, setChordStatusFilter] = useState('all');
   const [dataStatus, setDataStatus] = useState({
     stats: 'loading',
     users: 'loading',
@@ -635,6 +649,16 @@ export default function Admin() {
     status: dataStatus.songs,
     totalSongs: songs.length,
     matchCount: filteredSongs.length,
+  });
+  const chordSongs = filterAdminChordSongs(songs, { query: chordSearch, status: chordStatusFilter });
+  const chordView = selectAdminChordView({
+    status: dataStatus.songs,
+    totalSongs: songs.length,
+    matchCount: chordSongs.length,
+  });
+  const karaokeView = selectAdminKaraokeView({
+    status: dataStatus.karaoke,
+    totalTracks: karaokeTracks.length,
   });
 
   const openAddSong = () => {
@@ -1232,60 +1256,219 @@ export default function Admin() {
           {section === 'missing-lyrics' && <MissingLyricsQueue />}
 
           {section === 'chords' && (
-            <div id="chords" className="card">
-              <h2>Chords</h2>
-              <p className="admin-chords-note">
-                Chord sheets are managed per song from the Music Catalog: open
-                Manage Chords to paste chords or import JSON, TXT, CHO, or
-                ChordPro files, preview them, and save.
-              </p>
-              <button type="button" className="btn" onClick={() => handleNavClick('music')}>
-                Open Music Catalog
-              </button>
+            <div id="chords" className="admin-page">
+              <div className="admin-page-header">
+                <div className="admin-page-header-text">
+                  <h2>Chord Management</h2>
+                  <p className="admin-page-subtitle">{ADMIN_CHORD_MESSAGES.PAGE_SUBTITLE}</p>
+                </div>
+                <div className="admin-page-header-actions">
+                  <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="admin-toolbar">
+                <div className="admin-toolbar-search">
+                  <i className="fa-solid fa-search admin-toolbar-icon" aria-hidden="true"></i>
+                  <input
+                    type="search"
+                    className="admin-toolbar-input"
+                    value={chordSearch}
+                    onChange={(event) => setChordSearch(event.target.value)}
+                    placeholder={ADMIN_CHORD_MESSAGES.SEARCH_PLACEHOLDER}
+                    aria-label="Search songs or artists"
+                  />
+                </div>
+                <label className="admin-toolbar-select-wrap">
+                  <span className="admin-sr-only">{ADMIN_CHORD_MESSAGES.FILTER_STATUS}</span>
+                  <select
+                    className="admin-toolbar-select"
+                    value={chordStatusFilter}
+                    onChange={(event) => setChordStatusFilter(event.target.value)}
+                  >
+                    {ADMIN_CHORD_STATUS_FILTERS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {chordView === 'loading' ? (
+                <div className="admin-panel admin-state-block" role="status">{ADMIN_CHORD_MESSAGES.LOADING}</div>
+              ) : chordView === 'error' ? (
+                <div className="admin-panel admin-state-block admin-error-state" role="alert">
+                  <p>{ADMIN_CHORD_MESSAGES.ERROR}</p>
+                  <button type="button" className="btn" onClick={() => loadAll(true)}>{ADMIN_CHORD_MESSAGES.RETRY}</button>
+                </div>
+              ) : chordView === 'empty' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_CHORD_MESSAGES.EMPTY}</div>
+              ) : chordView === 'no-matches' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_CHORD_MESSAGES.NO_MATCHES}</div>
+              ) : (
+                <div className="admin-panel admin-table-panel">
+                  {dataStatus.songs === 'error' && (
+                    <p className="admin-inline-notice" role="status">{ADMIN_CHORD_MESSAGES.REFRESH_FAILED}</p>
+                  )}
+                  <div className="admin-table-shell">
+                    <div className="admin-table-scroll">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Artwork</th>
+                            <th>Song</th>
+                            <th>Artist</th>
+                            <th>Format</th>
+                            <th>Chord Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {chordSongs.map((song) => (
+                            <tr key={song._id}>
+                              <td>
+                                {song.poster_url ? (
+                                  <img className="admin-table-art" src={song.poster_url} alt="" loading="lazy" />
+                                ) : (
+                                  <span className="admin-table-art admin-table-art--empty" aria-hidden="true"><i className="fa-solid fa-music"></i></span>
+                                )}
+                              </td>
+                              <td><span className="admin-table-song-title">{song.title}</span></td>
+                              <td>{song.artist}</td>
+                              <td>{CHORD_FORMATS.includes(song.chords_format) ? song.chords_format : '—'}</td>
+                              <td><span className={`admin-badge ${selectAdminBadgeTone(selectChordListStatus(song))}`}>{selectChordListStatus(song)}</span></td>
+                              <td>
+                                <button
+                                  className="btn admin-manage-chords"
+                                  onClick={() => { handleNavClick('music'); manageSongChords(song); }}
+                                >
+                                  Manage Chords
+                                </button>
+                                {song.chords_reference_url ? (
+                                  <a
+                                    className="btn"
+                                    href={song.chords_reference_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    {ADMIN_CHORD_MESSAGES.OPEN_SOURCE}
+                                  </a>
+                                ) : null}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {section === 'karaoke' && (
-            <div id="karaoke" className="card">
-              <h2>Karaoke Tracks Management</h2>
-              <p style={{ color: '#b3b3b3', marginBottom: 16, fontSize: 13 }}>
-                Manage backing tracks available in Melodify Studio for karaoke recording.
-              </p>
+            <div id="karaoke" className="admin-page">
+              <div className="admin-page-header">
+                <div className="admin-page-header-text">
+                  <h2>Karaoke Management</h2>
+                  <p className="admin-page-subtitle">{ADMIN_KARAOKE_MESSAGES.PAGE_SUBTITLE}</p>
+                </div>
+                <div className="admin-page-header-actions">
+                  <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
 
-              <div className="form-divider">Add New Karaoke Track</div>
-              <KaraokeForm onSuccess={(k) => { setKaraokeTracks((prev) => [k, ...prev]); showMessage('Karaoke track added'); }} onError={(e) => showMessage(e, true)} />
+              <section className="admin-panel" aria-labelledby="karaoke-library-heading">
+                <div className="admin-panel-head">
+                  <div>
+                    <h3 id="karaoke-library-heading">{ADMIN_KARAOKE_MESSAGES.LIBRARY_TITLE}</h3>
+                    <p className="catalog-sync-hint">{ADMIN_KARAOKE_MESSAGES.LIBRARY_HINT}</p>
+                  </div>
+                </div>
+                {karaokeView === 'loading' ? (
+                  <div className="admin-state-block" role="status">{ADMIN_KARAOKE_MESSAGES.LOADING}</div>
+                ) : karaokeView === 'error' ? (
+                  <div className="admin-state-block admin-error-state" role="alert">
+                    <p>{ADMIN_KARAOKE_MESSAGES.ERROR}</p>
+                    <button type="button" className="btn" onClick={() => loadAll(true)}>{ADMIN_KARAOKE_MESSAGES.RETRY}</button>
+                  </div>
+                ) : karaokeView === 'empty' ? (
+                  <div className="admin-state-block">{ADMIN_KARAOKE_MESSAGES.EMPTY}</div>
+                ) : (
+                  <>
+                    {dataStatus.karaoke === 'error' && (
+                      <p className="admin-inline-notice" role="status">{ADMIN_KARAOKE_MESSAGES.REFRESH_FAILED}</p>
+                    )}
+                    <div className="admin-table-shell">
+                      <div className="admin-table-scroll">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Artwork</th>
+                              <th>Title</th>
+                              <th>Artist</th>
+                              <th>Genre</th>
+                              <th>Duration</th>
+                              <th>Source</th>
+                              <th>Availability</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {karaokeTracks.map((k) => {
+                              const source = selectKaraokeSource(k);
+                              const availability = selectKaraokeAvailability(k);
+                              return (
+                                <tr key={k._id}>
+                                  <td>
+                                    {k.poster_url ? (
+                                      <img className="admin-table-art" src={k.poster_url} alt="" loading="lazy" />
+                                    ) : (
+                                      <span className="admin-table-art admin-table-art--empty" aria-hidden="true"><i className="fa-solid fa-music"></i></span>
+                                    )}
+                                  </td>
+                                  <td><span className="admin-table-song-title">{k.title}</span></td>
+                                  <td>{k.artist}</td>
+                                  <td>{k.genre}</td>
+                                  <td>{k.duration || '—'}</td>
+                                  <td><span className={`admin-badge ${selectKaraokeSourceTone(source)}`}>{source}</span></td>
+                                  <td><span className={`admin-badge ${selectKaraokeAvailabilityTone(availability)}`}>{availability}</span></td>
+                                  <td>
+                                    <button className="btn" onClick={async () => {
+                                      const data = await api.put(`/api/karaoke/${k._id}`, { available: !k.available });
+                                      if (data.success) {
+                                        setKaraokeTracks((prev) => prev.map((t) => t._id === k._id ? { ...t, available: !t.available } : t));
+                                        showMessage(`Karaoke track ${k.available ? 'hidden' : 'shown'} in Studio`);
+                                      }
+                                    }}>{k.available ? 'Hide' : 'Show'}</button>
+                                    <button className="btn btn-danger" onClick={() => deleteKaraoke(k._id)}>Delete</button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </section>
 
-              <div className="form-divider">Existing Karaoke Tracks ({karaokeTracks.length})</div>
-              {karaokeTracks.length === 0 ? (
-                <p>No karaoke tracks yet</p>
-              ) : (
-                <table>
-                  <thead>
-                    <tr><th>Title</th><th>Artist</th><th>Genre</th><th>Duration</th><th>Available</th><th>Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {karaokeTracks.map((k) => (
-                      <tr key={k._id}>
-                        <td>{k.title}</td>
-                        <td>{k.artist}</td>
-                        <td>{k.genre}</td>
-                        <td>{k.duration}</td>
-                        <td>{k.available ? 'Yes' : 'No'}</td>
-                        <td>
-                          <button className="btn" onClick={async () => {
-                            const data = await api.put(`/api/karaoke/${k._id}`, { available: !k.available });
-                            if (data.success) {
-                              setKaraokeTracks((prev) => prev.map((t) => t._id === k._id ? { ...t, available: !t.available } : t));
-                              showMessage(`Karaoke track ${k.available ? 'hidden' : 'shown'} in Studio`);
-                            }
-                          }}>{k.available ? 'Hide' : 'Show'}</button>
-                          <button className="btn btn-danger" onClick={() => deleteKaraoke(k._id)} style={{ marginLeft: 5 }}>Delete</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <section className="admin-panel" aria-labelledby="karaoke-add-heading">
+                <div className="admin-panel-head">
+                  <div>
+                    <h3 id="karaoke-add-heading">{ADMIN_KARAOKE_MESSAGES.ADD_TITLE}</h3>
+                    <p className="catalog-sync-hint">{ADMIN_KARAOKE_MESSAGES.ADD_HINT}</p>
+                  </div>
+                </div>
+                <KaraokeForm
+                  onSuccess={(k) => { setKaraokeTracks((prev) => [k, ...prev]); showMessage(ADMIN_KARAOKE_MESSAGES.ADDED); }}
+                  onError={(e) => showMessage(e, true)}
+                />
+              </section>
             </div>
           )}
 
