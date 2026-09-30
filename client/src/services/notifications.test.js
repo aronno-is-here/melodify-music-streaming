@@ -120,6 +120,38 @@ test('normalizeNotificationsResponse rejects malformed payloads', () => {
   );
 });
 
+test('oversized actor avatars degrade to empty instead of failing the whole list', () => {
+  const dataAvatar = `data:image/png;base64,${'A'.repeat(5000)}`;
+  const normalized = normalizeNotificationsResponse({
+    success: true,
+    count: 2,
+    limit: 20,
+    notifications: [
+      baseNotification({ actor: { _id: 'u2', name: 'Nadia', avatar: dataAvatar } }),
+      baseNotification({ _id: 'n2', actor: { _id: 'u3', name: 'Rafi', avatar: '' } }),
+    ],
+  });
+
+  assert.ok(normalized, 'one oversized avatar never invalidates the payload');
+  assert.equal(normalized.notifications.length, 2);
+  assert.equal(normalized.notifications[0].actor.avatar, '');
+  assert.equal(normalized.notifications[0].actor.name, 'Nadia');
+  assert.equal(normalized.notifications[1].actor.name, 'Rafi');
+});
+
+test('oversized actor names degrade to empty instead of failing the whole list', () => {
+  const normalized = normalizeNotificationsResponse({
+    success: true,
+    count: 1,
+    limit: 20,
+    notifications: [baseNotification({ actor: { _id: 'u2', name: 'N'.repeat(400), avatar: '' } })],
+  });
+
+  assert.ok(normalized);
+  assert.equal(normalized.notifications[0].actor.name, '');
+  assert.equal(normalized.notifications[0].actor._id, 'u2');
+});
+
 test('normalizeUnreadCountResponse requires a non-negative integer', () => {
   assert.deepEqual(normalizeUnreadCountResponse({ success: true, count: 3 }), { count: 3 });
   assert.equal(normalizeUnreadCountResponse({ success: true, count: -1 }), null);

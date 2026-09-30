@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import notificationRoutes, { ACTIVE_NOTIFICATION_TYPES } from './notificationRoutes.js';
+import notificationRoutes, { ACTIVE_NOTIFICATION_TYPES, projectNotification } from './notificationRoutes.js';
 import likeRoutes from './likeRoutes.js';
 import commentRoutes from './commentRoutes.js';
 import postRoutes from './postRoutes.js';
@@ -446,6 +446,95 @@ test('read-all may mark legacy friend rows read as a harmless superset', async (
   } finally {
     ctx.restore();
   }
+});
+
+test('mixed active, legacy, and null-reference rows load from the list and unread count', async () => {
+  const hugeAvatar = `data:image/png;base64,${'A'.repeat(5000)}`;
+  const longName = 'N'.repeat(400);
+  const ctx = setup({
+    notifications: [
+      seedNotification('n'.repeat(16) + '00000091', {
+        type: 'post_like',
+        read: false,
+        actor: { _id: USER_B, name: longName, avatar: hugeAvatar },
+      }),
+      seedNotification('n'.repeat(16) + '00000092', {
+        type: 'post_comment',
+        read: false,
+        actor: null,
+        post: null,
+        comment: null,
+        friendRequest: null,
+      }),
+      seedNotification('n'.repeat(16) + '00000093', {
+        type: 'friend_request',
+        read: false,
+        friendRequest: 'f'.repeat(16) + '00000001',
+      }),
+      seedNotification('n'.repeat(16) + '00000094', {
+        type: 'friend_accepted',
+        read: true,
+        friendRequest: 'f'.repeat(16) + '00000001',
+      }),
+    ],
+  });
+  try {
+    const list = await run(listHandler, { userId: USER_A, query: { limit: '20' } });
+    assert.equal(list.statusCode, 200);
+    assert.equal(list.body.success, true);
+    assert.equal(list.body.notifications.length, 2, 'only active rows are returned');
+    const types = list.body.notifications.map((row) => row.type).sort();
+    assert.deepEqual(types, ['post_comment', 'post_like']);
+    assert.equal(list.body.count, 2);
+
+    const populatedRow = list.body.notifications.find((row) => row.type === 'post_like');
+    assert.equal(populatedRow.actor.name.length <= 120, true, 'actor name is bounded');
+    assert.equal(populatedRow.actor.avatar, '', 'oversized base64 avatars are dropped');
+
+    const nullRow = list.body.notifications.find((row) => row.type === 'post_comment');
+    assert.equal(nullRow.actor, null, 'deleted actor serializes as null');
+    assert.equal(nullRow.post, null, 'deleted post serializes as null');
+    assert.equal(nullRow.comment, null, 'deleted comment serializes as null');
+    assert.equal(JSON.parse(JSON.stringify(nullRow)).actor, null, 'payload survives JSON serialization');
+
+    const count = await run(unreadHandler, { userId: USER_A });
+    assert.equal(count.statusCode, 200);
+    assert.deepEqual(count.body, { success: true, count: 2 }, 'unread count uses the same active-type rule');
+    const unreadActive = list.body.notifications.filter((row) => !row.read).length;
+    assert.equal(unreadActive, count.body.count, 'legacy rows never widen either endpoint');
+  } finally {
+    ctx.restore();
+  }
+});
+
+test('actor projections are bounded to values the client accepts', () => {
+  const projected = projectNotification({
+    _id: 'n1',
+    recipient: USER_A,
+    type: 'post_like',
+    read: false,
+    createdAt: new Date('2026-09-15T00:00:00Z'),
+    actor: { _id: USER_B, name: 'N'.repeat(400), avatar: `data:image/jpeg;base64,${'B'.repeat(9000)}` },
+    post: POST_ID,
+    comment: null,
+    friendRequest: null,
+  });
+  assert.equal(projected.actor.name.length, 120);
+  assert.equal(projected.actor.avatar, '');
+
+  const shortUrl = projectNotification({
+    _id: 'n2',
+    recipient: USER_A,
+    type: 'post_like',
+    read: true,
+    createdAt: new Date('2026-09-15T00:00:00Z'),
+    actor: { _id: USER_B, name: 'Sana', avatar: 'https://example.com/avatar.png' },
+    post: POST_ID,
+    comment: null,
+    friendRequest: null,
+  });
+  assert.equal(shortUrl.actor.name, 'Sana');
+  assert.equal(shortUrl.actor.avatar, 'https://example.com/avatar.png');
 });
 
 test('friend_request and friend_accepted notifications carry the actor and request refs', async () => {
