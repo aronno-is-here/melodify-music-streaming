@@ -13,6 +13,15 @@ const userSchema = new mongoose.Schema(
     bio: { type: String, default: '', maxlength: 500 },
     avatar: { type: String, default: '' },
     libraryVisibility: { type: String, enum: ['public', 'private'], default: 'private' },
+    phone: { type: String, default: '', maxlength: 40 },
+    profileVisibility: {
+      email: { type: String, enum: ['public', 'private'], default: 'private' },
+      phone: { type: String, enum: ['public', 'private'], default: 'private' },
+      dob: { type: String, enum: ['public', 'private'], default: 'private' },
+      gender: { type: String, enum: ['public', 'private'], default: 'private' },
+      country: { type: String, enum: ['public', 'private'], default: 'private' },
+      bio: { type: String, enum: ['public', 'private'], default: 'private' },
+    },
   },
   { timestamps: true }
 );

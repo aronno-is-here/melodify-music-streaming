@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import { hasTokenPurpose, TOKEN_USE_ACCESS, TOKEN_USE_PASSWORD_RESET } from '../utils/tokenPurpose.js';
 import { RESET_ERROR_MESSAGE } from '../utils/resetSecurity.js';
+import { normalizeProfileVisibility } from '../utils/profileVisibility.js';
 
 const router = express.Router();
 
@@ -12,6 +13,25 @@ const signToken = (user) =>
   jwt.sign({ id: user._id, email: user.email, role: user.role, token_use: TOKEN_USE_ACCESS }, process.env.JWT_SECRET, {
     expiresIn: '7d',
   });
+
+// Owner-facing session projection returned by signup, login, and GET /me.
+// Always includes every personal field plus the per-field privacy settings.
+export function projectSessionUser(user) {
+  return {
+    id: user._id,
+    email: user.email,
+    name: user.name,
+    dob: user.dob,
+    gender: user.gender,
+    country: user.country,
+    role: user.role,
+    bio: user.bio || '',
+    avatar: user.avatar || '',
+    libraryVisibility: user.libraryVisibility || 'private',
+    phone: user.phone || '',
+    profileVisibility: normalizeProfileVisibility(user.profileVisibility),
+  };
+}
 
 
 
@@ -65,7 +85,7 @@ router.post('/signup/step3', async (req, res) => {
     }
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ email, password: hashed, name, dob, gender, country });
-    return res.json({ success: true, token: signToken(user), user: { id: user._id, email: user.email, name: user.name, role: user.role, bio: user.bio || '', avatar: user.avatar || '', libraryVisibility: user.libraryVisibility || 'private' } });
+    return res.json({ success: true, token: signToken(user), user: projectSessionUser(user) });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -82,7 +102,7 @@ router.post('/login', async (req, res) => {
     if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
       return res.json({ success: false, error: 'Invalid email or password.' });
     }
-    return res.json({ success: true, token: signToken(user), user: { id: user._id, email: user.email, name: user.name, role: user.role, bio: user.bio || '', avatar: user.avatar || '', libraryVisibility: user.libraryVisibility || 'private' } });
+    return res.json({ success: true, token: signToken(user), user: projectSessionUser(user) });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
@@ -91,7 +111,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', protect, (req, res) => {
   res.json({
     success: true,
-    user: { id: req.user._id, email: req.user.email, name: req.user.name, dob: req.user.dob, gender: req.user.gender, country: req.user.country, role: req.user.role, bio: req.user.bio || '', avatar: req.user.avatar || '', libraryVisibility: req.user.libraryVisibility || 'private' },
+    user: projectSessionUser(req.user),
   });
 });
 
@@ -101,6 +121,12 @@ router.put('/me', protect, async (req, res) => {
     const update = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) update[field] = req.body[field];
+    }
+    if (req.body.phone !== undefined) {
+      if (typeof req.body.phone !== 'string') {
+        return res.status(400).json({ success: false, error: 'Invalid phone number.' });
+      }
+      update.phone = req.body.phone.trim().slice(0, 40);
     }
     if (Object.keys(update).length === 0) {
       return res.json({ success: false, error: 'No valid fields to update.' });

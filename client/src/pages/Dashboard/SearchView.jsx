@@ -362,7 +362,7 @@ export default function SearchView() {
                   </span>
                   <span className="search-user-meta">
                     <span className="search-user-name">{entry.name}</span>
-                    <span className="search-user-email">{entry.email}</span>
+                    {entry.bio ? <span className="search-user-bio">{entry.bio}</span> : null}
                   </span>
                 </Link>
               ))}

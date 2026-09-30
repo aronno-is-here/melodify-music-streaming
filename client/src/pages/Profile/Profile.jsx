@@ -5,6 +5,13 @@ import { api } from '../../api/client.js';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
 import EmptyState from '../../components/music/EmptyState.jsx';
 import AppDialog from '../../components/ui/AppDialog.jsx';
+import {
+  PROFILE_PRIVACY_FIELD_LABELS,
+  PROFILE_PRIVACY_OPTIONS,
+  buildPrivacyRows,
+  getProfilePrivacyTag,
+  normalizeProfileVisibilityInput,
+} from './profilePrivacyUi.js';
 import cssRaw from './Profile.css?raw';
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -55,8 +62,10 @@ export default function Profile() {
   const [dob, setDob] = useState(user?.dob ? String(user.dob).slice(0, 10) : '');
   const [gender, setGender] = useState(user?.gender || '');
   const [country, setCountry] = useState(user?.country || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [libraryVisibility, setLibraryVisibility] = useState(user?.libraryVisibility || 'private');
+  const [profileVisibility, setProfileVisibility] = useState(() => normalizeProfileVisibilityInput(user?.profileVisibility));
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -75,8 +84,10 @@ export default function Profile() {
     setDob(user.dob ? String(user.dob).slice(0, 10) : '');
     setGender(user.gender || '');
     setCountry(user.country || '');
+    setPhone(user.phone || '');
     setBio(user.bio || '');
     setLibraryVisibility(user.libraryVisibility || 'private');
+    setProfileVisibility(normalizeProfileVisibilityInput(user.profileVisibility));
 
     const fetchRecordings = async () => {
       setRecordingsLoading(true);
@@ -139,7 +150,7 @@ export default function Profile() {
     event.preventDefault();
     setMessage('');
 
-    const data = await api.put('/api/auth/me', { name, dob, gender, country });
+    const data = await api.put('/api/auth/me', { name, dob, gender, country, phone });
     if (!data.success) {
       setApiMessage(data.error || 'Update failed');
       return;
@@ -177,7 +188,11 @@ export default function Profile() {
     event.preventDefault();
     setMessage('');
 
-    const data = await api.put('/api/users/me/settings', { bio, libraryVisibility });
+    const data = await api.put('/api/users/me/settings', {
+      bio,
+      libraryVisibility,
+      profileVisibility: normalizeProfileVisibilityInput(profileVisibility),
+    });
     if (!data.success) {
       setApiMessage(data.error || 'Update failed');
       return;
@@ -306,11 +321,12 @@ export default function Profile() {
           <SectionHeader title="Personal Information" subtitle="Managed through your Melodify account" />
           <div className="profile-grid">
             <article className="profile-card"><label>Full Name</label><strong>{user.name}</strong></article>
-            <article className="profile-card"><label>Email</label><strong>{user.email}</strong></article>
-            <article className="profile-card"><label>Date of Birth</label><strong>{user.dob ? String(user.dob).slice(0, 10) : '-'}</strong></article>
-            <article className="profile-card"><label>Gender</label><strong>{user.gender || '-'}</strong></article>
-            <article className="profile-card"><label>Country</label><strong>{user.country || '-'}</strong></article>
-            <article className="profile-card"><label>Bio</label><strong>{user.bio || 'No bio yet'}</strong></article>
+            <article className="profile-card"><label>Email</label><strong>{user.email}</strong><span className="profile-privacy-tag">{getProfilePrivacyTag(user.profileVisibility, 'email')}</span></article>
+            <article className="profile-card"><label>Phone</label><strong>{user.phone || '-'}</strong><span className="profile-privacy-tag">{getProfilePrivacyTag(user.profileVisibility, 'phone')}</span></article>
+            <article className="profile-card"><label>Date of Birth</label><strong>{user.dob ? String(user.dob).slice(0, 10) : '-'}</strong><span className="profile-privacy-tag">{getProfilePrivacyTag(user.profileVisibility, 'dob')}</span></article>
+            <article className="profile-card"><label>Gender</label><strong>{user.gender || '-'}</strong><span className="profile-privacy-tag">{getProfilePrivacyTag(user.profileVisibility, 'gender')}</span></article>
+            <article className="profile-card"><label>Country</label><strong>{user.country || '-'}</strong><span className="profile-privacy-tag">{getProfilePrivacyTag(user.profileVisibility, 'country')}</span></article>
+            <article className="profile-card"><label>Bio</label><strong>{user.bio || 'No bio yet'}</strong><span className="profile-privacy-tag">{getProfilePrivacyTag(user.profileVisibility, 'bio')}</span></article>
             <article className="profile-card"><label>Song Library</label><strong>{user.libraryVisibility || 'private'}</strong></article>
             <article className="profile-card"><label>Premium</label><strong><Link to="/premium" className="profile-link">Manage premium plan</Link></strong></article>
           </div>
@@ -395,6 +411,16 @@ export default function Profile() {
 
           <label htmlFor="profile-email">Email</label>
           <input id="profile-email" type="email" value={user.email} disabled />
+
+          <label htmlFor="profile-phone">Phone</label>
+          <input
+            id="profile-phone"
+            type="tel"
+            maxLength={40}
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="Add a contact number"
+          />
 
           <label htmlFor="profile-dob">Date of Birth</label>
           <input id="profile-dob" type="date" value={dob} onChange={(event) => setDob(event.target.value)} required />
@@ -497,6 +523,27 @@ export default function Profile() {
             <option value="private">Private - Only you can see your library</option>
             <option value="public">Public - Anyone can see your library</option>
           </select>
+
+          <fieldset className="profile-privacy-fieldset">
+            <legend>Profile field visibility</legend>
+            <p className="profile-privacy-hint">
+              Choose which profile fields other listeners can see. Private fields are never sent to other accounts.
+            </p>
+            {buildPrivacyRows(profileVisibility).map((row) => (
+              <div className="profile-privacy-row" key={row.field}>
+                <label htmlFor={row.id}>{PROFILE_PRIVACY_FIELD_LABELS[row.field]}</label>
+                <select
+                  id={row.id}
+                  value={row.value}
+                  onChange={(event) => setProfileVisibility((prev) => ({ ...prev, [row.field]: event.target.value }))}
+                >
+                  {PROFILE_PRIVACY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </fieldset>
 
           <div className="profile-form-actions">
             <button type="button" className="music-outline-btn" onClick={() => setSettingsOpen(false)}>Cancel</button>
