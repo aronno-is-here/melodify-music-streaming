@@ -810,6 +810,58 @@ th {
   margin: 12px 0 6px;
 }
 
+.admin-manage-chords {
+  border-color: #00b4d8;
+  color: #00b4d8;
+}
+
+.admin-chord-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.admin-chord-heading {
+  margin: 0;
+  font-size: 16px;
+  color: #00b4d8;
+}
+
+.admin-chord-current {
+  margin: 0;
+  font-size: 13px;
+  color: #b3b3b3;
+}
+
+.admin-chord-import-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 4px 0 10px;
+}
+
+.admin-chord-import-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.admin-chord-import-accepted {
+  font-size: 12px;
+  color: #9db4c0;
+}
+
+.admin-chord-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
 .admin-chord-import {
   position: relative;
   display: inline-flex;

@@ -18,13 +18,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(__dirname, 'Admin.jsx'), 'utf8');
 const css = readFileSync(join(__dirname, 'Admin.css'), 'utf8');
 
-test('admin chord upload exposes json txt and paste chord text surfaces', () => {
+test('admin chord upload exposes json txt and paste chords surfaces', () => {
   assert.ok(CHORD_IMPORT_EXTENSIONS.includes('json'), 'json import option must exist');
   assert.ok(CHORD_IMPORT_EXTENSIONS.includes('txt'), 'txt import option must exist');
   assert.match(src, /CHORD_IMPORT_EXTENSIONS\.map\(\(extension\) => \(/);
   assert.match(src, /\{`Import \.\$\{extension\}`\}/);
   assert.match(src, /accept=\{\`\.\$\{extension\}\`\}/);
-  assert.match(src, /<label>Paste chord text<\/label>/);
+  assert.match(src, /<label>Paste Chords<\/label>/);
   assert.match(src, /name="chords"/);
 });
 

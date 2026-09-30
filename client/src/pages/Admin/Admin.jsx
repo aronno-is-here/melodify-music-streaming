@@ -185,6 +185,16 @@ export default function Admin() {
     setChordNotice(null);
   };
 
+  const manageSongChords = (song) => {
+    openSongEditor(song);
+    window.setTimeout(() => {
+      const chordEditor = document.getElementById('song-chords-editor');
+      if (chordEditor && typeof chordEditor.scrollIntoView === 'function') {
+        chordEditor.scrollIntoView({ block: 'start' });
+      }
+    }, 0);
+  };
+
   const loadLyricsSources = async (refresh = false) => {
     if (!editingSong?._id) return;
     setLyricsSources({ status: 'loading', candidates: [] });
@@ -792,7 +802,11 @@ export default function Admin() {
                     </div>
 
                     <div className="form-divider"><span>Chords Verification</span></div>
-                    <div className="form-group"><label>Paste chord text</label><textarea name="chords" rows={6} className="admin-multiline-input" value={toText(editingSong.chords)} onChange={(event) => patchChordDraft({ chords: event.target.value })} /></div>
+                    <div className="admin-chord-heading-row" id="song-chords-editor">
+                      <h4 className="admin-chord-heading">Manage Chords</h4>
+                      <p className="admin-chord-current">Current chord status: {selectChordListStatus(editingSong)}</p>
+                    </div>
+                    <div className="form-group"><label>Paste Chords</label><textarea name="chords" rows={6} className="admin-multiline-input" value={toText(editingSong.chords)} onChange={(event) => patchChordDraft({ chords: event.target.value })} /></div>
                     <div className="admin-verify-grid">
                       <div className="form-group"><label>Format</label><select name="chords_format" value={CHORD_FORMATS.includes(editingSong.chords_format) ? editingSong.chords_format : 'plain'} onChange={(event) => patchChordDraft({ chords_format: event.target.value })}>{CHORD_FORMATS.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
                       <div className="form-group"><label>Key</label><input type="text" name="chords_key" value={toText(editingSong.chords_key)} onChange={(event) => patchChordDraft({ chords_key: event.target.value })} /></div>
@@ -816,12 +830,18 @@ export default function Admin() {
                       <button type="button" className="btn" disabled={chordWorkflow === CHORD_EDITOR_STATES.PARSING || chordSaving} onClick={previewChords}>Preview</button>
                       <button type="button" className="btn" disabled={chordSaveDisabled} onClick={saveChordsOnly}>Save Chords</button>
                       <button type="button" className="btn" disabled={chordSaving} onClick={clearChordDraft}>Clear Chords</button>
-                      {CHORD_IMPORT_EXTENSIONS.map((extension) => (
-                        <label className="btn admin-chord-import" key={extension}>
-                          {`Import .${extension}`}
-                          <input type="file" accept={`.${extension}`} className="admin-chord-file" onChange={(event) => onChordImportChange(extension, event)} disabled={chordSaving} />
-                        </label>
-                      ))}
+                    </div>
+                    <div className="admin-chord-import-group">
+                      <span className="admin-chord-import-title">Import Chord File</span>
+                      <span className="admin-chord-import-accepted">Accepted: {CHORD_IMPORT_EXTENSIONS.map((extension) => `.${extension}`).join(', ')}</span>
+                      <div className="admin-chord-import-actions">
+                        {CHORD_IMPORT_EXTENSIONS.map((extension) => (
+                          <label className="btn admin-chord-import" key={extension}>
+                            {`Import .${extension}`}
+                            <input type="file" accept={`.${extension}`} className="admin-chord-file" onChange={(event) => onChordImportChange(extension, event)} disabled={chordSaving} />
+                          </label>
+                        ))}
+                      </div>
                     </div>
                     <p className="admin-chord-state" role="status">{CHORD_EDITOR_STATE_LABELS[chordWorkflow]}</p>
                     {chordPreview && chordPreview.kind !== 'empty' ? (
@@ -856,6 +876,7 @@ export default function Admin() {
                       <td>{selectChordListStatus(song)}</td>
                       <td>
                         <button className="btn" onClick={() => openSongEditor(song)}>Edit</button>
+                        <button className="btn admin-manage-chords" onClick={() => manageSongChords(song)}>Manage Chords</button>
                         <button className="btn btn-danger" onClick={() => deleteSong(song._id)}>Delete</button>
                       </td>
                     </tr>
