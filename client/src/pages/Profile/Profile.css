@@ -192,69 +192,47 @@
   line-height: 1.45;
 }
 
-.profile-privacy-tag {
-  justify-self: start;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--mel-text-soft);
-  border: 1px solid var(--mel-border);
-  border-radius: 999px;
-  padding: 1px 8px;
-}
-
-.profile-privacy-fieldset {
-  border: 1px solid var(--mel-border);
-  border-radius: var(--mel-radius-10);
-  padding: 12px;
-  margin: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.profile-privacy-fieldset legend {
-  padding: 0 6px;
-  color: var(--mel-text-soft);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.profile-privacy-hint {
-  margin: 0;
-  color: var(--mel-text-soft);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.profile-privacy-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+.profile-card-head {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.profile-privacy-row label {
-  font-size: 13px;
-  color: var(--mel-text);
-}
-
-.profile-privacy-row select {
-  width: 100%;
-  min-width: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
+.profile-privacy-seg {
+  display: inline-flex;
+  align-items: center;
   border: 1px solid var(--mel-border);
+  border-radius: var(--mel-pill);
   background: rgba(255, 255, 255, 0.04);
-  color: var(--mel-text);
-  font-size: 13px;
+  overflow: hidden;
 }
 
-@media (max-width: 480px) {
-  .profile-privacy-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
-  }
+.profile-privacy-seg-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--mel-text-soft);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  min-height: 28px;
+  cursor: pointer;
+  transition: background var(--mel-transition), color var(--mel-transition);
+}
+
+.profile-privacy-seg-btn.is-active {
+  background: var(--mel-cyan);
+  color: #04121f;
+}
+
+.profile-privacy-seg-btn:focus-visible {
+  outline: 2px solid var(--mel-cyan-soft);
+  outline-offset: -2px;
 }
 
 .profile-link {
@@ -447,5 +425,14 @@
   .profile-form-actions .music-pill-btn,
   .profile-form-actions .music-outline-btn {
     width: 100%;
+  }
+
+  .profile-card-head {
+    align-items: flex-start;
+  }
+
+  .profile-privacy-seg-btn {
+    min-height: 34px;
+    padding: 7px 14px;
   }
 }

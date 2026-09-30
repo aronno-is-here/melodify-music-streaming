@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {
   PROFILE_PRIVACY_FIELDS,
   PROFILE_PRIVACY_FIELD_LABELS,
-  PROFILE_PRIVACY_OPTIONS,
-  buildPrivacyRows,
-  getProfilePrivacyTag,
+  PROFILE_PRIVACY_SHORT_LABELS,
+  buildPrivacyToggle,
   isProfilePrivacyValue,
   normalizeProfileVisibilityInput,
+  updateProfileVisibilityField,
 } from './profilePrivacyUi.js';
 
 test('every profile field defaults to private', () => {
@@ -52,37 +52,64 @@ test('only the two enum values are accepted', () => {
   assert.equal('unexpected' in visibility, false);
 });
 
-test('privacy rows expose stable ids, labels, and normalized values', () => {
-  const rows = buildPrivacyRows({ email: 'public', bio: 'nonsense' });
-  assert.deepEqual(rows.map((row) => row.field), [...PROFILE_PRIVACY_FIELDS]);
-  assert.deepEqual(
-    rows.map((row) => row.id),
-    PROFILE_PRIVACY_FIELDS.map((field) => `profile-privacy-${field}`),
-  );
-  assert.equal(rows[0].label, 'Email');
-  assert.equal(rows[1].label, 'Phone');
-  assert.equal(rows[2].label, 'Date of Birth');
-  assert.equal(rows[3].label, 'Gender');
-  assert.equal(rows[4].label, 'Country');
-  assert.equal(rows[5].label, 'Bio');
-  assert.equal(rows[0].value, 'public');
-  assert.equal(rows[5].value, 'private');
-  assert.equal(PROFILE_PRIVACY_FIELD_LABELS.bio, 'Bio');
+test('field labels stay stable for the inline controls', () => {
+  assert.deepEqual(PROFILE_PRIVACY_FIELD_LABELS, {
+    email: 'Email',
+    phone: 'Phone',
+    dob: 'Date of Birth',
+    gender: 'Gender',
+    country: 'Country',
+    bio: 'Bio',
+  });
+  assert.equal(PROFILE_PRIVACY_SHORT_LABELS.public, 'Public');
+  assert.equal(PROFILE_PRIVACY_SHORT_LABELS.private, 'Private');
 });
 
-test('the visibility tag reads Public or Private only', () => {
-  assert.equal(getProfilePrivacyTag({ email: 'public' }, 'email'), 'Public');
-  assert.equal(getProfilePrivacyTag({ email: 'private' }, 'email'), 'Private');
-  assert.equal(getProfilePrivacyTag(undefined, 'email'), 'Private');
-  assert.equal(getProfilePrivacyTag({ email: 'public' }, 'name'), '');
-  assert.equal(getProfilePrivacyTag({ email: 'weird' }, 'email'), 'Private');
+test('the inline toggle is public-first with a selected flag per value', () => {
+  const publicState = buildPrivacyToggle('public');
+  assert.deepEqual(publicState.map((option) => option.value), ['public', 'private']);
+  assert.deepEqual(publicState.map((option) => option.label), ['Public', 'Private']);
+  assert.equal(publicState[0].selected, true);
+  assert.equal(publicState[1].selected, false);
+
+  const privateState = buildPrivacyToggle('private');
+  assert.equal(privateState[0].selected, false);
+  assert.equal(privateState[1].selected, true);
+
+  // Unknown/corrupt values fail closed to Private.
+  const fallback = buildPrivacyToggle('weird');
+  assert.equal(fallback[0].selected, false);
+  assert.equal(fallback[1].selected, true);
 });
 
-test('the dialog options spell out the exact visibility choices', () => {
-  assert.deepEqual(PROFILE_PRIVACY_OPTIONS, [
-    { value: 'private', label: 'Private - Only you can see this' },
-    { value: 'public', label: 'Public - Anyone can see this' },
-  ]);
+test('changing one field updates only that field', () => {
+  const base = normalizeProfileVisibilityInput({ email: 'public', phone: 'public' });
+
+  const next = updateProfileVisibilityField(base, 'dob', 'public');
+  assert.equal(next.dob, 'public');
+  assert.equal(next.email, 'public');
+  assert.equal(next.phone, 'public');
+  assert.equal(next.gender, 'private');
+  assert.equal(next.country, 'private');
+  assert.equal(next.bio, 'private');
+
+  const flipped = updateProfileVisibilityField(next, 'email', 'private');
+  assert.equal(flipped.email, 'private');
+  assert.equal(flipped.phone, 'public');
+  assert.equal(flipped.dob, 'public');
+
+  // Invalid field/value input never mutates anything.
+  assert.deepEqual(updateProfileVisibilityField(base, 'email', 'Public'), base);
+  assert.deepEqual(updateProfileVisibilityField(base, 'name', 'public'), base);
+  assert.deepEqual(updateProfileVisibilityField(base, 'bio', null), base);
+  assert.deepEqual(updateProfileVisibilityField(undefined, 'email', 'public'), {
+    email: 'public',
+    phone: 'private',
+    dob: 'private',
+    gender: 'private',
+    country: 'private',
+    bio: 'private',
+  });
 });
 
 function isProfileVisibilityFallbackTest() {
