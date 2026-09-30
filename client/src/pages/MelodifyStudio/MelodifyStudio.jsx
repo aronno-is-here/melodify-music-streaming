@@ -24,6 +24,13 @@ const STEPS = Object.freeze({
   PUBLISH: 'publish',
 });
 
+const RECORD_PHASES = Object.freeze({
+  IDLE: 'idle',
+  STARTING: 'starting',
+  RECORDING: 'recording',
+  STOPPING: 'stopping',
+});
+
 const STEP_ITEMS = Object.freeze([
   { key: STEPS.SELECT, label: 'Choose Song' },
   { key: STEPS.RECORD, label: 'Record' },
@@ -99,7 +106,7 @@ export default function MelodifyStudio() {
   const [selectedSong, setSelectedSong] = useState(null);
   const [step, setStep] = useState(STEPS.SELECT);
 
-  const [isRecording, setIsRecording] = useState(false);
+  const [recordPhase, setRecordPhaseState] = useState(RECORD_PHASES.IDLE);
   const [recordTime, setRecordTime] = useState(0);
   const [recordBlob, setRecordBlob] = useState(null);
   const [recordUrl, setRecordUrl] = useState('');
@@ -145,6 +152,15 @@ export default function MelodifyStudio() {
   const youtubePlayerRef = useRef(null);
   const activeRecordingMetaRef = useRef(null);
   const previewSyncReadyRef = useRef(false);
+  const recordPhaseRef = useRef(RECORD_PHASES.IDLE);
+  const playbackFailureRef = useRef(null);
+
+  const isRecording = recordPhase === RECORD_PHASES.RECORDING || recordPhase === RECORD_PHASES.STOPPING;
+
+  const applyRecordPhase = (nextPhase) => {
+    recordPhaseRef.current = nextPhase;
+    setRecordPhaseState(nextPhase);
+  };
 
   const stopYoutubeBacking = () => {
     if (!youtubePlayerRef.current) return;
@@ -159,6 +175,7 @@ export default function MelodifyStudio() {
       backingAudioRef.current.pause();
       backingAudioRef.current.currentTime = 0;
       backingAudioRef.current.onended = null;
+      backingAudioRef.current.onerror = null;
       backingAudioRef.current.removeAttribute('src');
       backingAudioRef.current.load();
       backingAudioRef.current = null;
@@ -335,6 +352,12 @@ export default function MelodifyStudio() {
           },
           events: {
             onReady: () => resolve(),
+            onStateChange: (event) => {
+              const endedState = window.YT && window.YT.PlayerState ? window.YT.PlayerState.ENDED : -1;
+              if (event && event.data === endedState && recordPhaseRef.current === RECORD_PHASES.RECORDING) {
+                stopRecording();
+              }
+            },
           },
         });
       });
@@ -345,42 +368,13 @@ export default function MelodifyStudio() {
     return youtubePlayerRef.current;
   };
 
-  const startBackingPlayback = (song) => {
-    const track = normalizeStudioTrack(song);
-    stopBackingPlayback();
-
-    if (!track) return BACKING_MODES.NONE;
-
-    if (track.playbackType === BACKING_MODES.AUDIO) {
-      const backingAudio = new Audio(track.backingAudioUrl);
-      backingAudio.preload = 'auto';
-      backingAudio.crossOrigin = 'anonymous';
-      backingAudio.volume = backingVolume;
-      backingAudioRef.current = backingAudio;
-      const started = backingAudio.play();
-      if (started && typeof started.catch === 'function') {
-        started.catch(() => {});
-      }
-      return BACKING_MODES.AUDIO;
-    }
-
-    if (track.playbackType === BACKING_MODES.YOUTUBE) {
-      ensureYoutubePlayer(track.backingProviderTrackId)
-        .then((player) => {
-          if (youtubePlayerRef.current === player) {
-            player.playVideo();
-          }
-        })
-        .catch(() => {});
-      return BACKING_MODES.YOUTUBE;
-    }
-
-    return BACKING_MODES.NONE;
-  };
-
   const selectSong = (song) => {
+    if (recordPhaseRef.current !== RECORD_PHASES.IDLE) return;
+
     const track = normalizeStudioTrack(song);
     if (!track) return;
+
+    stopBackingPlayback();
 
     setSelectedSong(track);
     setPostTitle(`${user?.name || 'My'} - ${track.title}`);
@@ -399,35 +393,31 @@ export default function MelodifyStudio() {
       URL.revokeObjectURL(recordUrl);
       setRecordUrl('');
     }
-
-    startBackingPlayback(track);
   };
 
   const startRecording = async () => {
+    if (recordPhaseRef.current !== RECORD_PHASES.IDLE) return;
+
     setRecordingError('');
+    playbackFailureRef.current = null;
+
+    if (!selectedSong) {
+      setRecordingError('Please select a karaoke track first.');
+      return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+      setRecordingError('MediaRecorder is not supported in this browser.');
+      return;
+    }
+    if (selectedSong.playbackType !== BACKING_MODES.AUDIO && selectedSong.playbackType !== BACKING_MODES.YOUTUBE) {
+      setRecordingError('Selected track cannot be used for recording. Please choose another track.');
+      return;
+    }
+
+    applyRecordPhase(RECORD_PHASES.STARTING);
 
     try {
-      if (!selectedSong) {
-        setRecordingError('Please select a karaoke track first.');
-        return;
-      }
-      if (typeof MediaRecorder === 'undefined') {
-        setRecordingError('MediaRecorder is not supported in this browser.');
-        return;
-      }
-      if (selectedSong.playbackType !== 'audio' && selectedSong.playbackType !== 'youtube') {
-        setRecordingError('Selected track cannot be used for recording. Please choose another track.');
-        return;
-      }
-
       stopBackingPlayback();
-
-      if (selectedSong.playbackType === 'audio') {
-        const backingAudio = await loadBackingAudio(selectedSong);
-        backingAudioRef.current = backingAudio;
-      } else if (selectedSong.playbackType === 'youtube') {
-        await ensureYoutubePlayer(selectedSong.backingProviderTrackId || selectedSong.youtubeId);
-      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -519,15 +509,6 @@ export default function MelodifyStudio() {
       merger.connect(dest);
       mediaDestinationRef.current = dest;
 
-      if (backingAudioRef.current) {
-        const backingSourceNode = audioCtx.createMediaElementSource(backingAudioRef.current);
-        backingSourceNodeRef.current = backingSourceNode;
-        backingSourceNode.connect(backingSpeakerGain);
-        backingSourceNode.connect(backingRecorderGain);
-        backingSpeakerGain.connect(audioCtx.destination);
-        backingRecorderGain.connect(dest);
-      }
-
       const mimeType = selectRecorderMimeType();
       let recorder;
       try {
@@ -547,6 +528,17 @@ export default function MelodifyStudio() {
       };
 
       recorder.onstop = () => {
+        const failureMessage = playbackFailureRef.current;
+        if (failureMessage) {
+          playbackFailureRef.current = null;
+          cleanupRecording();
+          setRecordTime(0);
+          recordTimeRef.current = 0;
+          setRecordingError(failureMessage);
+          applyRecordPhase(RECORD_PHASES.IDLE);
+          return;
+        }
+
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         const durationMs = Math.max(0, Math.round(recordTimeRef.current * 1000));
         if (activeRecordingMetaRef.current) {
@@ -563,21 +555,35 @@ export default function MelodifyStudio() {
         }
         setRecordUrl(URL.createObjectURL(blob));
         setStep(STEPS.PREVIEW);
-        setIsRecording(false);
+        applyRecordPhase(RECORD_PHASES.IDLE);
         cleanupRecording();
       };
 
-      if (backingAudioRef.current) {
-        backingAudioRef.current.currentTime = 0;
-        backingAudioRef.current.onended = () => {
-          stopRecording();
-        };
-        await backingAudioRef.current.play();
-      }
-
-      if (selectedSong.playbackType === 'youtube' && youtubePlayerRef.current) {
-        youtubePlayerRef.current.seekTo(0, true);
-        youtubePlayerRef.current.playVideo();
+      if (selectedSong.playbackType === 'audio') {
+        const backingAudio = await loadBackingAudio(selectedSong);
+        backingAudioRef.current = backingAudio;
+        if (backingAudioRef.current) {
+          const backingSourceNode = audioCtx.createMediaElementSource(backingAudioRef.current);
+          backingSourceNodeRef.current = backingSourceNode;
+          backingSourceNode.connect(backingSpeakerGain);
+          backingSourceNode.connect(backingRecorderGain);
+          backingSpeakerGain.connect(audioCtx.destination);
+          backingRecorderGain.connect(dest);
+          backingAudioRef.current.currentTime = 0;
+          backingAudioRef.current.onended = () => {
+            if (recordPhaseRef.current === RECORD_PHASES.RECORDING) stopRecording();
+          };
+          backingAudioRef.current.onerror = () => {
+            if (recordPhaseRef.current === RECORD_PHASES.RECORDING) {
+              failActiveRecording('Backing track playback failed. Please try again.');
+            }
+          };
+        }
+      } else if (selectedSong.playbackType === 'youtube') {
+        await ensureYoutubePlayer(selectedSong.backingProviderTrackId || selectedSong.youtubeId);
+        if (youtubePlayerRef.current) {
+          youtubePlayerRef.current.seekTo(0, false);
+        }
       }
 
       const recordingMode = selectedSong.recordingMode || (selectedSong.playbackType === 'audio' ? 'MIXED' : 'COMPOSITE');
@@ -593,9 +599,10 @@ export default function MelodifyStudio() {
       setRecordingMeta(baseMeta);
 
       recorder.start(100);
-      setIsRecording(true);
+
       setRecordTime(0);
       recordTimeRef.current = 0;
+      applyRecordPhase(RECORD_PHASES.RECORDING);
       timerRef.current = setInterval(() => {
         setRecordTime((t) => {
           const next = t + 1;
@@ -603,38 +610,81 @@ export default function MelodifyStudio() {
           return next;
         });
       }, 1000);
+
+      if (backingAudioRef.current) {
+        const started = backingAudioRef.current.play();
+        if (started && typeof started.catch === 'function') {
+          started.catch(() => {
+            if (recordPhaseRef.current === RECORD_PHASES.RECORDING) {
+              failActiveRecording('Backing track failed to start. Please try again.');
+            }
+          });
+        }
+      } else if (selectedSong.playbackType === 'youtube' && youtubePlayerRef.current) {
+        youtubePlayerRef.current.playVideo();
+      }
     } catch (error) {
+      let failureMessage = `Could not start recording: ${error.message}`;
       if (error.name === 'NotAllowedError') {
         setMicPermission('denied');
-        setRecordingError('Microphone permission denied. Please allow microphone access in your browser settings.');
+        failureMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
       } else if (error.name === 'NotFoundError') {
-        setRecordingError('No microphone found. Please connect a microphone and try again.');
+        failureMessage = 'No microphone found. Please connect a microphone and try again.';
       } else if (error.message === 'backing track failed to load') {
-        setRecordingError('Backing track failed to load. Try another track.');
+        failureMessage = 'Backing track failed to load. Try another track.';
       } else if (error.message === 'youtube api failed to load') {
-        setRecordingError('YouTube backing failed to load. Please try again later.');
-      } else {
-        setRecordingError(`Could not start recording: ${error.message}`);
+        failureMessage = 'YouTube backing failed to load. Please try again later.';
       }
-      cleanupRecording();
-      setIsRecording(false);
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        applyRecordPhase(RECORD_PHASES.RECORDING);
+        playbackFailureRef.current = failureMessage;
+        stopRecording();
+      } else {
+        mediaRecorderRef.current = null;
+        cleanupRecording();
+        setRecordingError(failureMessage);
+        applyRecordPhase(RECORD_PHASES.IDLE);
+      }
     }
   };
 
   const stopRecording = () => {
+    if (recordPhaseRef.current !== RECORD_PHASES.RECORDING) return;
+    applyRecordPhase(RECORD_PHASES.STOPPING);
+
     if (backingAudioRef.current) {
+      backingAudioRef.current.onended = null;
+      backingAudioRef.current.onerror = null;
       backingAudioRef.current.pause();
       backingAudioRef.current.currentTime = 0;
     }
     stopYoutubeBacking();
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecording(false);
+
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    } else {
+      const failureMessage = playbackFailureRef.current;
+      playbackFailureRef.current = null;
+      cleanupRecording();
+      setRecordTime(0);
+      recordTimeRef.current = 0;
+      applyRecordPhase(RECORD_PHASES.IDLE);
+      if (failureMessage) {
+        setRecordingError(failureMessage);
+      }
+    }
+  };
+
+  const failActiveRecording = (message) => {
+    if (recordPhaseRef.current !== RECORD_PHASES.RECORDING) return;
+    playbackFailureRef.current = message;
+    stopRecording();
   };
 
   const applyPreset = (presetKey) => {
@@ -836,7 +886,7 @@ export default function MelodifyStudio() {
   };
 
   const changeSong = () => {
-    if (isRecording) stopRecording();
+    if (recordPhaseRef.current !== RECORD_PHASES.IDLE) return;
     cleanupRecording();
     setStep(STEPS.SELECT);
     setSelectedSong(null);
@@ -968,12 +1018,13 @@ export default function MelodifyStudio() {
         <section className="music-section app-surface studio-panel">
           <SectionHeader
             title="Recording session"
-            subtitle={micPermission === 'denied' ? 'Microphone access is currently blocked.' : 'Set your sound and start recording.'}
+            subtitle={micPermission === 'denied' ? 'Microphone access is currently blocked.' : 'Ready to record. Press record to start the song and your take together.'}
             action={(
               <button
                 type="button"
                 className="music-outline-btn"
                 onClick={changeSong}
+                disabled={recordPhase !== RECORD_PHASES.IDLE}
               >
                 Change song
               </button>
@@ -1055,12 +1106,22 @@ export default function MelodifyStudio() {
 
           <div className="studio-record-actions">
             {!isRecording ? (
-              <button type="button" className="music-pill-btn studio-record-btn" onClick={startRecording}>
-                Start recording
+              <button
+                type="button"
+                className="music-pill-btn studio-record-btn"
+                onClick={startRecording}
+                disabled={recordPhase !== RECORD_PHASES.IDLE}
+              >
+                {recordPhase === RECORD_PHASES.STARTING ? 'Starting...' : 'Record & play song'}
               </button>
             ) : (
-              <button type="button" className="music-outline-btn studio-stop-btn" onClick={stopRecording}>
-                Stop recording
+              <button
+                type="button"
+                className="music-outline-btn studio-stop-btn"
+                onClick={stopRecording}
+                disabled={recordPhase === RECORD_PHASES.STOPPING}
+              >
+                {recordPhase === RECORD_PHASES.STOPPING ? 'Stopping...' : 'Stop recording'}
               </button>
             )}
           </div>
@@ -1069,7 +1130,12 @@ export default function MelodifyStudio() {
             For best results, use headphones to avoid microphone feedback.
           </p>
 
-          <button type="button" className="music-outline-btn" onClick={changeSong}>
+          <button
+            type="button"
+            className="music-outline-btn"
+            onClick={changeSong}
+            disabled={recordPhase !== RECORD_PHASES.IDLE}
+          >
             Back to song selection
           </button>
         </section>

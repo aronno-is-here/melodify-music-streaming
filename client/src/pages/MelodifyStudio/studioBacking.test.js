@@ -151,41 +151,44 @@ test('studio selection fails safely for a missing or unsupported backing source'
   assert.equal(broken.playbackType, BACKING_MODES.NONE);
 });
 
-test('studio starts and replaces backing playback from the track selection gesture', () => {
-  const playback = segment(source, 'const startBackingPlayback = (song)', 'const selectSong = (song)');
-  assert.match(playback, /stopBackingPlayback\(\)/);
-  assert.match(playback, /new Audio\(track\.backingAudioUrl\)/);
-  assert.match(playback, /backingAudio\.play\(\)/);
-  assert.match(playback, /ensureYoutubePlayer\(track\.backingProviderTrackId\)/);
-  assert.match(playback, /playVideo\(\)/);
-  assert.match(playback, /return BACKING_MODES\.NONE/);
-  assert.doesNotMatch(playback, /getUserMedia/);
-  assert.doesNotMatch(playback, /createMediaStreamDestination/);
-
+test('studio selection never starts playback and only prepares the ready state', () => {
   const selection = segment(source, 'const selectSong = (song)', 'const startRecording = async');
   assert.match(selection, /normalizeStudioTrack\(song\)/);
   assert.match(selection, /setStep\(STEPS\.RECORD\)/);
-  assert.match(selection, /startBackingPlayback\(track\)/);
+  assert.match(selection, /stopBackingPlayback\(\)/);
+  assert.doesNotMatch(selection, /\.play\(/);
+  assert.doesNotMatch(selection, /playVideo/);
+  assert.doesNotMatch(selection, /new Audio\(/);
+  assert.doesNotMatch(selection, /ensureYoutubePlayer/);
+  assert.doesNotMatch(selection, /startBackingPlayback/);
+  assert.doesNotMatch(selection, /getUserMedia/);
+  assert.doesNotMatch(selection, /createMediaStreamDestination/);
 });
 
-test('studio selection stops the previous backing source before starting the next one', () => {
-  const playback = segment(source, 'const startBackingPlayback = (song)', 'const selectSong = (song)');
-  const stopIndex = playback.indexOf('stopBackingPlayback()');
-  const audioIndex = playback.indexOf('new Audio(track.backingAudioUrl)');
-  const youtubeIndex = playback.indexOf('ensureYoutubePlayer(track.backingProviderTrackId)');
-  assert.ok(stopIndex > -1 && stopIndex < audioIndex, 'stop must run before local audio start');
-  assert.ok(stopIndex < youtubeIndex, 'stop must run before provider playback start');
+test('studio selection clears any stale backing source without starting a new one', () => {
+  const selection = segment(source, 'const selectSong = (song)', 'const startRecording = async');
+  const stopIndex = selection.indexOf('stopBackingPlayback()');
+  const selectIndex = selection.indexOf('setSelectedSong(track)');
+  assert.ok(stopIndex > -1, 'selection stops stale backing');
+  assert.ok(stopIndex < selectIndex, 'stale backing stops before the new track is selected');
+  assert.doesNotMatch(selection, /startBackingPlayback/);
 });
 
 test('studio recording keeps a single backing source and restores an audible audio context', () => {
   const recording = segment(source, 'const startRecording = async', 'const stopRecording = ()');
   assert.match(recording, /stopBackingPlayback\(\)/);
-  assert.match(recording, /await backingAudioRef\.current\.play\(\)/);
   assert.match(recording, /audioCtx\.state === 'suspended'/);
   assert.match(recording, /await audioCtx\.resume\(\)/);
   assert.match(recording, /createMediaElementSource\(backingAudioRef\.current\)/);
   assert.match(recording, /backingSpeakerGain\.connect\(audioCtx\.destination\)/);
   assert.doesNotMatch(recording, /merger\.connect\(audioCtx\.destination\)/);
+  const micIndex = recording.indexOf('await navigator.mediaDevices.getUserMedia');
+  const recorderStartIndex = recording.indexOf('recorder.start(100)');
+  const backingStartIndex = recording.indexOf('backingAudioRef.current.play()');
+  assert.ok(micIndex > -1 && micIndex < recorderStartIndex, 'microphone is acquired before the recorder starts');
+  assert.ok(recorderStartIndex > -1 && backingStartIndex > recorderStartIndex, 'recorder starts before backing playback');
+  const boundary = recording.slice(recorderStartIndex, backingStartIndex);
+  assert.doesNotMatch(boundary, /await\s/, 'no await between recorder start and backing start');
 });
 
 test('studio cleans up backing playback on step changes and unmount', () => {

@@ -8,10 +8,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(__dirname, 'MelodifyStudio.jsx'), 'utf8');
 const css = readFileSync(join(__dirname, 'MelodifyStudio.css'), 'utf8');
 
-test('studio recording requests microphone and starts backing playback before recorder start', () => {
+test('studio recording prepares the microphone first and starts recorder with backing in one transition', () => {
   assert.match(source, /await navigator\.mediaDevices\.getUserMedia/);
-  assert.match(source, /await backingAudioRef\.current\.play\(\)/);
   assert.match(source, /recorder\.start\(100\)/);
+  assert.match(source, /backingAudioRef\.current\.play\(\)/);
+  const micIndex = source.indexOf('await navigator.mediaDevices.getUserMedia');
+  const recorderStartIndex = source.indexOf('recorder.start(100)');
+  const backingStartIndex = source.indexOf('backingAudioRef.current.play()');
+  assert.ok(micIndex > -1 && recorderStartIndex > micIndex, 'microphone is acquired before the recorder starts');
+  assert.ok(backingStartIndex > recorderStartIndex, 'backing starts after the recorder start boundary');
+  const boundary = source.slice(recorderStartIndex, backingStartIndex);
+  assert.doesNotMatch(boundary, /await\s/, 'no await between recorder start and backing start');
+  const setupToRecorder = source.slice(micIndex, recorderStartIndex);
+  assert.doesNotMatch(setupToRecorder, /backingAudioRef\.current\.play\(\)/, 'backing never plays before the recorder is ready');
 });
 
 test('studio recording handles media recorder support and backing load failure', () => {
