@@ -59,6 +59,7 @@ A full-featured music streaming web application with user authentication, a song
 - **Profile page** — modernized account workspace with dialog-based account edit, password change, settings, and recording actions
 - **Dynamic Playlist page** (`/playlist/:id`) — modernized per-user playlist workspace (add/remove/rename/delete/search), integrated with the shared global player queue; owner-only actions are gated and disabled while a request is in flight, non-owners get a read-only view, and the page is reached from the Library Playlists tab's **Open Playlist** link (delete returns to `/library` instead of a full reload)
 - **Dynamic Song Details page** (`/song/:id`) — modernized song metadata + related tracks + lyrics/chords surface, integrated with the shared global player; song cards and rows across Dashboard/Search/Library/Profile open the details page on click without autoplaying (play/favorite buttons stay isolated)
+- **Friend requests + notification center** - a two-way `Friendship` relationship (`server/models/Friendship.js`) is added alongside the existing one-way Follow system (follows are never reinterpreted as friendships): `POST /api/friends/request/:userId` sends a request (self-request 400, duplicate pending idempotent, reverse pending 409 `FRIEND_REQUEST_INCOMING`, already-friends 409), `POST /api/friends/:requestId/accept` and `POST /api/friends/:requestId/reject` are recipient-only (the requester and unrelated users get 403), `GET /api/friends/status/:userId` returns `none` / `outgoing_pending` / `incoming_pending` / `friends`, and `GET /api/friends/requests` + `GET /api/friends` list incoming requests and accepted friends; a new `Notification` model (`server/models/Notification.js`) stores `friend_request`, `friend_accepted`, `post_like`, `post_comment`, and `post_share` rows scoped to a recipient with an actor and optional `post` / `comment` / `friendRequest` refs, never notifies a user about their own action, and uses a unique partial `dedupKey` index so repeated likes and double-clicked shares stay single; authenticated `GET /api/notifications?limit=` (1-50, newest first), `GET /api/notifications/unread-count`, `PATCH /api/notifications/:id/read`, and `PATCH /api/notifications/read-all` are `protect`-only and always recipient-scoped; likes, comments, and the new authenticated `POST /api/posts/:postId/share` emit the matching post notifications (no repost document is created), and the app shell gains a working bell (`client/src/components/app/NotificationBell.jsx`) with an unread badge, recent list, loading/empty/error states, mark-one and mark-all read, inline Accept/Reject for pending friend requests, and safe navigation to `/user/:id` or `/feed` (the signed-in homepage bell uses the same component); `/user/:id` renders Add Friend / Request Sent / Accept Request / Reject / Friends next to the unchanged Follow button; counts refresh on shell mount, on panel open, and after each action - no polling.
 - **Modernized Premium page** (`/premium`) — redesigned plan comparison/FAQ experience with live subscription status and subscribe/cancel plans (Individual/Student/Duo) via `/api/subscriptions`; the sticky top navigation sits flush at the viewport top with flex-centered nav items and a shared Home link
 
 ### Admin Side
@@ -100,7 +101,7 @@ Melodify - Music Streaming Website/
 │   ├── server.js                  # Entry point
 │   ├── seed.js                    # Seeds MongoDB from the old SQL data
 │   ├── config/db.js               # MongoDB connection
-│   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory, ListeningEvent, RecommendationEvaluationRun (32/43), RecommendationSnapshot (34/43)
+│   ├── models/                    # User, Song, Playlist, Report, Subscription, PlayHistory, ListeningEvent, RecommendationEvaluationRun (32/43), RecommendationSnapshot (34/43), Friendship, Notification
 │   ├── utils/catalogIdentity.js   # Pure catalog identity and legacy YouTube lookup helpers
 │   ├── utils/catalogMetadata.js   # Channel-vs-artist resolution, non-music filter, language/region enrichment
 │   ├── utils/catalogSyncRequest.js # Pure admin catalog-sync request validator (10/43)
@@ -127,7 +128,7 @@ Melodify - Music Streaming Website/
 │   ├── services/personalizedRecommendationService.js # Snapshot→Song availability loader (35/43)
 │   ├── services/adminRecommendationMetricsService.js # Latest evaluation-run projection for Admin metrics (38/43)
 │   ├── middleware/                # JWT auth, admin guard, multer upload
-│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/catalog, /api/admin, /api/admin/lyrics, /api/listening-events, /api/trending, /api/recommendations, /api/admin/recommendations/metrics
+│   └── routes/                    # /api/auth, /api/songs, /api/playlists, /api/history, /api/subscriptions, /api/catalog, /api/admin, /api/admin/lyrics, /api/listening-events, /api/trending, /api/recommendations, /api/admin/recommendations/metrics, /api/friends, /api/notifications
 ├── client/                        # React + Vite frontend
 │   ├── src/pages/                 # One folder per page (React)
 │   │   ├── Home/                  # Landing page
@@ -142,12 +143,12 @@ Melodify - Music Streaming Website/
 │   │   ├── SongDetails/           # Song details page (dynamic)
 │   │   ├── Premium/               # Premium subscription page (dynamic)
 │   │   └── Admin/                 # Admin panel + login (catalog-sync form 11/43, Missing Lyrics queue, Add Lyrics dialog)
-│   ├── src/components/app/        # Authenticated shell + global player bar
+│   ├── src/components/app/        # Authenticated shell + global player bar + notification bell
 │   ├── src/components/music/      # Reusable song cards/rows and control primitives
 │   ├── src/components/ui/         # Shared UI primitives (dialogs/modals)
 │   ├── src/context/               # Auth context (JWT), PlayerContext + listeningTelemetry (15–16/43)
 │   ├── src/api/                   # API client
-│   ├── src/services/              # Personalized recommendation client states/fetch (36/43) + admin missing-lyrics client
+│   ├── src/services/              # Personalized recommendation client states/fetch (36/43) + admin missing-lyrics client + friend request / notification client states
 │   ├── src/hooks/                 # usePlayer (YouTube + audio fallback player) + usePersonalizedRecommendations (36/43)
 │   ├── src/styles/                # Shared design tokens, shell layout, music UI primitives, and auth page styling
 │   └── public/                    # Static assets only (no static pages left)
