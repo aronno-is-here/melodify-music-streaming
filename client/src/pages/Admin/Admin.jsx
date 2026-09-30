@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
 import cssRaw from './Admin.css?raw';
+import AppDialog from '../../components/ui/AppDialog.jsx';
 import KaraokeForm from './KaraokeForm.jsx';
 import CatalogSyncPanel from './CatalogSyncPanel.jsx';
 import MissingLyricsQueue from './MissingLyricsQueue.jsx';
@@ -20,6 +21,23 @@ import {
   hasChordContent,
   selectChordListStatus,
 } from './chordEditorUi.js';
+import {
+  ADMIN_DASHBOARD_MESSAGES,
+  ADMIN_DASHBOARD_QUICK_ACTIONS,
+  ADMIN_DASHBOARD_STAT_META,
+  ADMIN_HEALTH_LABELS,
+  ADMIN_MUSIC_MESSAGES,
+  collectAdminCatalogGenres,
+  computeAdminContentHealth,
+  filterAdminCatalogSongs,
+  selectAdminBadgeTone,
+  selectAdminLyricsStatus,
+  selectAdminMediaSource,
+  selectAdminMusicView,
+  selectAdminMusicViewMessage,
+  selectAdminStatValue,
+  selectStatCardPresentation,
+} from './adminDashboardMusicUi.js';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
 
@@ -175,6 +193,17 @@ export default function Admin() {
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [addingSong, setAddingSong] = useState(false);
+  const [songSearch, setSongSearch] = useState('');
+  const [songGenreFilter, setSongGenreFilter] = useState('all');
+  const [dataStatus, setDataStatus] = useState({
+    stats: 'loading',
+    users: 'loading',
+    songs: 'loading',
+    reports: 'loading',
+    subscriptions: 'loading',
+    karaoke: 'loading',
+  });
 
   const loadAll = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -193,6 +222,14 @@ export default function Admin() {
     if (r.success) setReports(r.reports);
     if (sub.success) setSubscriptions(sub.subscriptions);
     if (kar.success) setKaraokeTracks(kar.karaoke);
+    setDataStatus({
+      stats: s.success ? 'ready' : 'error',
+      users: u.success ? 'ready' : 'error',
+      songs: sg.success ? 'ready' : 'error',
+      reports: r.success ? 'ready' : 'error',
+      subscriptions: sub.success ? 'ready' : 'error',
+      karaoke: kar.success ? 'ready' : 'error',
+    });
     setLoading(false);
     setRefreshing(false);
   };
@@ -568,6 +605,7 @@ export default function Admin() {
       if (data.success) {
         showMessage('Song added successfully!');
         form.reset();
+        setAddingSong(false);
         loadAll();
       } else {
         showMessage(data.error || 'Failed to add song', true);
@@ -577,6 +615,7 @@ export default function Admin() {
       if (data.success) {
         showMessage('Song uploaded successfully!');
         form.reset();
+        setAddingSong(false);
         loadAll();
       } else {
         showMessage(data.error || 'Failed to upload song', true);
@@ -588,6 +627,29 @@ export default function Admin() {
     const q = userSearch.toLowerCase();
     return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
   });
+
+  const catalogGenres = collectAdminCatalogGenres(songs);
+  const filteredSongs = filterAdminCatalogSongs(songs, { query: songSearch, genre: songGenreFilter });
+  const contentHealth = computeAdminContentHealth(songs);
+  const musicView = selectAdminMusicView({
+    status: dataStatus.songs,
+    totalSongs: songs.length,
+    matchCount: filteredSongs.length,
+  });
+
+  const openAddSong = () => {
+    setAddingSong(true);
+    handleNavClick('music');
+  };
+
+  const runQuickAction = (action) => {
+    if (action.opensAddSong) {
+      setAddingSong(true);
+      handleNavClick(action.section);
+      return;
+    }
+    handleNavClick(action.section);
+  };
 
   const chordDraftEvaluation = editingSong
     ? evaluateChordDraftSave({
@@ -699,80 +761,151 @@ export default function Admin() {
           {message && <div className={`message ${message.includes('success') || message.includes('updated') || message.includes('deleted') ? 'success' : 'error'}`}>{message}</div>}
 
           {section === 'dashboard' && (
-            <div id="dashboard" className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-                <h2>Dashboard</h2>
-                <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
-                  {refreshing ? 'Refreshing...' : 'Refresh'}
-                </button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 15 }}>
-                <div className="card stat-card"><h3>Users</h3><p className="stat-value">{stats.users}</p></div>
-                <div className="card stat-card"><h3>Songs</h3><p className="stat-value">{stats.songs || songs.length}</p></div>
-                <div className="card stat-card"><h3>Plays</h3><p className="stat-value">{stats.plays}</p></div>
-                <div className="card stat-card"><h3>Active Subs</h3><p className="stat-value">{stats.activeSubs}</p></div>
-                <div className="card stat-card"><h3>Pending Reports</h3><p className="stat-value">{stats.pendingReports}</p></div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 15, marginTop: 20 }}>
-                <div className="card stat-card" style={{ borderLeft: '3px solid #4caf50' }}>
-                  <h3>Total Revenue</h3>
-                  <p className="stat-value" style={{ color: '#4caf50' }}>${stats.revenue}</p>
-                  <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{stats.totalSubs || 0} total subscriptions</p>
+            <div id="dashboard" className="admin-page">
+              <div className="admin-page-header">
+                <div className="admin-page-header-text">
+                  <h2>Dashboard</h2>
+                  <p className="admin-page-subtitle">Operational overview of your catalog, community, and subscriptions.</p>
                 </div>
-                <div className="card stat-card" style={{ borderLeft: '3px solid #00b4d8' }}>
-                  <h3>This Month</h3>
-                  <p className="stat-value" style={{ color: '#00b4d8' }}>${stats.monthlyRevenue}</p>
-                  <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{stats.monthlySubs || 0} new subs</p>
-                </div>
-                <div className="card stat-card" style={{ borderLeft: '3px solid #888' }}>
-                  <h3>Last Month</h3>
-                  <p className="stat-value">${stats.lastMonthRevenue}</p>
-                  <p style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                    {stats.monthlyRevenue > stats.lastMonthRevenue ? (
-                      <span style={{ color: '#4caf50' }}>+{stats.lastMonthRevenue > 0 ? Math.round(((stats.monthlyRevenue - stats.lastMonthRevenue) / stats.lastMonthRevenue) * 100) : 100}% vs last month</span>
-                    ) : stats.monthlyRevenue < stats.lastMonthRevenue ? (
-                      <span style={{ color: '#ff6b6b' }}>-{stats.lastMonthRevenue > 0 ? Math.round(((stats.lastMonthRevenue - stats.monthlyRevenue) / stats.lastMonthRevenue) * 100) : 100}% vs last month</span>
-                    ) : (
-                      <span>Same as last month</span>
-                    )}
-                  </p>
+                <div className="admin-page-header-actions">
+                  <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
                 </div>
               </div>
 
-              {Object.keys(stats.revenueByPlan || {}).length > 0 && (
-                <div style={{ marginTop: 15 }}>
-                  <h3 style={{ color: 'var(--sky-blue)', marginBottom: 10 }}>Revenue by Plan</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
-                    {Object.entries(stats.revenueByPlan).map(([plan, data]) => (
-                      <div key={plan} className="card" style={{ padding: 12 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{plan}</div>
-                        <div style={{ fontSize: 20, fontWeight: 700, color: '#00b4d8' }}>${data.revenue}</div>
-                        <div style={{ fontSize: 11, color: '#888' }}>{data.subs} active subscriber{data.subs !== 1 ? 's' : ''}</div>
+              <section className="admin-stats-grid" aria-label="Key metrics">
+                {ADMIN_DASHBOARD_STAT_META.map((meta) => {
+                  const selection = selectAdminStatValue(meta.key, { dataStatus, stats, songs, karaokeTracks });
+                  const card = selectStatCardPresentation(selection);
+                  return (
+                    <article key={meta.key} className="admin-stat-card" data-state={card.state}>
+                      <div className="admin-stat-card-head">
+                        <span className="admin-stat-icon" aria-hidden="true"><i className={`fa-solid ${meta.icon}`}></i></span>
+                        <span className="admin-stat-label">{meta.label}</span>
                       </div>
+                      <p className="admin-stat-value">{card.display}</p>
+                      <p className="admin-stat-context">{meta.context}</p>
+                    </article>
+                  );
+                })}
+              </section>
+
+              <div className="admin-dash-columns">
+                <section className="admin-panel" aria-labelledby="admin-quick-actions-title">
+                  <h3 id="admin-quick-actions-title">{ADMIN_DASHBOARD_MESSAGES.QUICK_ACTIONS}</h3>
+                  <div className="admin-quick-actions">
+                    {ADMIN_DASHBOARD_QUICK_ACTIONS.map((action) => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        className="admin-quick-action"
+                        data-action={action.id}
+                        onClick={() => runQuickAction(action)}
+                      >
+                        <span className="admin-quick-action-icon" aria-hidden="true"><i className={`fa-solid ${action.icon}`}></i></span>
+                        <span className="admin-quick-action-body">
+                          <span className="admin-quick-action-label">{action.label}</span>
+                          <span className="admin-quick-action-desc">{action.description}</span>
+                        </span>
+                        <i className="fa-solid fa-chevron-right admin-quick-action-chevron" aria-hidden="true"></i>
+                      </button>
                     ))}
                   </div>
-                </div>
-              )}
-              {stats.recentPlays && stats.recentPlays.length > 0 && (
-                <div style={{ marginTop: 20 }}>
-                  <h3 style={{ color: 'var(--sky-blue)', marginBottom: 10 }}>Recent Plays</h3>
-                  <table>
-                    <thead>
-                      <tr><th>User</th><th>Song</th><th>When</th></tr>
-                    </thead>
-                    <tbody>
-                      {stats.recentPlays.map((play, i) => (
-                        <tr key={i}>
-                          <td>{play.user?.name || play.user?.email || 'Unknown'}</td>
-                          <td>{play.song?.title || 'Unknown'} - {play.song?.artist || ''}</td>
-                          <td>{play.playedAt ? new Date(play.playedAt).toLocaleString() : '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                </section>
+
+                <section className="admin-panel" aria-labelledby="admin-content-health-title">
+                  <h3 id="admin-content-health-title">{ADMIN_DASHBOARD_MESSAGES.CONTENT_HEALTH}</h3>
+                  {dataStatus.songs === 'ready' ? (
+                    <>
+                      <div className="admin-health-grid">
+                        {Object.keys(ADMIN_HEALTH_LABELS).map((key) => (
+                          <div key={key} className="admin-health-cell">
+                            <span className="admin-health-label">{ADMIN_HEALTH_LABELS[key]}</span>
+                            <span className="admin-health-value">{contentHealth[key]}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="admin-health-note">
+                        Across {contentHealth.total} loaded song{contentHealth.total === 1 ? '' : 's'}.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="admin-panel-state" role="status">
+                      {dataStatus.songs === 'loading'
+                        ? ADMIN_DASHBOARD_MESSAGES.STAT_LOADING
+                        : ADMIN_DASHBOARD_MESSAGES.HEALTH_UNAVAILABLE}
+                    </p>
+                  )}
+                </section>
+              </div>
+
+              <section className="admin-panel" aria-labelledby="admin-revenue-title">
+                <h3 id="admin-revenue-title">{ADMIN_DASHBOARD_MESSAGES.REVENUE}</h3>
+                {dataStatus.stats === 'ready' ? (
+                  <>
+                    <div className="admin-revenue-grid">
+                      <div className="admin-revenue-cell">
+                        <span className="admin-revenue-label">Total Revenue</span>
+                        <span className="admin-revenue-value">${stats.revenue}</span>
+                        <span className="admin-revenue-note">{stats.totalSubs || 0} total subscriptions</span>
+                      </div>
+                      <div className="admin-revenue-cell">
+                        <span className="admin-revenue-label">This Month</span>
+                        <span className="admin-revenue-value">${stats.monthlyRevenue}</span>
+                        <span className="admin-revenue-note">{stats.monthlySubs || 0} new subs</span>
+                      </div>
+                      <div className="admin-revenue-cell">
+                        <span className="admin-revenue-label">Last Month</span>
+                        <span className="admin-revenue-value">${stats.lastMonthRevenue}</span>
+                        <span className="admin-revenue-note">Prior period</span>
+                      </div>
+                    </div>
+
+                    {Object.keys(stats.revenueByPlan || {}).length > 0 && (
+                      <div className="admin-revenue-plans">
+                        {Object.entries(stats.revenueByPlan).map(([plan, data]) => (
+                          <div key={plan} className="admin-revenue-plan">
+                            <span className="admin-revenue-plan-name">{plan}</span>
+                            <span className="admin-revenue-plan-value">${data.revenue}</span>
+                            <span className="admin-revenue-plan-note">
+                              {data.subs} active subscriber{data.subs !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="admin-panel-state" role="status">{ADMIN_DASHBOARD_MESSAGES.STAT_UNAVAILABLE}</p>
+                )}
+              </section>
+
+              <section className="admin-panel" aria-labelledby="admin-recent-plays-title">
+                <h3 id="admin-recent-plays-title">{ADMIN_DASHBOARD_MESSAGES.RECENT_PLAYS}</h3>
+                {dataStatus.stats !== 'ready' ? (
+                  <p className="admin-panel-state" role="status">{ADMIN_DASHBOARD_MESSAGES.STAT_UNAVAILABLE}</p>
+                ) : stats.recentPlays && stats.recentPlays.length > 0 ? (
+                  <div className="admin-table-scroll">
+                    <table className="admin-table admin-table--compact">
+                      <thead>
+                        <tr><th>User</th><th>Song</th><th>When</th></tr>
+                      </thead>
+                      <tbody>
+                        {stats.recentPlays.map((play, i) => (
+                          <tr key={i}>
+                            <td>{play.user?.name || play.user?.email || 'Unknown'}</td>
+                            <td>{play.song?.title || 'Unknown'} - {play.song?.artist || ''}</td>
+                            <td>{play.playedAt ? new Date(play.playedAt).toLocaleString() : '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="admin-panel-state">{ADMIN_DASHBOARD_MESSAGES.NO_RECENT_PLAYS}</p>
+                )}
+              </section>
             </div>
           )}
 
@@ -816,39 +949,109 @@ export default function Admin() {
           )}
 
           {section === 'music' && (
-            <div id="music" className="card">
-              <h2>Music Catalog</h2>
-              <form onSubmit={addSong} style={{ marginBottom: 20 }}>
-                <div className="form-group"><label>Title *</label><input type="text" name="title" required /></div>
-                <div className="form-group"><label>Artist *</label><input type="text" name="artist" required /></div>
-                <div className="form-group">
-                  <label>Genre *</label>
-                  <select name="genre" required>
-                    <option value="">Select genre</option>
-                    <option value="Pop">Pop</option>
-                    <option value="Rock">Rock</option>
-                    <option value="Bengali">Bengali</option>
-                    <option value="Hindi">Hindi</option>
-                    <option value="Romantic">Romantic</option>
-                    <option value="Metal">Metal</option>
-                    <option value="Melodious">Melodious</option>
-                    <option value="Love">Love</option>
-                    <option value="Happy">Happy</option>
-                  </select>
+            <div id="music" className="admin-page">
+              <div className="admin-page-header">
+                <div className="admin-page-header-text">
+                  <h2>Music Catalog</h2>
+                  <p className="admin-page-subtitle">{ADMIN_MUSIC_MESSAGES.PAGE_SUBTITLE}</p>
                 </div>
-                <div className="form-group"><label>Duration</label><input type="text" name="duration" placeholder="3:45" /></div>
-                <div className="form-group"><label>Release Date</label><input type="date" name="release_date" className="date-input" /></div>
-                <div className="form-divider"><span>Add via YouTube</span></div>
-                <div className="form-group"><label>YouTube ID</label><input type="text" name="youtube_id" placeholder="e.g. dQw4w9WgXcQ" /></div>
-                <div className="form-group"><label>Poster URL (optional)</label><input type="url" name="poster_url" placeholder="https://img.youtube.com/vi/ID/hqdefault.jpg" /></div>
-                <div className="form-divider"><span>— OR Upload File —</span></div>
-                <div className="form-group"><label>Song File (MP3/WAV)</label><input type="file" name="song_file" accept=".mp3,.wav" /></div>
-                <div className="form-group"><label>Poster Image (JPG/PNG)</label><input type="file" name="poster_file" accept=".jpg,.jpeg,.png" /></div>
-                <button type="submit" className="btn">Add Song</button>
-              </form>
+                <div className="admin-page-header-actions">
+                  <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                  <button className="btn btn-primary" onClick={openAddSong}>Add Song</button>
+                </div>
+              </div>
+
+              <div className="admin-toolbar">
+                <div className="admin-toolbar-search">
+                  <i className="fa-solid fa-search admin-toolbar-icon" aria-hidden="true"></i>
+                  <input
+                    type="search"
+                    className="admin-toolbar-input"
+                    value={songSearch}
+                    onChange={(event) => setSongSearch(event.target.value)}
+                    placeholder={ADMIN_MUSIC_MESSAGES.SEARCH_PLACEHOLDER}
+                    aria-label="Search songs"
+                  />
+                </div>
+                <label className="admin-toolbar-select-wrap">
+                  <span className="admin-sr-only">Filter by genre</span>
+                  <select
+                    className="admin-toolbar-select"
+                    value={songGenreFilter}
+                    onChange={(event) => setSongGenreFilter(event.target.value)}
+                  >
+                    <option value="all">{ADMIN_MUSIC_MESSAGES.ALL_GENRES}</option>
+                    {catalogGenres.map((genre) => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <AppDialog
+                open={addingSong}
+                title="Add Song"
+                labelledBy="admin-add-song-title"
+                onClose={() => setAddingSong(false)}
+                actions={
+                  <>
+                    <button type="button" className="btn btn-ghost" onClick={() => setAddingSong(false)}>Cancel</button>
+                    <button type="submit" form="admin-add-song-form" className="btn btn-primary">Add Song</button>
+                  </>
+                }
+              >
+                <form id="admin-add-song-form" className="admin-form" onSubmit={addSong}>
+                  <fieldset className="admin-form-section">
+                    <legend>Basic Information</legend>
+                    <div className="form-group"><label>Title *</label><input type="text" name="title" required /></div>
+                    <div className="form-group"><label>Artist *</label><input type="text" name="artist" required /></div>
+                    <div className="admin-form-grid">
+                      <div className="form-group">
+                        <label>Genre *</label>
+                        <select name="genre" required>
+                          <option value="">Select genre</option>
+                          <option value="Pop">Pop</option>
+                          <option value="Rock">Rock</option>
+                          <option value="Bengali">Bengali</option>
+                          <option value="Hindi">Hindi</option>
+                          <option value="Romantic">Romantic</option>
+                          <option value="Metal">Metal</option>
+                          <option value="Melodious">Melodious</option>
+                          <option value="Love">Love</option>
+                          <option value="Happy">Happy</option>
+                        </select>
+                      </div>
+                      <div className="form-group"><label>Duration</label><input type="text" name="duration" placeholder="3:45" /></div>
+                    </div>
+                    <div className="form-group"><label>Release Date</label><input type="date" name="release_date" className="date-input" /></div>
+                  </fieldset>
+                  <fieldset className="admin-form-section">
+                    <legend>YouTube</legend>
+                    <div className="form-group"><label>YouTube ID</label><input type="text" name="youtube_id" placeholder="e.g. dQw4w9WgXcQ" /></div>
+                    <div className="form-group"><label>Poster URL (optional)</label><input type="url" name="poster_url" placeholder="https://img.youtube.com/vi/ID/hqdefault.jpg" /></div>
+                  </fieldset>
+                  <fieldset className="admin-form-section">
+                    <legend>Upload File</legend>
+                    <div className="admin-form-grid">
+                      <div className="form-group"><label>Song File (MP3/WAV)</label><input type="file" name="song_file" accept=".mp3,.wav" /></div>
+                      <div className="form-group"><label>Poster Image (JPG/PNG)</label><input type="file" name="poster_file" accept=".jpg,.jpeg,.png" /></div>
+                    </div>
+                  </fieldset>
+                </form>
+              </AppDialog>
               {editingSong && (
-                <div style={{ marginBottom: 20, padding: 15, border: '1px solid #00b4d8', borderRadius: 8 }}>
-                  <h3>Edit Song</h3>
+                <section className="admin-panel admin-song-editor" aria-label="Edit Song">
+                  <div className="admin-song-editor-head">
+                    <div className="admin-song-editor-identity">
+                      <h3>Edit Song</h3>
+                      <p className="admin-song-editor-song">{editingSong.title} — {editingSong.artist}</p>
+                    </div>
+                    <span className={`admin-badge ${selectAdminBadgeTone(selectChordListStatus(editingSong))}`}>
+                      {selectChordListStatus(editingSong)}
+                    </span>
+                  </div>
                   <form onSubmit={saveSongEdits}>
                     <div className="form-group"><label>Title</label><input type="text" name="title" defaultValue={editingSong.title} required /></div>
                     <div className="form-group"><label>Artist</label><input type="text" name="artist" defaultValue={editingSong.artist} required /></div>
@@ -957,31 +1160,72 @@ export default function Admin() {
                     <button type="submit" className="btn">Save</button>
                     <button type="button" className="btn" onClick={() => setEditingSong(null)} style={{ marginLeft: 10 }}>Cancel</button>
                   </form>
+                </section>
+              )}
+
+              {musicView === 'loading' ? (
+                <div className="admin-panel admin-state-block" role="status">{ADMIN_MUSIC_MESSAGES.LOADING}</div>
+              ) : musicView === 'error' ? (
+                <div className="admin-panel admin-state-block admin-error-state" role="alert">
+                  <p>{ADMIN_MUSIC_MESSAGES.ERROR}</p>
+                  <button type="button" className="btn" onClick={() => loadAll(true)}>{ADMIN_MUSIC_MESSAGES.RETRY}</button>
+                </div>
+              ) : musicView === 'empty' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_MUSIC_MESSAGES.EMPTY}</div>
+              ) : musicView === 'no-matches' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_MUSIC_MESSAGES.NO_MATCHES}</div>
+              ) : (
+                <div className="admin-panel admin-table-panel">
+                  {dataStatus.songs === 'error' && (
+                    <p className="admin-inline-notice" role="status">{ADMIN_MUSIC_MESSAGES.REFRESH_FAILED}</p>
+                  )}
+                  <div className="admin-table-shell">
+                    <div className="admin-table-scroll">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Artwork</th>
+                            <th>Song</th>
+                            <th>Genre</th>
+                            <th>Lyrics</th>
+                            <th>Chords</th>
+                            <th>Source</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSongs.map((song) => (
+                            <tr key={song._id}>
+                              <td>
+                                {song.poster_url ? (
+                                  <img className="admin-table-art" src={song.poster_url} alt="" loading="lazy" />
+                                ) : (
+                                  <span className="admin-table-art admin-table-art--empty" aria-hidden="true"><i className="fa-solid fa-music"></i></span>
+                                )}
+                              </td>
+                              <td>
+                                <span className="admin-table-song-title">{song.title}</span>
+                                <span className="admin-table-song-meta">{song.artist}{song.duration ? ` · ${song.duration}` : ''}</span>
+                              </td>
+                              <td>{song.genre || '—'}</td>
+                              <td><span className={`admin-badge ${selectAdminBadgeTone(selectAdminLyricsStatus(song))}`}>{selectAdminLyricsStatus(song)}</span></td>
+                              <td><span className={`admin-badge ${selectAdminBadgeTone(selectChordListStatus(song))}`}>{selectChordListStatus(song)}</span></td>
+                              <td><span className={`admin-badge ${selectAdminBadgeTone(selectAdminMediaSource(song))}`}>{selectAdminMediaSource(song)}</span></td>
+                              <td>
+                                <button className="btn" onClick={() => openSongEditor(song)}>Edit</button>
+                                <button className="btn admin-manage-chords" onClick={() => manageSongChords(song)}>Manage Chords</button>
+                                <button className="btn btn-danger" onClick={() => deleteSong(song._id)}>Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
+
               <CatalogSyncPanel />
-              <table style={{ marginTop: 20 }}>
-                <thead>
-                  <tr><th>ID</th><th>Title</th><th>Artist</th><th>Genre</th><th>Duration</th><th>Chords</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {songs.map((song) => (
-                    <tr key={song._id}>
-                      <td>{song._id.slice(-6)}</td>
-                      <td>{song.title}</td>
-                      <td>{song.artist}</td>
-                      <td>{song.genre}</td>
-                      <td>{song.duration}</td>
-                      <td>{selectChordListStatus(song)}</td>
-                      <td>
-                        <button className="btn" onClick={() => openSongEditor(song)}>Edit</button>
-                        <button className="btn admin-manage-chords" onClick={() => manageSongChords(song)}>Manage Chords</button>
-                        <button className="btn btn-danger" onClick={() => deleteSong(song._id)}>Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           )}
 

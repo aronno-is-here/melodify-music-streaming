@@ -94,7 +94,7 @@ test('chord saves go through the existing admin content endpoint only', () => {
 
 test('song list surfaces a chord status column', () => {
   assert.match(src, /<th>Chords<\/th>/);
-  assert.match(src, /<td>\{selectChordListStatus\(song\)\}<\/td>/);
+  assert.match(src, /<td>[^\n]*\{selectChordListStatus\(song\)\}[^\n]*<\/td>/);
 });
 
 test('editor workflow states and labels stay complete', () => {

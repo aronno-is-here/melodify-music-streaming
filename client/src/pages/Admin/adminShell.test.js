@@ -231,9 +231,9 @@ test('sections: handleSectionClick stays the single section switcher', () => {
 
 test('sections: every existing section still renders its content unchanged', () => {
   for (const [needle, expected] of [
-    ["section === 'dashboard' && (", '<div id="dashboard" className="card">'],
+    ["section === 'dashboard' && (", '<div id="dashboard" className="admin-page">'],
     ["section === 'users' && (", '<div id="users" className="card">'],
-    ["section === 'music' && (", null],
+    ["section === 'music' && (", '<div id="music" className="admin-page">'],
     ["section === 'missing-lyrics' && <MissingLyricsQueue />", null],
     ["section === 'chords' && (", '<div id="chords" className="card">'],
     ["section === 'karaoke' && (", '<div id="karaoke" className="card">'],
