@@ -14,8 +14,8 @@ import {
 } from './adminContentWorkspacesUi.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const adminSource = readFileSync(join(__dirname, 'Admin.jsx'), 'utf8');
-const formSource = readFileSync(join(__dirname, 'KaraokeForm.jsx'), 'utf8');
+const adminSource = readFileSync(join(__dirname, 'Admin.jsx'), 'utf8').replace(/\r\n/g, '\n');
+const formSource = readFileSync(join(__dirname, 'KaraokeForm.jsx'), 'utf8').replace(/\r\n/g, '\n');
 const adminCss = readFileSync(join(__dirname, 'Admin.css'), 'utf8').replace(/\r\n/g, '\n');
 
 const karaokeBlock = adminSource.slice(
