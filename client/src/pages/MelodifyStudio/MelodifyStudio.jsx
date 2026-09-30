@@ -346,6 +346,7 @@ export default function MelodifyStudio() {
             autoplay: 0,
             controls: 0,
             disablekb: 1,
+            enablejsapi: 1,
             modestbranding: 1,
             rel: 0,
             playsinline: 1,
