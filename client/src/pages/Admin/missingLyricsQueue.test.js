@@ -49,10 +49,16 @@ test('4: Admin renders the queue component for the section', () => {
   assert.ok(adminSource.includes("import MissingLyricsQueue from './MissingLyricsQueue.jsx';"));
 });
 
-test('5: queue is reachable from the sidebar through the shared section loop', () => {
+test('5: queue is reachable from the grouped sidebar nav', () => {
+  assert.ok(
+    adminSource.includes(
+      "{ key: 'content', label: 'Content', sections: ['music', 'missing-lyrics', 'chords', 'karaoke'] },",
+    ),
+  );
   const sidebar = adminSource.slice(adminSource.indexOf('<nav'), adminSource.indexOf('</nav>'));
-  assert.ok(sidebar.includes('{sectionLabel(s)}'));
-  assert.ok(sidebar.includes('SECTIONS.map'));
+  assert.ok(sidebar.includes('NAV_GROUPS.map'));
+  assert.ok(sidebar.includes('{NAV_META[s].label ?? sectionLabel(s)}'));
+  assert.ok(sidebar.includes('handleNavClick(s)'));
 });
 
 test('6: queue renders search, language filter and missing-only toggle', () => {

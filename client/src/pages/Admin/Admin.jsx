@@ -23,13 +23,33 @@ import {
 
 const SECTIONS = ['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
 
-const EXISTING_SECTIONS = new Set(['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions']);
+const EXISTING_SECTIONS = new Set(['dashboard', 'users', 'music', 'missing-lyrics', 'chords', 'karaoke', 'moderation', 'subscriptions']);
 
 const sectionLabel = (s) => {
   if (s === 'ai-recommendation') return 'AI Recommendation';
   if (s === 'missing-lyrics') return 'Missing Lyrics';
   if (s === 'karaoke') return 'Melodify Studio';
   return s.charAt(0).toUpperCase() + s.slice(1).replace('moderation', ' Content Moderation');
+};
+
+const NAV_GROUPS = [
+  { key: 'overview', label: 'Overview', sections: ['dashboard'] },
+  { key: 'content', label: 'Content', sections: ['music', 'missing-lyrics', 'chords', 'karaoke'] },
+  { key: 'community', label: 'Community', sections: ['users', 'moderation'] },
+  { key: 'business', label: 'Business', sections: ['subscriptions'] },
+  { key: 'intelligence', label: 'Intelligence', sections: ['ai-recommendation'] },
+];
+
+const NAV_META = {
+  dashboard: { label: 'Dashboard', icon: 'fa-house' },
+  music: { label: 'Music', icon: 'fa-music' },
+  'missing-lyrics': { label: 'Lyrics', icon: 'fa-file-lines' },
+  chords: { label: 'Chords', icon: 'fa-guitar' },
+  karaoke: { label: 'Karaoke', icon: 'fa-microphone-lines' },
+  users: { label: 'Users', icon: 'fa-users' },
+  moderation: { label: 'Moderation', icon: 'fa-flag' },
+  subscriptions: { label: 'Subscriptions', icon: 'fa-credit-card' },
+  'ai-recommendation': { label: 'AI Recommendation', icon: 'fa-brain' },
 };
 
 const LYRICS_SOURCE_OPTIONS = ['db_verified', 'lrclib', 'legacy_unverified', 'none'];
@@ -98,6 +118,7 @@ export default function Admin() {
     }
     return 'dashboard';
   });
+  const [navOpen, setNavOpen] = useState(false);
 
   const handleSectionClick = (s) => {
     if (s === 'ai-recommendation') {
@@ -113,11 +134,25 @@ export default function Admin() {
     setSection(s);
   };
 
+  const handleNavClick = (s) => {
+    handleSectionClick(s);
+    setNavOpen(false);
+  };
+
   useEffect(() => {
     if (location.pathname === '/admin/ai-recommendation') {
       setSection('ai-recommendation');
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!navOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setNavOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [navOpen]);
 
   const [stats, setStats] = useState({ users: 0, songs: 0, plays: 0, revenue: 0, activeSubs: 0, pendingReports: 0, recentPlays: [], monthlyRevenue: 0, lastMonthRevenue: 0, monthlySubs: 0, totalSubs: 0, revenueByPlan: {} });
   const [users, setUsers] = useState([]);
@@ -566,37 +601,101 @@ export default function Admin() {
     || chordWorkflow === CHORD_EDITOR_STATES.PARSING
     || !chordDraftEvaluation.ok;
 
+  const activeNavGroup = NAV_GROUPS.find((group) => group.sections.includes(section));
+  const activeLabel = NAV_META[section]?.label || sectionLabel(section);
+  const activeGroupLabel = (activeNavGroup || NAV_GROUPS[0]).label;
+
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#121212', color: '#fff' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--mel-bg)', color: 'var(--mel-text)' }}>
         <p>Loading admin panel...</p>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="header">
-        <h1>Melodify Admin Panel</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ color: '#b3b3b3' }}>{user?.email}</span>
-          <button className="logout-btn" onClick={() => logout()}>Logout</button>
+    <div className="admin-shell">
+      <header className="admin-header">
+        <button
+          type="button"
+          className="admin-menu-btn"
+          aria-label={navOpen ? 'Close navigation' : 'Open navigation'}
+          aria-expanded={navOpen}
+          aria-controls="admin-sidebar"
+          onClick={() => setNavOpen((open) => !open)}
+        >
+          <i className={`fa-solid ${navOpen ? 'fa-xmark' : 'fa-bars'}`} aria-hidden="true"></i>
+        </button>
+
+        <div className="admin-brand">
+          <span className="admin-brand-name">Melodify</span>
+          <span className="admin-brand-tag">Admin Console</span>
         </div>
-      </div>
+
+        <div className="admin-header-context">
+          <span className="admin-header-group">{activeGroupLabel}</span>
+          <span className="admin-header-sep" aria-hidden="true">/</span>
+          <h1 className="admin-header-title">{activeLabel}</h1>
+        </div>
+
+        <div className="admin-header-actions">
+          <span className="admin-header-email">{user?.email}</span>
+          <button type="button" className="admin-logout-btn" onClick={() => logout()}>
+            <i className="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+            <span>Logout</span>
+          </button>
+        </div>
+      </header>
+
       <div className="main">
-        <nav className="sidebar">
-          <h3>Navigation</h3>
-          <ul>
-            {SECTIONS.map((s) => (
-              <li key={s}>
-                <a className={section === s ? 'active' : ''} onClick={() => handleSectionClick(s)}>
-                  {sectionLabel(s)}
-                </a>
-              </li>
+        {navOpen ? (
+          <button
+            type="button"
+            className="admin-nav-backdrop"
+            aria-label="Close navigation"
+            onClick={() => setNavOpen(false)}
+          />
+        ) : null}
+
+        <nav id="admin-sidebar" className={`sidebar ${navOpen ? 'is-open' : ''}`} aria-label="Admin navigation">
+          <div className="admin-nav">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.key} className="admin-nav-group">
+                <p className="admin-nav-group-label">{group.label}</p>
+                <ul className="admin-nav-list">
+                  {group.sections.map((s) => (
+                    <li key={s}>
+                      <a
+                        className={`admin-nav-item ${section === s ? 'active' : ''}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-current={section === s ? 'page' : undefined}
+                        onClick={() => handleNavClick(s)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleNavClick(s);
+                          }
+                        }}
+                      >
+                        <i className={`fa-solid ${NAV_META[s].icon}`} aria-hidden="true"></i>
+                        <span className="admin-nav-text">{NAV_META[s].label ?? sectionLabel(s)}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
+
+          <div className="admin-sidebar-footer">
+            <i className="fa-solid fa-user-shield" aria-hidden="true"></i>
+            <span className="admin-sidebar-email">{user?.email}</span>
+          </div>
         </nav>
-        <main className="content">
+
+        <main className="content admin-content">
+          <div className="admin-content-inner">
           {message && <div className={`message ${message.includes('success') || message.includes('updated') || message.includes('deleted') ? 'success' : 'error'}`}>{message}</div>}
 
           {section === 'dashboard' && (
@@ -888,6 +987,20 @@ export default function Admin() {
 
           {section === 'missing-lyrics' && <MissingLyricsQueue />}
 
+          {section === 'chords' && (
+            <div id="chords" className="card">
+              <h2>Chords</h2>
+              <p className="admin-chords-note">
+                Chord sheets are managed per song from the Music Catalog: open
+                Manage Chords to paste chords or import JSON, TXT, CHO, or
+                ChordPro files, preview them, and save.
+              </p>
+              <button type="button" className="btn" onClick={() => handleNavClick('music')}>
+                Open Music Catalog
+              </button>
+            </div>
+          )}
+
           {section === 'karaoke' && (
             <div id="karaoke" className="card">
               <h2>Karaoke Tracks Management</h2>
@@ -997,8 +1110,9 @@ export default function Admin() {
           )}
 
           {section === 'ai-recommendation' && <AdminAIRecommendation />}
+          </div>
         </main>
       </div>
-    </>
+    </div>
   );
 }

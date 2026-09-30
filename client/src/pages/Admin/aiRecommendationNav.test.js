@@ -64,11 +64,12 @@ test('nav: no duplicate destination keys in SECTIONS', () => {
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test('nav: uses existing text sidebar convention (no new icon package / no emoji icon for nav)', () => {
+test('nav: sidebar uses the existing Font Awesome strategy (no new icon package)', () => {
   assert.equal(/lucide|react-icons|@heroicons|react-icons\/|from 'lucide-react'/.test(ADMIN_SOURCE), false);
-  const sidebarBlock = ADMIN_SOURCE.slice(ADMIN_SOURCE.indexOf('<nav className="sidebar">'), ADMIN_SOURCE.indexOf('</nav>'));
-  assert.equal(/<i |<svg |icon=|Icon/.test(sidebarBlock), false);
-  assert.ok(sidebarBlock.includes('{sectionLabel(s)}'));
+  const sidebarBlock = ADMIN_SOURCE.slice(ADMIN_SOURCE.indexOf('<nav'), ADMIN_SOURCE.indexOf('</nav>'));
+  assert.ok(sidebarBlock.includes('fa-solid'), 'icons reuse the global Font Awesome set');
+  assert.ok(sidebarBlock.includes('{NAV_META[s].label ?? sectionLabel(s)}'), 'labels stay centralized');
+  assert.equal(/<svg /.test(sidebarBlock), false);
 });
 
 test('nav: no new icon dependency imported in Admin or page', () => {

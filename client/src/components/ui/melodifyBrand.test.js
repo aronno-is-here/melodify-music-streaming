@@ -155,8 +155,10 @@ test('auth and shell pages no longer render the old tile/fa-wave-square mark', (
   }
 });
 
-test('admin page title is plain text and is not converted into a lockup', () => {
-  assert.match(adminSrc, /<h1>Melodify Admin Panel<\/h1>/);
+test('admin branding is plain text and is not converted into a lockup', () => {
+  assert.match(adminSrc, /<span className="admin-brand-name">Melodify<\/span>/);
+  assert.match(adminSrc, /<span className="admin-brand-tag">Admin Console<\/span>/);
+  assert.equal(adminSrc.includes('Melodify Admin Panel'), false);
   assert.equal(adminSrc.includes('MelodifyBrand'), false);
   assert.equal(adminSrc.includes('Melod<span>'), false);
 });

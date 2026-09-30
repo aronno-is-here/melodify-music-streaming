@@ -65,6 +65,7 @@ A full-featured music streaming web application with user authentication, a song
 
 ### Admin Side
 - Dedicated admin login (demo credentials, see below)
+- **Modern admin shell** - `/admin` renders a fixed glass header (responsive menu toggle, plain-text `Melodify` / `Admin Console` brand, current section title with its nav group, admin email, Logout) above a **grouped sidebar** (Overview / Content / Community / Business / Intelligence with Font Awesome icons, keyboard-accessible items, `aria-current` active state) and an internally scrolling, max-width content area styled with the shared `--mel-*` design tokens; at ≤768px the sidebar collapses into an off-canvas drawer with backdrop and Escape-to-close
 - Dashboard with analytics cards (users, songs, plays, revenue)
 - User management (search, edit, ban)
 - Music catalog management (add songs + edit lyrics/chords verification metadata, discover suggested source pages, and import verified lyrics with Source URL/Notes provenance)

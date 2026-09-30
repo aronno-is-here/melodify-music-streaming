@@ -73,12 +73,16 @@ test('click handler: regular section clicks on /admin still set the section dire
 // SIDEBAR WIRING + ACTIVE STATE
 // ============================================================
 
-test('sidebar: every section anchor is a real click target with active class mapping', () => {
+test('sidebar: every section entry is a real click target with active class mapping', () => {
   assert.ok(
     ADMIN_SOURCE.includes(
-      `<a className={section === s ? 'active' : ''} onClick={() => handleSectionClick(s)}>`,
+      "className={`admin-nav-item ${section === s ? 'active' : ''}`}",
     ),
-    'anchor maps section state to .active and calls the handler',
+    'anchor maps section state to .active',
+  );
+  assert.ok(
+    ADMIN_SOURCE.includes('onClick={() => handleNavClick(s)}'),
+    'anchor calls the section switcher',
   );
 });
 
