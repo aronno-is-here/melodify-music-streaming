@@ -1944,3 +1944,75 @@ span.admin-table-art {
     font-size: 12px;
   }
 }
+
+/* ------------------------------------------------------------
+   Checkpoint D - Users, Moderation, Subscriptions, AI workspaces
+   ------------------------------------------------------------ */
+.admin-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-user-avatar {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--mel-bg-elev-2);
+}
+
+span.admin-user-avatar {
+  display: grid;
+  place-items: center;
+  color: var(--mel-text-muted);
+  font-size: 13px;
+  border: 1px dashed var(--mel-border);
+}
+
+.admin-user-cell .admin-table-song-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-cell-truncate {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.admin-cell-truncate--wide {
+  max-width: 280px;
+}
+
+.admin-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.admin-page .ai-rec-stage-selector {
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .admin-cell-truncate {
+    max-width: 160px;
+  }
+
+  .admin-cell-truncate--wide {
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 360px) {
+  .admin-cell-truncate,
+  .admin-cell-truncate--wide {
+    max-width: 140px;
+  }
+}

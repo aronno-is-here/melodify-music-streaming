@@ -232,13 +232,13 @@ test('sections: handleSectionClick stays the single section switcher', () => {
 test('sections: every existing section still renders its content unchanged', () => {
   for (const [needle, expected] of [
     ["section === 'dashboard' && (", '<div id="dashboard" className="admin-page">'],
-    ["section === 'users' && (", '<div id="users" className="card">'],
+    ["section === 'users' && (", '<div id="users" className="admin-page">'],
     ["section === 'music' && (", '<div id="music" className="admin-page">'],
     ["section === 'missing-lyrics' && <MissingLyricsQueue />", null],
     ["section === 'chords' && (", '<div id="chords" className="admin-page">'],
     ["section === 'karaoke' && (", '<div id="karaoke" className="admin-page">'],
-    ["section === 'moderation' && (", '<div id="moderation" className="card">'],
-    ["section === 'subscriptions' && (", '<div id="subscriptions" className="card">'],
+    ["section === 'moderation' && (", '<div id="moderation" className="admin-page">'],
+    ["section === 'subscriptions' && (", '<div id="subscriptions" className="admin-page">'],
     ["section === 'ai-recommendation' && <AdminAIRecommendation />", null],
   ]) {
     assert.ok(ADMIN_SOURCE.includes(needle), needle);

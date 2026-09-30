@@ -50,6 +50,28 @@ import {
   selectKaraokeSource,
   selectKaraokeSourceTone,
 } from './adminContentWorkspacesUi.js';
+import {
+  ADMIN_MODERATION_MESSAGES,
+  ADMIN_REPORT_STATUS_FILTERS,
+  ADMIN_SUBSCRIPTION_MESSAGES,
+  ADMIN_SUBSCRIPTION_STATUS_FILTERS,
+  ADMIN_USERS_MESSAGES,
+  ADMIN_USER_ROLE_FILTERS,
+  buildSubscriptionSummary,
+  filterAdminReports,
+  filterAdminSubscriptions,
+  filterAdminUsers,
+  formatAdminDate,
+  selectAdminModerationView,
+  selectAdminSubscriptionsView,
+  selectAdminUsersView,
+  selectReportStatusLabel,
+  selectReportStatusTone,
+  selectSubscriptionStatusLabel,
+  selectSubscriptionStatusTone,
+  selectUserRoleLabel,
+  selectUserRoleTone,
+} from './adminOperationsWorkspacesUi.js';
 
 const SECTIONS = ['dashboard', 'users', 'music', 'missing-lyrics', 'karaoke', 'moderation', 'subscriptions', 'ai-recommendation'];
 
@@ -192,6 +214,11 @@ export default function Admin() {
   const [karaokeTracks, setKaraokeTracks] = useState([]);
   const [message, setMessage] = useState('');
   const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [reportSearch, setReportSearch] = useState('');
+  const [reportStatusFilter, setReportStatusFilter] = useState('all');
+  const [subscriptionSearch, setSubscriptionSearch] = useState('');
+  const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState('all');
   const [editingSong, setEditingSong] = useState(null);
   const [sourceUrlDraft, setSourceUrlDraft] = useState('');
   const [lyricsSources, setLyricsSources] = useState({ status: 'idle', candidates: [] });
@@ -637,10 +664,30 @@ export default function Admin() {
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    const q = userSearch.toLowerCase();
-    return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+  const filteredUsers = filterAdminUsers(users, { query: userSearch, role: userRoleFilter });
+  const usersView = selectAdminUsersView({
+    status: dataStatus.users,
+    totalUsers: users.length,
+    matchCount: filteredUsers.length,
   });
+
+  const filteredReports = filterAdminReports(reports, { query: reportSearch, status: reportStatusFilter });
+  const moderationView = selectAdminModerationView({
+    status: dataStatus.reports,
+    totalReports: reports.length,
+    matchCount: filteredReports.length,
+  });
+
+  const filteredSubscriptions = filterAdminSubscriptions(subscriptions, {
+    query: subscriptionSearch,
+    status: subscriptionStatusFilter,
+  });
+  const subscriptionsView = selectAdminSubscriptionsView({
+    status: dataStatus.subscriptions,
+    totalSubscriptions: subscriptions.length,
+    matchCount: filteredSubscriptions.length,
+  });
+  const subscriptionSummary = buildSubscriptionSummary(subscriptions);
 
   const catalogGenres = collectAdminCatalogGenres(songs);
   const filteredSongs = filterAdminCatalogSongs(songs, { query: songSearch, genre: songGenreFilter });
@@ -934,41 +981,118 @@ export default function Admin() {
           )}
 
           {section === 'users' && (
-            <div id="users" className="card">
-              <h2>User Management</h2>
-              <input
-                type="text"
-                placeholder="Search users..."
-                style={{ width: '100%', padding: 10, marginBottom: 10, background: 'var(--accent-black, #000)', border: '1px solid var(--gray, #333)', color: 'var(--white, #fff)', borderRadius: 4 }}
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-              />
-              <table>
-                <thead>
-                  <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((u) => (
-                    <tr key={u._id}>
-                      <td>{u._id.slice(-6)}</td>
-                      <td>{u.name}</td>
-                      <td>{u.email}</td>
-                      <td>
-                        {editingUser === u._id ? (
-                          <select value={u.role} onChange={(e) => updateUserRole(u._id, e.target.value)}>
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        ) : u.role}
-                      </td>
-                      <td>
-                        <button className="btn" onClick={() => setEditingUser(u._id)}>Edit</button>
-                        <button className="btn btn-danger" onClick={() => deleteUser(u._id)}>Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div id="users" className="admin-page">
+              <div className="admin-page-header">
+                <div className="admin-page-header-text">
+                  <h2>User Management</h2>
+                  <p className="admin-page-subtitle">{ADMIN_USERS_MESSAGES.PAGE_SUBTITLE}</p>
+                </div>
+                <div className="admin-page-header-actions">
+                  <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="admin-toolbar">
+                <div className="admin-toolbar-search">
+                  <i className="fa-solid fa-search admin-toolbar-icon" aria-hidden="true"></i>
+                  <input
+                    type="search"
+                    className="admin-toolbar-input"
+                    value={userSearch}
+                    onChange={(event) => setUserSearch(event.target.value)}
+                    placeholder={ADMIN_USERS_MESSAGES.SEARCH_PLACEHOLDER}
+                    aria-label="Search users"
+                  />
+                </div>
+                <label className="admin-toolbar-select-wrap">
+                  <span className="admin-sr-only">{ADMIN_USERS_MESSAGES.FILTER_ROLE}</span>
+                  <select
+                    className="admin-toolbar-select"
+                    value={userRoleFilter}
+                    onChange={(event) => setUserRoleFilter(event.target.value)}
+                  >
+                    {ADMIN_USER_ROLE_FILTERS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {usersView === 'loading' ? (
+                <div className="admin-panel admin-state-block" role="status">{ADMIN_USERS_MESSAGES.LOADING}</div>
+              ) : usersView === 'error' ? (
+                <div className="admin-panel admin-state-block admin-error-state" role="alert">
+                  <p>{ADMIN_USERS_MESSAGES.ERROR}</p>
+                  <button type="button" className="btn" onClick={() => loadAll(true)}>{ADMIN_USERS_MESSAGES.RETRY}</button>
+                </div>
+              ) : usersView === 'empty' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_USERS_MESSAGES.EMPTY}</div>
+              ) : usersView === 'no-matches' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_USERS_MESSAGES.NO_MATCHES}</div>
+              ) : (
+                <div className="admin-panel admin-table-panel">
+                  {dataStatus.users === 'error' && (
+                    <p className="admin-inline-notice" role="status">{ADMIN_USERS_MESSAGES.REFRESH_FAILED}</p>
+                  )}
+                  <div className="admin-table-shell">
+                    <div className="admin-table-scroll">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredUsers.map((u) => (
+                            <tr key={u._id}>
+                              <td>
+                                <span className="admin-user-cell">
+                                  {u.avatar ? (
+                                    <img className="admin-user-avatar" src={u.avatar} alt="" loading="lazy" />
+                                  ) : (
+                                    <span className="admin-user-avatar admin-user-avatar--empty" aria-hidden="true">
+                                      <i className="fa-solid fa-user"></i>
+                                    </span>
+                                  )}
+                                  <span className="admin-table-song-title">{u.name}</span>
+                                </span>
+                              </td>
+                              <td>
+                                <span className="admin-cell-truncate" title={u.email}>{u.email}</span>
+                              </td>
+                              <td>
+                                {editingUser === u._id ? (
+                                  <select
+                                    value={u.role}
+                                    aria-label={`Role for ${u.name}`}
+                                    onChange={(event) => updateUserRole(u._id, event.target.value)}
+                                  >
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                  </select>
+                                ) : (
+                                  <span className={`admin-badge ${selectUserRoleTone(u.role)}`}>{selectUserRoleLabel(u.role)}</span>
+                                )}
+                              </td>
+                              <td>{formatAdminDate(u.createdAt)}</td>
+                              <td>
+                                <button className="btn" onClick={() => setEditingUser(u._id)}>Edit</button>
+                                <button className="btn btn-danger" onClick={() => deleteUser(u._id)}>Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1473,65 +1597,220 @@ export default function Admin() {
           )}
 
           {section === 'moderation' && (
-            <div id="moderation" className="card">
-              <h2>Content Moderation</h2>
-              {reports.length === 0 ? <p>No reports</p> : (
-                <table>
-                  <thead>
-                    <tr><th>ID</th><th>Type</th><th>User</th><th>Reason</th><th>Status</th><th>Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((r) => (
-                      <tr key={r._id}>
-                        <td>{r._id.slice(-6)}</td>
-                        <td>{r.type}</td>
-                        <td>{r.user_email}</td>
-                        <td>{r.reason}</td>
-                        <td>{r.status}</td>
-                        <td>
-                          {r.status === 'pending' && (
-                            <>
-                              <button className="btn" onClick={() => resolveReport(r._id, 'resolved')}>Resolve</button>
-                              <button className="btn" onClick={() => resolveReport(r._id, 'dismissed')} style={{ marginLeft: 5 }}>Dismiss</button>
-                            </>
-                          )}
-                          <button className="btn btn-danger" onClick={() => deleteReport(r._id)} style={{ marginLeft: 5 }}>Delete</button>
-                        </td>
-                      </tr>
+            <div id="moderation" className="admin-page">
+              <div className="admin-page-header">
+                <div className="admin-page-header-text">
+                  <h2>Moderation</h2>
+                  <p className="admin-page-subtitle">{ADMIN_MODERATION_MESSAGES.PAGE_SUBTITLE}</p>
+                </div>
+                <div className="admin-page-header-actions">
+                  <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="admin-toolbar">
+                <div className="admin-toolbar-search">
+                  <i className="fa-solid fa-search admin-toolbar-icon" aria-hidden="true"></i>
+                  <input
+                    type="search"
+                    className="admin-toolbar-input"
+                    value={reportSearch}
+                    onChange={(event) => setReportSearch(event.target.value)}
+                    placeholder={ADMIN_MODERATION_MESSAGES.SEARCH_PLACEHOLDER}
+                    aria-label="Search reports"
+                  />
+                </div>
+                <label className="admin-toolbar-select-wrap">
+                  <span className="admin-sr-only">{ADMIN_MODERATION_MESSAGES.FILTER_STATUS}</span>
+                  <select
+                    className="admin-toolbar-select"
+                    value={reportStatusFilter}
+                    onChange={(event) => setReportStatusFilter(event.target.value)}
+                  >
+                    {ADMIN_REPORT_STATUS_FILTERS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                </label>
+              </div>
+
+              {moderationView === 'loading' ? (
+                <div className="admin-panel admin-state-block" role="status">{ADMIN_MODERATION_MESSAGES.LOADING}</div>
+              ) : moderationView === 'error' ? (
+                <div className="admin-panel admin-state-block admin-error-state" role="alert">
+                  <p>{ADMIN_MODERATION_MESSAGES.ERROR}</p>
+                  <button type="button" className="btn" onClick={() => loadAll(true)}>{ADMIN_MODERATION_MESSAGES.RETRY}</button>
+                </div>
+              ) : moderationView === 'empty' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_MODERATION_MESSAGES.EMPTY}</div>
+              ) : moderationView === 'no-matches' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_MODERATION_MESSAGES.NO_MATCHES}</div>
+              ) : (
+                <div className="admin-panel admin-table-panel">
+                  {dataStatus.reports === 'error' && (
+                    <p className="admin-inline-notice" role="status">{ADMIN_MODERATION_MESSAGES.REFRESH_FAILED}</p>
+                  )}
+                  <div className="admin-table-shell">
+                    <div className="admin-table-scroll">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Report</th>
+                            <th>Reporter</th>
+                            <th>Target</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredReports.map((r) => (
+                            <tr key={r._id}>
+                              <td>
+                                <span className="admin-table-song-title">{r.type || 'report'}</span>
+                                <span className="admin-table-song-meta">{r._id.slice(-6)}</span>
+                              </td>
+                              <td><span className="admin-cell-truncate" title={r.user_email}>{r.user_email}</span></td>
+                              <td>
+                                {r.content_id ? (
+                                  <span className="admin-cell-truncate" title={r.content_id}>{r.content_id}</span>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td><span className="admin-cell-truncate admin-cell-truncate--wide" title={r.reason}>{r.reason}</span></td>
+                              <td><span className={`admin-badge ${selectReportStatusTone(r.status)}`}>{selectReportStatusLabel(r.status)}</span></td>
+                              <td>{formatAdminDate(r.createdAt)}</td>
+                              <td>
+                                {r.status === 'pending' && (
+                                  <>
+                                    <button className="btn" onClick={() => resolveReport(r._id, 'resolved')}>Resolve</button>
+                                    <button className="btn" onClick={() => resolveReport(r._id, 'dismissed')}>Dismiss</button>
+                                  </>
+                                )}
+                                <button className="btn btn-danger" onClick={() => deleteReport(r._id)}>Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
 
           {section === 'subscriptions' && (
-            <div id="subscriptions" className="card">
-              <h2>Subscription Management</h2>
-              {subscriptions.length === 0 ? <p>No subscriptions</p> : (
-                <table>
-                  <thead>
-                    <tr><th>User Email</th><th>Plan</th><th>Status</th><th>End Date</th><th>Amount</th><th>Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {subscriptions.map((sub) => (
-                      <tr key={sub._id}>
-                        <td>{sub.user_email}</td>
-                        <td>{sub.plan}</td>
-                        <td>{sub.status}</td>
-                        <td>{sub.end_date ? String(sub.end_date).slice(0, 10) : '-'}</td>
-                        <td>${sub.amount}</td>
-                        <td>
-                          {sub.status === 'active' ? (
-                            <button className="btn btn-danger" onClick={() => updateSubscription(sub._id, 'expired')}>Expire</button>
-                          ) : (
-                            <button className="btn" onClick={() => updateSubscription(sub._id, 'active')}>Activate</button>
-                          )}
-                        </td>
-                      </tr>
+            <div id="subscriptions" className="admin-page">
+              <div className="admin-page-header">
+                <div className="admin-page-header-text">
+                  <h2>Subscription Management</h2>
+                  <p className="admin-page-subtitle">{ADMIN_SUBSCRIPTION_MESSAGES.PAGE_SUBTITLE}</p>
+                </div>
+                <div className="admin-page-header-actions">
+                  <button className="btn" onClick={() => loadAll(true)} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+
+              {dataStatus.subscriptions === 'ready' && subscriptions.length > 0 && (
+                <section className="admin-stats-grid admin-summary-grid" aria-label="Subscription summary">
+                  {subscriptionSummary.map((card) => (
+                    <article key={card.key} className="admin-stat-card">
+                      <div className="admin-stat-card-head">
+                        <span className="admin-stat-icon" aria-hidden="true"><i className={`fa-solid ${card.icon}`}></i></span>
+                        <span className="admin-stat-label">{card.label}</span>
+                      </div>
+                      <p className="admin-stat-value">{card.value}</p>
+                    </article>
+                  ))}
+                </section>
+              )}
+
+              <div className="admin-toolbar">
+                <div className="admin-toolbar-search">
+                  <i className="fa-solid fa-search admin-toolbar-icon" aria-hidden="true"></i>
+                  <input
+                    type="search"
+                    className="admin-toolbar-input"
+                    value={subscriptionSearch}
+                    onChange={(event) => setSubscriptionSearch(event.target.value)}
+                    placeholder={ADMIN_SUBSCRIPTION_MESSAGES.SEARCH_PLACEHOLDER}
+                    aria-label="Search subscriptions"
+                  />
+                </div>
+                <label className="admin-toolbar-select-wrap">
+                  <span className="admin-sr-only">{ADMIN_SUBSCRIPTION_MESSAGES.FILTER_STATUS}</span>
+                  <select
+                    className="admin-toolbar-select"
+                    value={subscriptionStatusFilter}
+                    onChange={(event) => setSubscriptionStatusFilter(event.target.value)}
+                  >
+                    {ADMIN_SUBSCRIPTION_STATUS_FILTERS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                </label>
+              </div>
+
+              {subscriptionsView === 'loading' ? (
+                <div className="admin-panel admin-state-block" role="status">{ADMIN_SUBSCRIPTION_MESSAGES.LOADING}</div>
+              ) : subscriptionsView === 'error' ? (
+                <div className="admin-panel admin-state-block admin-error-state" role="alert">
+                  <p>{ADMIN_SUBSCRIPTION_MESSAGES.ERROR}</p>
+                  <button type="button" className="btn" onClick={() => loadAll(true)}>{ADMIN_SUBSCRIPTION_MESSAGES.RETRY}</button>
+                </div>
+              ) : subscriptionsView === 'empty' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_SUBSCRIPTION_MESSAGES.EMPTY}</div>
+              ) : subscriptionsView === 'no-matches' ? (
+                <div className="admin-panel admin-state-block">{ADMIN_SUBSCRIPTION_MESSAGES.NO_MATCHES}</div>
+              ) : (
+                <div className="admin-panel admin-table-panel">
+                  {dataStatus.subscriptions === 'error' && (
+                    <p className="admin-inline-notice" role="status">{ADMIN_SUBSCRIPTION_MESSAGES.REFRESH_FAILED}</p>
+                  )}
+                  <div className="admin-table-shell">
+                    <div className="admin-table-scroll">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>User</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSubscriptions.map((sub) => (
+                            <tr key={sub._id}>
+                              <td><span className="admin-cell-truncate" title={sub.user_email}>{sub.user_email}</span></td>
+                              <td>{sub.plan}</td>
+                              <td><span className={`admin-badge ${selectSubscriptionStatusTone(sub.status)}`}>{selectSubscriptionStatusLabel(sub.status)}</span></td>
+                              <td>{formatAdminDate(sub.createdAt)}</td>
+                              <td>{formatAdminDate(sub.end_date)}</td>
+                              <td>${sub.amount}</td>
+                              <td>
+                                {sub.status === 'active' ? (
+                                  <button className="btn btn-danger" onClick={() => updateSubscription(sub._id, 'expired')}>Expire</button>
+                                ) : (
+                                  <button className="btn" onClick={() => updateSubscription(sub._id, 'active')}>Activate</button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}

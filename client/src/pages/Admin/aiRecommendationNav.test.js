@@ -140,8 +140,8 @@ test('shell: visible heading is exactly "AI Recommendation"', () => {
   assert.equal(PAGE_SOURCE.includes('AI Recommendations'), false);
 });
 
-test('shell: factual subtitle only (dashboard subtitle replaces 40/43 placeholder)', () => {
-  assert.ok(PAGE_SOURCE.includes('Monitor the latest persisted recommendation evaluation for each pipeline stage.'));
+test('shell: factual subtitle only (observability subtitle replaces the evaluation-only line)', () => {
+  assert.ok(PAGE_SOURCE.includes('Monitor recommendation model status, snapshots, metrics, and serving health.'));
   assert.equal(PAGE_SOURCE.includes('Recommendation model quality metrics and evaluation history will appear here.'), false);
   assert.equal(/checkpoint|41\/43|40\/43|TODO|FIXME/i.test(PAGE_SOURCE), false);
 });
