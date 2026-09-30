@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
@@ -158,7 +158,15 @@ export default function Feed() {
     }
   }, [posts]);
 
+  const shareInFlightRef = useRef(new Set());
+
   const sharePost = useCallback(async (post) => {
+    if (!post || !post._id || shareInFlightRef.current.has(post._id)) return;
+    shareInFlightRef.current.add(post._id);
+    api.post(`/api/posts/${post._id}/share`)
+      .catch(() => {})
+      .finally(() => shareInFlightRef.current.delete(post._id));
+
     const shareUrl = `${window.location.origin}/user/${post.author?._id}`;
     const shareText = getShareText(post);
 

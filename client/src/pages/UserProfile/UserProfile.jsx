@@ -8,6 +8,15 @@ import SongRow from '../../components/music/SongRow.jsx';
 import SectionHeader from '../../components/music/SectionHeader.jsx';
 import EmptyState from '../../components/music/EmptyState.jsx';
 import AppDialog from '../../components/ui/AppDialog.jsx';
+import {
+  FRIEND_ACTION_LABELS,
+  FRIEND_REJECT_LABEL,
+  FRIEND_STATUSES,
+  acceptFriendRequest,
+  fetchFriendStatus,
+  rejectFriendRequest,
+  sendFriendRequest,
+} from '../../services/friendRequests.js';
 import cssRaw from './UserProfile.css?raw';
 
 const TABS = Object.freeze([
@@ -55,6 +64,10 @@ export default function UserProfile() {
   const [followingCount, setFollowingCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
 
+  const [friendStatus, setFriendStatus] = useState(FRIEND_STATUSES.NONE);
+  const [friendRequestId, setFriendRequestId] = useState('');
+  const [friendLoading, setFriendLoading] = useState(false);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [recordings, setRecordings] = useState([]);
   const [recordingsLoading, setRecordingsLoading] = useState(false);
@@ -84,6 +97,23 @@ export default function UserProfile() {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  useEffect(() => {
+    if (!id || !currentUser || !profile) return undefined;
+    if (profile.isOwnProfile) return undefined;
+
+    let cancelled = false;
+    (async () => {
+      const result = await fetchFriendStatus(id, { apiClient: api });
+      if (cancelled || !result.ok) return;
+      setFriendStatus(result.status);
+      setFriendRequestId(result.requestId || '');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, currentUser, profile]);
 
   useEffect(() => {
     if (!profile) return;
@@ -127,6 +157,52 @@ export default function UserProfile() {
     setIsFollowing(!isFollowing);
     setFollowersCount(data.followersCount || 0);
     setStatusMessage(isFollowing ? 'Unfollowed user.' : 'Now following user.');
+  };
+
+  const handleFriendAction = async (action) => {
+    if (friendLoading) return;
+    setFriendLoading(true);
+    setStatusMessage('');
+
+    let result;
+    if (action === 'send') {
+      result = await sendFriendRequest(id, { apiClient: api });
+    } else if (action === 'accept') {
+      result = await acceptFriendRequest(friendRequestId, { apiClient: api });
+    } else if (action === 'reject') {
+      result = await rejectFriendRequest(friendRequestId, { apiClient: api });
+    } else {
+      setFriendLoading(false);
+      return;
+    }
+
+    setFriendLoading(false);
+
+    if (!result.ok) {
+      setStatusMessage(result.error || 'Unable to update friend request.');
+      if (result.code === 'FRIEND_REQUEST_INCOMING') {
+        setFriendStatus(FRIEND_STATUSES.INCOMING_PENDING);
+        setFriendRequestId(result.requestId || '');
+      }
+      return;
+    }
+
+    if (result.status === FRIEND_STATUSES.REJECTED) {
+      setFriendStatus(FRIEND_STATUSES.NONE);
+      setFriendRequestId('');
+      setStatusMessage('Friend request rejected.');
+      return;
+    }
+
+    setFriendStatus(result.status);
+    setFriendRequestId(result.requestId || '');
+    setStatusMessage(
+      result.status === FRIEND_STATUSES.OUTGOING_PENDING
+        ? 'Friend request sent.'
+        : result.status === FRIEND_STATUSES.FRIENDS
+          ? 'You are now friends.'
+          : '',
+    );
   };
 
   const openUserList = async (type) => {
@@ -199,14 +275,62 @@ export default function UserProfile() {
           </div>
 
           {!profile.isOwnProfile && currentUser ? (
-            <button
-              type="button"
-              className={`music-pill-btn up-follow-btn ${isFollowing ? 'is-following' : ''}`}
-              onClick={handleFollow}
-              disabled={followLoading}
-            >
-              {followLoading ? 'Updating...' : isFollowing ? 'Following' : 'Follow'}
-            </button>
+            <div className="up-social-actions">
+              <button
+                type="button"
+                className={`music-pill-btn up-follow-btn ${isFollowing ? 'is-following' : ''}`}
+                onClick={handleFollow}
+                disabled={followLoading}
+              >
+                {followLoading ? 'Updating...' : isFollowing ? 'Following' : 'Follow'}
+              </button>
+
+              <div className="up-friend-actions" role="group" aria-label="Friendship actions">
+                {friendStatus === FRIEND_STATUSES.NONE ? (
+                  <button
+                    type="button"
+                    className="music-pill-btn up-friend-btn"
+                    onClick={() => handleFriendAction('send')}
+                    disabled={friendLoading}
+                  >
+                    {friendLoading ? 'Sending...' : FRIEND_ACTION_LABELS.none}
+                  </button>
+                ) : null}
+
+                {friendStatus === FRIEND_STATUSES.OUTGOING_PENDING ? (
+                  <button type="button" className="music-pill-btn up-friend-btn" disabled>
+                    {FRIEND_ACTION_LABELS.outgoing_pending}
+                  </button>
+                ) : null}
+
+                {friendStatus === FRIEND_STATUSES.INCOMING_PENDING ? (
+                  <>
+                    <button
+                      type="button"
+                      className="music-pill-btn up-friend-btn"
+                      onClick={() => handleFriendAction('accept')}
+                      disabled={friendLoading}
+                    >
+                      {friendLoading ? 'Working...' : FRIEND_ACTION_LABELS.incoming_pending}
+                    </button>
+                    <button
+                      type="button"
+                      className="music-pill-btn up-friend-btn up-friend-btn--ghost"
+                      onClick={() => handleFriendAction('reject')}
+                      disabled={friendLoading}
+                    >
+                      {friendLoading ? 'Working...' : FRIEND_REJECT_LABEL}
+                    </button>
+                  </>
+                ) : null}
+
+                {friendStatus === FRIEND_STATUSES.FRIENDS ? (
+                  <button type="button" className="music-pill-btn up-friend-btn is-friends" disabled>
+                    {FRIEND_ACTION_LABELS.friends}
+                  </button>
+                ) : null}
+              </div>
+            </div>
           ) : null}
 
           {statusMessage ? <p className="up-status" role="status" aria-live="polite">{statusMessage}</p> : null}

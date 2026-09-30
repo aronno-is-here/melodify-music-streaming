@@ -303,3 +303,30 @@
     grid-column: 1 / -1;
   }
 }
+
+.up-social-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.up-friend-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.up-friend-btn {
+  min-height: 44px;
+}
+
+.up-friend-btn.is-friends {
+  background: rgba(56, 107, 255, 0.2);
+  color: var(--mel-text);
+  border: 1px solid rgba(56, 107, 255, 0.5);
+}
+
+.up-friend-btn--ghost {
+  background: transparent;
+  color: var(--mel-text-soft);
+  border: 1px solid var(--mel-border);
+}
