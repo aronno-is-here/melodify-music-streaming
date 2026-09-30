@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { api } from '../../api/client.js';
@@ -171,6 +171,11 @@ export default function Admin() {
     return 'dashboard';
   });
   const [navOpen, setNavOpen] = useState(false);
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+  }, [section]);
 
   const handleSectionClick = (s) => {
     if (s === 'ai-recommendation') {
@@ -740,7 +745,7 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--mel-bg)', color: 'var(--mel-text)' }}>
+      <div className="admin-loading-screen">
         <p>Loading admin panel...</p>
       </div>
     );
@@ -827,7 +832,7 @@ export default function Admin() {
           </div>
         </nav>
 
-        <main className="content admin-content">
+        <main className="content admin-content" ref={contentRef}>
           <div className="admin-content-inner">
           {message && <div className={`message ${message.includes('success') || message.includes('updated') || message.includes('deleted') ? 'success' : 'error'}`}>{message}</div>}
 
@@ -1306,7 +1311,7 @@ export default function Admin() {
                       </p>
                     ) : null}
                     <button type="submit" className="btn">Save</button>
-                    <button type="button" className="btn" onClick={() => setEditingSong(null)} style={{ marginLeft: 10 }}>Cancel</button>
+                    <button type="button" className="btn" onClick={() => setEditingSong(null)}>Cancel</button>
                   </form>
                 </section>
               )}

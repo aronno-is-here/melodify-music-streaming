@@ -266,8 +266,16 @@ test('sections: Music keeps the existing Manage Chords workflow untouched', () =
 test('shell: admin-shell wraps header, sidebar, and content', () => {
   assert.ok(ADMIN_SOURCE.includes('<div className="admin-shell">'));
   assert.ok(ADMIN_SOURCE.includes('<header className="admin-header">'));
-  assert.ok(ADMIN_SOURCE.includes('<main className="content admin-content">'));
+  assert.ok(ADMIN_SOURCE.includes('<main className="content admin-content" ref={contentRef}>'));
   assert.ok(ADMIN_SOURCE.includes('<div className="admin-content-inner">'));
+});
+
+test('shell: switching sections scrolls the content back to the top', () => {
+  assert.ok(ADMIN_SOURCE.includes('const contentRef = useRef(null);'));
+  assert.match(
+    ADMIN_SOURCE,
+    /useEffect\(\(\) => \{\s*if \(contentRef\.current\) contentRef\.current\.scrollTop = 0;\s*\}, \[section\]\);/,
+  );
 });
 
 test('shell: Admin.css uses Melodify theme tokens for the console chrome', () => {
