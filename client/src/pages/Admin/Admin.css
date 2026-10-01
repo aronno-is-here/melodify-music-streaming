@@ -800,7 +800,7 @@ th {
 
 .missing-lyrics-filters {
   display: grid;
-  grid-template-columns: minmax(180px, 2fr) minmax(160px, 1fr) auto auto;
+  grid-template-columns: minmax(180px, 2fr) minmax(160px, 1fr) max-content max-content;
   gap: 12px;
   align-items: end;
   margin-bottom: 12px;
@@ -812,6 +812,12 @@ th {
   font-size: 13px;
   color: var(--white);
   white-space: nowrap;
+  min-width: max-content;
+}
+
+.missing-lyrics-missing-only input[type='checkbox'] {
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .missing-lyrics-table-wrap {
@@ -912,6 +918,29 @@ th {
   gap: 8px;
 }
 
+.missing-lyrics-import-row input[type='file'] {
+  max-width: min(320px, 100%);
+  font-size: 12px;
+  color: var(--mel-text-muted, #93a7c9);
+}
+
+.missing-lyrics-import-row input[type='file']::file-selector-button {
+  margin: 0 10px 0 0;
+  padding: 5px 12px;
+  border: 1px solid var(--mel-border-strong, rgba(112, 150, 220, 0.4));
+  border-radius: var(--mel-radius-10, 10px);
+  background: var(--mel-bg-elev-2, #101d36);
+  color: var(--mel-text, #e8f1ff);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.missing-lyrics-import-row input[type='file']::file-selector-button:hover {
+  border-color: var(--mel-cyan, #00b4d8);
+  color: var(--mel-text, #e8f1ff);
+}
+
 .missing-lyrics-counts {
   display: flex;
   flex-wrap: wrap;
@@ -970,6 +999,12 @@ th {
   .missing-lyrics-table td {
     padding: 6px 8px;
     font-size: 12px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1100px) {
+  .missing-lyrics-filters {
+    grid-template-columns: minmax(180px, 2fr) minmax(160px, 1fr);
   }
 }
 

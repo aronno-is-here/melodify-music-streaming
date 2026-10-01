@@ -155,3 +155,45 @@ test('12: no scraping or raw network patterns in the lyrics workspace', () => {
   assert.equal(/child_process/.test(haystack), false);
   assert.equal(/cheerio|puppeteer|playwright/i.test(haystack), false);
 });
+
+test('13: missing-only checkbox never stretches under the Refresh button', () => {
+  assert.match(
+    adminCss,
+    /\.missing-lyrics-filters \{\n\s*display: grid;\n\s*grid-template-columns: minmax\(180px, 2fr\) minmax\(160px, 1fr\) max-content max-content;/,
+    'filter tracks reserve content width for the toggle and Refresh button',
+  );
+  assert.match(
+    adminCss,
+    /\.missing-lyrics-missing-only \{\n(?:[^}]*\n)*?\s*min-width: max-content;/,
+    'the toggle cell never collapses below its nowrap label width',
+  );
+  assert.match(
+    adminCss,
+    /\.missing-lyrics-missing-only input\[type='checkbox'\] \{\n\s*width: auto;/,
+    'the checkbox opts out of the shared .form-group input width:100% rule',
+  );
+  assert.match(
+    adminCss,
+    /@media \(min-width: 769px\) and \(max-width: 1100px\) \{\n\s*\.missing-lyrics-filters \{\n\s*grid-template-columns: minmax\(180px, 2fr\) minmax\(160px, 1fr\);/,
+    'narrow desktops wrap the toggle onto a second row instead of overflowing',
+  );
+});
+
+test('14: batch import file input is themed for the dark admin shell', () => {
+  assert.match(
+    adminCss,
+    /\.missing-lyrics-import-row input\[type='file'\]::file-selector-button \{\n\s*margin: 0 10px 0 0;\n\s*padding: 5px 12px;/,
+    'the native Choose File button gets shell padding and spacing',
+  );
+  assert.match(
+    adminCss,
+    /\.missing-lyrics-import-row input\[type='file'\]::file-selector-button \{\n(?:[^}]*\n)*?\s*background: var\(--mel-bg-elev-2/,
+    'the Choose File button uses the dark elevated surface token',
+  );
+  assert.match(
+    adminCss,
+    /\.missing-lyrics-import-row input\[type='file'\]::file-selector-button:hover \{\n\s*border-color: var\(--mel-cyan/,
+    'hover affordance matches other lyrics actions',
+  );
+  assert.match(queueSource, /id="missing-lyrics-import-file"/);
+});
