@@ -39,6 +39,51 @@ test('unknown query keys are rejected', () => {
   }
 });
 
+test('Vercel rewrite path metadata is ignored so production requests parse', () => {
+  const parsed = parseMissingLyricsQuery({ path: 'admin/lyrics' });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.q, null);
+  assert.equal(parsed.language, null);
+  assert.equal(parsed.missing, true);
+  assert.equal(parsed.page, 1);
+  assert.equal(parsed.limit, DEFAULT_MISSING_LYRICS_LIMIT);
+
+  const withFilters = parseMissingLyricsQuery({
+    path: 'admin/lyrics',
+    q: ' tum ',
+    language: 'hindi',
+    missing: '1',
+    page: '2',
+    limit: '10',
+  });
+  assert.equal(withFilters.ok, true);
+  assert.equal(withFilters.q, 'tum');
+  assert.equal(withFilters.language, 'hindi');
+  assert.equal(withFilters.missing, true);
+  assert.equal(withFilters.page, 2);
+  assert.equal(withFilters.limit, 10);
+
+  const repeatedMetadata = parseMissingLyricsQuery({ path: ['admin', 'lyrics'] });
+  assert.equal(repeatedMetadata.ok, true);
+});
+
+test('path metadata never weakens unknown key or value validation', () => {
+  const unknownWithMetadata = parseMissingLyricsQuery({ path: 'admin/lyrics', userId: '1' });
+  assert.equal(unknownWithMetadata.ok, false);
+  assert.equal(unknownWithMetadata.error, MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY);
+
+  assert.equal(parseMissingLyricsQuery({ path: 'admin/lyrics', missing: 'true' }).ok, false);
+  assert.equal(parseMissingLyricsQuery({ path: 'admin/lyrics', limit: '51' }).ok, false);
+  assert.equal(parseMissingLyricsQuery({ path: 'admin/lyrics', language: 'korean' }).ok, false);
+});
+
+test('path metadata stripping does not mutate the input query', () => {
+  const query = { path: 'admin/lyrics', limit: '10' };
+  const before = JSON.stringify(query);
+  parseMissingLyricsQuery(query);
+  assert.equal(JSON.stringify(query), before);
+});
+
 test('unknown language values are rejected', () => {
   for (const language of ['korean', 'HINDI', ' bn-bd', 'bn-bd ']) {
     const parsed = parseMissingLyricsQuery({ language });

@@ -7,6 +7,7 @@ import {
   MAX_RECOMMENDATION_API_LIMIT,
   PERSONALIZED_RECOMMENDATION_HTTP_MESSAGES,
 } from '../services/personalizedRecommendationService.js';
+import { stripTransportQueryMetadata } from '../utils/transportQueryMetadata.js';
 
 const ALLOWED_KEYS = Object.freeze(['limit']);
 const DIGITS_ONLY = /^\d+$/;
@@ -23,15 +24,16 @@ export function parseRecommendationRequest(query) {
   if (query === undefined || query === null) {
     return { ok: true, value: { limit: DEFAULT_RECOMMENDATION_API_LIMIT } };
   }
-  if (!isPlainObjectLike(query)) return invalidQuery();
+  const request = stripTransportQueryMetadata(query);
+  if (!isPlainObjectLike(request)) return invalidQuery();
 
-  for (const key of Object.keys(query)) {
+  for (const key of Object.keys(request)) {
     if (!ALLOWED_KEYS.includes(key)) return invalidQuery();
   }
 
   let limit = DEFAULT_RECOMMENDATION_API_LIMIT;
-  if (Object.prototype.hasOwnProperty.call(query, 'limit')) {
-    const raw = query.limit;
+  if (Object.prototype.hasOwnProperty.call(request, 'limit')) {
+    const raw = request.limit;
     if (typeof raw !== 'string') return invalidQuery();
     if (!DIGITS_ONLY.test(raw)) return invalidQuery();
     const parsed = Number(raw);

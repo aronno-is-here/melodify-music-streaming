@@ -1,4 +1,5 @@
 import { escapeRegex } from './escapeRegex.js';
+import { stripTransportQueryMetadata } from './transportQueryMetadata.js';
 
 export const MISSING_LYRICS_LANGUAGE_FILTERS = Object.freeze([
   Object.freeze({ value: 'hindi', label: 'Hindi' }),
@@ -36,23 +37,24 @@ const REGIONAL_TAG_VALUES = Object.freeze({
 });
 
 export function parseMissingLyricsQuery(rawQuery = {}) {
-  if (!rawQuery || typeof rawQuery !== 'object' || Array.isArray(rawQuery)) {
+  const query = stripTransportQueryMetadata(rawQuery);
+  if (!query || typeof query !== 'object' || Array.isArray(query)) {
     return { ok: false, error: MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY };
   }
 
   const allowedKeys = new Set(['q', 'language', 'missing', 'page', 'limit']);
-  for (const key of Object.keys(rawQuery)) {
+  for (const key of Object.keys(query)) {
     if (!allowedKeys.has(key)) {
       return { ok: false, error: MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY };
     }
   }
 
   let q = null;
-  if (rawQuery.q !== undefined && rawQuery.q !== null && rawQuery.q !== '') {
-    if (typeof rawQuery.q !== 'string') {
+  if (query.q !== undefined && query.q !== null && query.q !== '') {
+    if (typeof query.q !== 'string') {
       return { ok: false, error: MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY };
     }
-    const trimmedQuery = rawQuery.q.trim();
+    const trimmedQuery = query.q.trim();
     if (trimmedQuery.length > 200) {
       return { ok: false, error: MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY };
     }
@@ -60,28 +62,28 @@ export function parseMissingLyricsQuery(rawQuery = {}) {
   }
 
   let language = null;
-  if (rawQuery.language !== undefined && rawQuery.language !== null && rawQuery.language !== '') {
-    if (typeof rawQuery.language !== 'string' || !MISSING_LYRICS_LANGUAGE_VALUES.includes(rawQuery.language)) {
+  if (query.language !== undefined && query.language !== null && query.language !== '') {
+    if (typeof query.language !== 'string' || !MISSING_LYRICS_LANGUAGE_VALUES.includes(query.language)) {
       return { ok: false, error: MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY };
     }
-    language = rawQuery.language;
+    language = query.language;
   }
 
   let missing = true;
-  if (rawQuery.missing !== undefined) {
-    if (rawQuery.missing !== '0' && rawQuery.missing !== '1') {
+  if (query.missing !== undefined) {
+    if (query.missing !== '0' && query.missing !== '1') {
       return { ok: false, error: MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY };
     }
-    missing = rawQuery.missing === '1';
+    missing = query.missing === '1';
   }
 
-  const page = parsePositiveInteger(rawQuery.page, DEFAULT_MISSING_LYRICS_PAGE, 1, Number.MAX_SAFE_INTEGER);
+  const page = parsePositiveInteger(query.page, DEFAULT_MISSING_LYRICS_PAGE, 1, Number.MAX_SAFE_INTEGER);
   if (page === null) {
     return { ok: false, error: MISSING_LYRICS_QUERY_ERROR_MESSAGES.INVALID_QUERY };
   }
 
   const limit = parsePositiveInteger(
-    rawQuery.limit,
+    query.limit,
     DEFAULT_MISSING_LYRICS_LIMIT,
     1,
     MAX_MISSING_LYRICS_LIMIT,

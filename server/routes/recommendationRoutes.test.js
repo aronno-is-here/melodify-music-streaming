@@ -623,3 +623,33 @@ test('196: package.json has no new dependencies from this checkpoint', () => {
   assert.equal(Object.keys(pkg.dependencies).length, 10);
   assert.equal(pkg.devDependencies.nodemon, '^3.1.4');
 });
+
+// --- 197–199: Vercel rewrite path metadata ---
+
+test('197: Vercel path metadata is accepted as a bare or limited query', () => {
+  const bare = parseRecommendationRequest({ path: 'recommendations' });
+  assert.equal(bare.ok, true);
+  assert.equal(bare.value.limit, DEFAULT_RECOMMENDATION_API_LIMIT);
+
+  const withLimit = parseRecommendationRequest({ path: 'recommendations', limit: '10' });
+  assert.equal(withLimit.ok, true);
+  assert.equal(withLimit.value.limit, 10);
+
+  const repeated = parseRecommendationRequest({ path: ['recommendations'] });
+  assert.equal(repeated.ok, true);
+});
+
+test('198: path metadata never weakens unknown key or limit validation', () => {
+  assert.equal(parseRecommendationRequest({ path: 'recommendations', extra: 'x' }).ok, false);
+  assert.equal(parseRecommendationRequest({ path: 'recommendations', user: USER_A }).ok, false);
+  assert.equal(parseRecommendationRequest({ path: 'recommendations', limit: '101' }).ok, false);
+  assert.equal(parseRecommendationRequest({ path: 'recommendations', limit: '0' }).ok, false);
+  assert.equal(parseRecommendationRequest({ path: 'recommendations', limit: 'abc' }).ok, false);
+});
+
+test('199: path metadata stripping does not mutate the input query', () => {
+  const query = { path: 'recommendations', limit: '10' };
+  const before = JSON.stringify(query);
+  parseRecommendationRequest(query);
+  assert.equal(JSON.stringify(query), before);
+});

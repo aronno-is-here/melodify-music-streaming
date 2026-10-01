@@ -7,6 +7,7 @@ import {
   normalizeChordReferenceUrl,
   selectChordPresentation,
 } from '../utils/chordProvider.js';
+import { stripTransportQueryMetadata } from '../utils/transportQueryMetadata.js';
 
 const router = express.Router();
 
@@ -35,7 +36,8 @@ const toSourceCandidate = (record) => {
 };
 
 // Only `refresh=1` is a supported query key; anything else is rejected.
-const parseSourcesQuery = (query) => {
+const parseSourcesQuery = (rawQuery) => {
+  const query = stripTransportQueryMetadata(rawQuery);
   if (!query || typeof query !== 'object') return false;
   const keys = Object.keys(query);
   if (keys.length === 0) return false;

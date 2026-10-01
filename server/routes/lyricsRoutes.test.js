@@ -343,3 +343,42 @@ test('lyrics sources route discovers bounded source candidates', async () => {
   );
   assert.equal(typeof response.body.discoveredAt, 'string');
 });
+
+test('lyrics sources route accepts Vercel path metadata without refresh', async () => {
+  const song = {
+    _id: 'f1f1f1f1f1f1f1f1f1f1f1f2',
+    title: 'Track',
+    artist: 'Artist',
+    duration: '3:00',
+  };
+  const response = await invokeSourcesRoute({
+    query: { path: 'lyrics/f1f1f1f1f1f1f1f1f1f1f1f2/sources' },
+    song,
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+});
+
+test('lyrics sources route accepts Vercel path metadata with refresh=1', async () => {
+  const song = {
+    _id: 'f1f1f1f1f1f1f1f1f1f1f1f3',
+    title: 'Track',
+    artist: 'Artist',
+    duration: '3:00',
+  };
+  const response = await invokeSourcesRoute({
+    query: { path: 'lyrics/f1f1f1f1f1f1f1f1f1f1f1f3/sources', refresh: '1' },
+    song,
+    user: { role: 'admin', _id: '64b64b64b64b64b64b64b6ff' },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+});
+
+test('lyrics sources route still rejects unknown keys alongside path metadata', async () => {
+  const response = await invokeSourcesRoute({
+    query: { path: 'lyrics/e1e1e1e1e1e1e1e1e1e1e1e1/sources', debug: '1' },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(response.body, { success: false, error: 'invalid lyrics sources query' });
+});

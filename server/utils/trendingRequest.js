@@ -1,3 +1,5 @@
+import { stripTransportQueryMetadata } from './transportQueryMetadata.js';
+
 export const DEFAULT_TRENDING_API_LIMIT = 10;
 export const MAX_TRENDING_API_LIMIT = 50;
 
@@ -17,15 +19,16 @@ const isPlainObjectLike = (value) =>
 
 export function parseTrendingRequest(query) {
   if (query === undefined) return { ok: true, value: { limit: DEFAULT_TRENDING_API_LIMIT } };
-  if (!isPlainObjectLike(query)) return invalid();
+  const request = stripTransportQueryMetadata(query);
+  if (!isPlainObjectLike(request)) return invalid();
 
-  for (const key of Object.keys(query)) {
+  for (const key of Object.keys(request)) {
     if (!ALLOWED_KEYS.includes(key)) return invalid();
   }
 
   let limit = DEFAULT_TRENDING_API_LIMIT;
-  if (Object.prototype.hasOwnProperty.call(query, 'limit')) {
-    const raw = query.limit;
+  if (Object.prototype.hasOwnProperty.call(request, 'limit')) {
+    const raw = request.limit;
     if (typeof raw !== 'string') return invalid();
     if (!DIGITS_ONLY.test(raw)) return invalid();
     const parsed = Number(raw);

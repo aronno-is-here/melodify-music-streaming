@@ -1047,7 +1047,7 @@ A fast admin path for filling the lyrics gaps that the discovery pipeline cannot
 
 **Queue — `GET /api/admin/lyrics`**
 
-- Query keys are exactly `q`, `language`, `missing`, `page`, `limit`; any other key is `400`.
+- Query keys are exactly `q`, `language`, `missing`, `page`, `limit`; any other key is `400`. Before validation the parser strips Vercel transport metadata with `stripTransportQueryMetadata()` (`server/utils/transportQueryMetadata.js`): the `vercel.json` rewrite `/api/:path*` → `/api` injects a `path` query key into every production request, so without this step the queue — plus the sibling `GET /api/lyrics/:id/sources`, `GET /api/recommendations`, and `GET /api/trending` parsers — answers `400` in production while passing locally; stripping only the known `path` key keeps unknown-key rejection intact.
 - `language` accepts only `hindi`, `bn-bd`, `bn-in`, `english` (plus the empty "all" value) and maps to the regional/script filter in `server/utils/missingLyricsQuery.js`; `missing` defaults to `on` and filters to songs that are not `lyrics_verified` or have empty/absent lyrics.
 - `limit` defaults to `20` and is hard-bounded to `1..50` with no silent clamping.
 - Rows are a whitelist projection — `songId`, `title`, `artist`, `album`, `duration`, `language`, `lyricsLanguage`, `regionalTag`, `lyricsStatus` (`missing|legacy|verified`), `source`, `lrclibStatus` (`stored|not-stored`), `sourceUrl`, and a cache-only `sourceCandidate` — the stored lyrics body is never returned.

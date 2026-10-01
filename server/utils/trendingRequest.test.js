@@ -128,3 +128,24 @@ test('20: input not mutated and output contains only limit', () => {
   assert.deepEqual(Object.keys(emptyResult.value), ['limit']);
   assert.deepEqual(empty, {});
 });
+
+test('21: Vercel path metadata is ignored without weakening validation', () => {
+  const bare = parseTrendingRequest({ path: 'trending' });
+  assert.equal(bare.ok, true);
+  assert.deepEqual(bare.value, { limit: DEFAULT_TRENDING_API_LIMIT });
+
+  const withLimit = parseTrendingRequest({ path: 'trending', limit: '5' });
+  assert.equal(withLimit.ok, true);
+  assert.equal(withLimit.value.limit, 5);
+
+  const repeated = parseTrendingRequest({ path: ['trending'] });
+  assert.equal(repeated.ok, true);
+
+  assert.equal(parseTrendingRequest({ path: 'trending', user: 'x' }).ok, false);
+  assert.equal(parseTrendingRequest({ path: 'trending', limit: '51' }).ok, false);
+
+  const query = { path: 'trending', limit: '5' };
+  const before = { ...query };
+  parseTrendingRequest(query);
+  assert.deepEqual(query, before);
+});
